@@ -3,7 +3,8 @@
     import { supabase } from "$lib/utils/supabase";
     import StatCard from "$lib/components/StatCard.svelte";
     import StatusBadge from "$lib/components/StatusBadge.svelte";
-    import { onMount } from "svelte";
+    import { onMount, onDestroy } from "svelte";
+    import { fly, fade } from "svelte/transition";
 
     let stats = $state({
         totalUploads: 0,
@@ -17,29 +18,50 @@
         { file_name: string; status: string; created_at: string }[]
     >([]);
     let loading = $state(true);
+    let channel: any;
 
     onMount(async () => {
         await loadDashboard();
+        setupRealtime();
         loading = false;
     });
 
+    onDestroy(() => {
+        if (channel) supabase.removeChannel(channel);
+    });
+
+    function setupRealtime() {
+        channel = supabase
+            .channel("dashboard-changes")
+            .on(
+                "postgres_changes",
+                { event: "*", schema: "public", table: "submissions" },
+                () => {
+                    loadDashboard(); // Reload on change
+                },
+            )
+            .subscribe();
+    }
+
     async function loadDashboard() {
-        const role = $profile?.role;
-        if (!role) return;
+        const userProfile = $profile;
+        if (!userProfile) return;
+
+        const role = userProfile.role;
 
         if (role === "Teacher") {
             const { count } = await supabase
                 .from("submissions")
                 .select("*", { count: "exact", head: true })
-                .eq("user_id", $profile!.id);
+                .eq("user_id", userProfile.id);
             stats.totalUploads = count || 0;
 
-            // 1. Get Teacher's Load (Number of subjects/sections)
+            // 1. Get Teacher's Load
             const { count: loadCount } = await supabase
                 .from("teaching_loads")
                 .select("*", { count: "exact", head: true })
-                .eq("user_id", $profile!.id)
-                .eq("is_active", true); // Only active loads count
+                .eq("user_id", userProfile.id)
+                .eq("is_active", true);
 
             const activeLoads = loadCount || 0;
             const currentWeek = getCurrentWeek();
@@ -49,13 +71,10 @@
             const { count: compliant } = await supabase
                 .from("submissions")
                 .select("*", { count: "exact", head: true })
-                .eq("user_id", $profile!.id)
+                .eq("user_id", userProfile.id)
                 .eq("status", "Compliant");
 
-            // 3. Calculate Rate: (Compliant / (Loads * Weeks)) * 100
-            // If no loads defined, we can't calculate a rate (or it's 100% if no uploads needed?)
-            // Let's assume 0 loads = 100% compliant (nothing to do) or 0% (if stricter).
-            // Going with: if loads > 0, calculate. Else, if uploads > 0, 100%. Else 0.
+            // 3. Calculate Rate
             if (activeLoads > 0) {
                 stats.compliantRate = Math.min(
                     100,
@@ -68,45 +87,77 @@
             const { data: recent } = await supabase
                 .from("submissions")
                 .select("file_name, status, created_at")
-                .eq("user_id", $profile!.id)
+                .eq("user_id", userProfile.id)
                 .order("created_at", { ascending: false })
                 .limit(5);
             recentActivity = recent || [];
         } else {
             // Supervisor / School Head stats
-            const { count: teachers } = await supabase
+            let query = supabase
                 .from("profiles")
                 .select("*", { count: "exact", head: true })
                 .eq("role", "Teacher");
+            let subQuery = supabase
+                .from("submissions")
+                .select("*, uploader:profiles!inner(school_id, district_id)", {
+                    count: "exact",
+                    head: true,
+                });
+
+            // Apply hierarchy filters
+            if (role === "School Head" || role === "Master Teacher") {
+                if (userProfile.school_id) {
+                    query = query.eq("school_id", userProfile.school_id);
+                    subQuery = subQuery.eq(
+                        "profiles.school_id",
+                        userProfile.school_id,
+                    );
+                }
+            } else if (role === "District Supervisor") {
+                if (userProfile.district_id) {
+                    query = query.eq("district_id", userProfile.district_id);
+                    subQuery = subQuery.eq(
+                        "profiles.district_id",
+                        userProfile.district_id,
+                    );
+                }
+            }
+
+            const { count: teachers } = await query;
             stats.totalTeachers = teachers || 0;
 
-            const { count: total } = await supabase
-                .from("submissions")
-                .select("*", { count: "exact", head: true });
+            const { count: total } = await subQuery;
             stats.totalUploads = total || 0;
 
-            const { count: late } = await supabase
-                .from("submissions")
-                .select("*", { count: "exact", head: true })
-                .eq("status", "Late");
+            const { count: late } = await subQuery.eq("status", "Late");
             stats.lateCount = late || 0;
+
+            // Re-fetch non-compliant if needed (assuming logic exists)
+            const { count: nonCompliant } = await subQuery.eq(
+                "status",
+                "Non-compliant",
+            );
+            stats.nonCompliantCount = nonCompliant || 0;
 
             const { data: recent } = await supabase
                 .from("submissions")
-                .select("file_name, status, created_at")
+                .select(
+                    "file_name, status, created_at, uploader:profiles!inner(school_id, district_id)",
+                )
                 .order("created_at", { ascending: false })
                 .limit(5);
+
             recentActivity = recent || [];
         }
     }
 
-    const ACADEMIC_YEAR_START = new Date("2025-08-01"); // Sample start date
+    const ACADEMIC_YEAR_START = new Date("2025-08-01");
 
     function getCurrentWeek(): number {
         const now = new Date();
         const diff = now.getTime() - ACADEMIC_YEAR_START.getTime();
         const week = Math.ceil(diff / (1000 * 60 * 60 * 24 * 7));
-        return Math.max(1, week); // Ensure at least week 1
+        return Math.max(1, week);
     }
 
     function formatDate(dateStr: string): string {
@@ -151,53 +202,69 @@
         <!-- Stats Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
             {#if $profile?.role === "Teacher"}
-                <StatCard
-                    icon="📤"
-                    value={stats.totalUploads}
-                    label="Total Uploads"
-                />
-                <StatCard
-                    icon="✅"
-                    value="{stats.compliantRate}%"
-                    label="Compliance Rate"
-                    color="from-deped-green to-deped-green-dark"
-                />
-                <StatCard
-                    icon="📡"
-                    value={stats.pendingQueue}
-                    label="Pending Queue"
-                    color="from-deped-gold to-deped-gold-dark"
-                />
-                <StatCard icon="📄" value="DLL" label="Most Recent Type" />
+                <div in:fly={{ y: 20, duration: 400, delay: 0 }}>
+                    <StatCard
+                        icon="📤"
+                        value={stats.totalUploads}
+                        label="Total Uploads"
+                    />
+                </div>
+                <div in:fly={{ y: 20, duration: 400, delay: 100 }}>
+                    <StatCard
+                        icon="✅"
+                        value="{stats.compliantRate}%"
+                        label="Compliance Rate"
+                        color="from-deped-green to-deped-green-dark"
+                    />
+                </div>
+                <div in:fly={{ y: 20, duration: 400, delay: 200 }}>
+                    <StatCard
+                        icon="📡"
+                        value={stats.pendingQueue}
+                        label="Pending Queue"
+                        color="from-deped-gold to-deped-gold-dark"
+                    />
+                </div>
+                <div in:fly={{ y: 20, duration: 400, delay: 300 }}>
+                    <StatCard icon="📄" value="DLL" label="Most Recent Type" />
+                </div>
             {:else}
-                <StatCard
-                    icon="👩‍🏫"
-                    value={stats.totalTeachers}
-                    label="Total Teachers"
-                />
-                <StatCard
-                    icon="📤"
-                    value={stats.totalUploads}
-                    label="Total Submissions"
-                    color="from-deped-green to-deped-green-dark"
-                />
-                <StatCard
-                    icon="⏰"
-                    value={stats.lateCount}
-                    label="Late Submissions"
-                    color="from-deped-gold to-deped-gold-dark"
-                />
-                <StatCard
-                    icon="❌"
-                    value={stats.nonCompliantCount}
-                    label="Non-compliant"
-                    color="from-deped-red to-red-700"
-                />
+                <div in:fly={{ y: 20, duration: 400, delay: 0 }}>
+                    <StatCard
+                        icon="👩‍🏫"
+                        value={stats.totalTeachers}
+                        label="Total Teachers"
+                    />
+                </div>
+                <div in:fly={{ y: 20, duration: 400, delay: 100 }}>
+                    <StatCard
+                        icon="📤"
+                        value={stats.totalUploads}
+                        label="Total Submissions"
+                        color="from-deped-green to-deped-green-dark"
+                    />
+                </div>
+                <div in:fly={{ y: 20, duration: 400, delay: 200 }}>
+                    <StatCard
+                        icon="⏰"
+                        value={stats.lateCount}
+                        label="Late Submissions"
+                        color="from-deped-gold to-deped-gold-dark"
+                    />
+                </div>
+                <div in:fly={{ y: 20, duration: 400, delay: 300 }}>
+                    <StatCard
+                        icon="❌"
+                        value={stats.nonCompliantCount}
+                        label="Non-compliant"
+                        color="from-deped-red to-red-700"
+                    />
+                </div>
             {/if}
         </div>
 
         <!-- Quick Actions -->
-        <div class="mb-10">
+        <div class="mb-10" in:fade={{ duration: 600, delay: 400 }}>
             <h2 class="text-xl font-bold text-text-primary mb-4">
                 ⚡ Quick Actions
             </h2>
@@ -296,7 +363,7 @@
         </div>
 
         <!-- Recent Activity -->
-        <div>
+        <div in:fade={{ duration: 600, delay: 600 }}>
             <h2 class="text-xl font-bold text-text-primary mb-4">
                 🕐 Recent Activity
             </h2>
@@ -310,9 +377,14 @@
                     </div>
                 {:else}
                     <div class="divide-y divide-gray-100">
-                        {#each recentActivity as item}
+                        {#each recentActivity as item, i}
                             <div
                                 class="flex items-center justify-between px-6 py-4 hover:bg-white/40 transition-colors"
+                                in:fly={{
+                                    x: -20,
+                                    duration: 400,
+                                    delay: 700 + i * 50,
+                                }}
                             >
                                 <div class="flex items-center gap-3 min-w-0">
                                     <span class="text-xl flex-shrink-0">📄</span

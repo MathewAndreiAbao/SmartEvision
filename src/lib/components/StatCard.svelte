@@ -24,7 +24,7 @@
 
     <div class="flex items-start justify-between">
         <div class="flex-1">
-            <p class="text-text-muted text-sm font-medium mb-1">{label}</p>
+            <p class="text-text-muted text-base font-medium mb-1">{label}</p>
             <p class="text-3xl font-bold text-text-primary tracking-tight">
                 {value}
             </p>
