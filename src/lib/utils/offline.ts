@@ -5,7 +5,10 @@
  */
 
 import { get, set, del, keys } from 'idb-keyval';
+import { writable } from 'svelte/store';
 import { supabase } from './supabase';
+
+export const pendingSyncCount = writable<number>(0);
 
 const QUEUE_PREFIX = 'sync_queue_';
 
@@ -29,11 +32,17 @@ export interface QueueItem {
 export async function enqueue(item: QueueItem): Promise<void> {
     const key = `${QUEUE_PREFIX}${item.timestamp}_${item.fileHash.slice(0, 8)}`;
     await set(key, item);
+    await updatePendingCount();
 }
 
 export async function getQueueSize(): Promise<number> {
     const allKeys = await keys();
     return allKeys.filter((k) => String(k).startsWith(QUEUE_PREFIX)).length;
+}
+
+export async function updatePendingCount(): Promise<void> {
+    const size = await getQueueSize();
+    pendingSyncCount.set(size);
 }
 
 export async function getQueueItems(): Promise<QueueItem[]> {
@@ -179,6 +188,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
 
                 // Success! Remove from queue
                 await del(key);
+                await updatePendingCount();
                 success++;
                 console.log(`[offline] Successfully synced: ${item.fileName}`);
 
@@ -224,6 +234,7 @@ export function initOfflineSync(): void {
     }, 30000);
 
     // 3. Initial check on load
+    updatePendingCount();
     if (navigator.onLine) {
         setTimeout(() => {
             console.log('[offline] Initial load check...');

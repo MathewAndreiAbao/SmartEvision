@@ -81,10 +81,10 @@
                 >
                     {selectedFile.name.endsWith(".pdf") ? "📕" : "📘"}
                 </div>
-                <p class="text-base font-semibold text-text-primary">
+                <p class="text-lg font-bold text-text-primary">
                     {selectedFile.name}
                 </p>
-                <p class="text-sm text-text-muted mt-1">
+                <p class="text-base text-text-muted mt-1">
                     {formatSize(selectedFile.size)}
                 </p>
                 <button
@@ -105,12 +105,14 @@
                 >
                     📂
                 </div>
-                <p class="text-base font-semibold text-text-primary">
+                <p class="text-lg font-bold text-text-primary">
                     {dragOver
                         ? "Drop your file here!"
                         : "Drag & drop your file here"}
                 </p>
-                <p class="text-sm text-text-muted mt-2">or click to browse</p>
+                <p class="text-base text-text-muted mt-2 font-medium">
+                    or click to browse
+                </p>
                 <p class="text-xs text-text-muted mt-3">
                     Accepted formats: .docx, .pdf
                 </p>
