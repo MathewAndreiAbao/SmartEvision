@@ -1,4 +1,4 @@
-import { PUBLIC_APP_URL } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 
 /**
  * Global Configuration
@@ -6,8 +6,11 @@ import { PUBLIC_APP_URL } from '$env/static/public';
  */
 export const config = {
     // Fallback order:
-    // 1. PUBLIC_APP_URL from .env
-    // 2. window.location.origin (browser only)
-    // 3. Default local dev URL
-    APP_URL: PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173')
+    // 1. PUBLIC_APP_URL from .env or Vercel
+    // 2. Production Vercel URL
+    // 3. window.location.origin (browser only)
+    // 4. Default local dev URL
+    APP_URL: env.PUBLIC_APP_URL ||
+        'https://v0-smart-evision.vercel.app' ||
+        (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173')
 };
