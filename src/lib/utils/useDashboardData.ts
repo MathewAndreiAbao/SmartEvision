@@ -397,143 +397,163 @@ export async function markMissingSubmissions(
 }
 
 /**
- * WBS 14.6 — NEW Week-Based Compliance Calculation
+ * WBS 14.6 — Load-Based Compliance Calculation
  * Smart E-vision Instructional Supervision
  * 
  * This implements the new compliance logic where:
- * - Each week starts with a baseline non-compliance score of 2
- * - Score reduces to 1 if there's at least 1 compliant/on-time submission
- * - Score becomes 0 if ONLY compliant/on-time submissions exist
- * - No submission keeps score at 2
- * - Overall compliance = (Fully Compliant Weeks / Total Weeks) × 100
+ * - Expected submissions = Teaching Loads Count × Academic Weeks
+ * - Each missing or non-compliant submission counts as 1 non-compliant entry
+ * - Missing weeks are auto-marked as non-compliant; status only changes when a submission occurs
+ * - Compliance Rate = (Compliant Submissions / Total Expected Submissions) × 100
+ * 
+ * Example: 4 teaching loads × 10 weeks = 40 expected submissions
+ * If teacher submits 10 compliant documents across various loads/weeks:
+ * - Non-compliant count: 30 (40 - 10)
+ * - Compliance rate: (10/40) × 100 = 25%
  */
 
-export interface WeekComplianceDetails {
-  week_number: number;
-  non_compliance_score: number; // 0, 1, or 2
-  submission_count: number;
+export interface LoadBasedComplianceStats {
+  expected_total: number; // teachingLoads × totalWeeks
   compliant_count: number;
-  is_compliant: boolean; // true if score = 0
+  late_count: number;
+  non_compliant_count: number;
+  compliance_percentage: number; // (compliant_count / expected_total) × 100
+  breakdown_by_status: {
+    compliant: number;
+    late: number;
+    non_compliant: number;
+  };
+}
+
+export interface WeeklyLoadBreakdown {
+  week_number: number;
+  expected_per_week: number; // teachingLoadsCount
+  received_compliant: number;
+  received_late: number;
+  received_non_compliant: number;
+  received_total: number;
+  pending_count: number; // expected - received
+  week_compliance_percentage: number;
 }
 
 /**
- * Calculate non-compliance score for a single week.
+ * Calculate load-based compliance statistics.
+ * Takes into account all teaching loads and all weeks.
  * 
- * Returns:
- * - 0: Week is fully compliant (no non-compliant submissions)
- * - 1: Week has partial compliance (mix of statuses)
- * - 2: Week has no submission or only non-compliant submissions
+ * Returns comprehensive compliance stats based on:
+ * - Total expected = teachingLoads × totalWeeks
+ * - Actual compliant count from submissions with status = "compliant"
  */
-export function calculateWeekNonComplianceScore(
-  weekSubmissions: { compliance_status?: string }[]
-): number {
-  if (weekSubmissions.length === 0) {
-    return 2; // No submission = non-compliant
-  }
-
-  const counts = countSubmissionsByStatus(weekSubmissions);
-  const compliant = counts.compliant;
-  const total = counts.total;
-
-  // All submissions are compliant = fully compliant week
-  if (compliant === total && total > 0) {
-    return 0;
-  }
-
-  // Some compliant submissions = partial compliance
-  if (compliant > 0) {
-    return 1;
-  }
-
-  // No compliant submissions = non-compliant week
-  return 2;
-}
-
-/**
- * Get week-by-week compliance breakdown for a teacher.
- * 
- * Returns array of weeks with their non-compliance scores and compliance status.
- */
-export function getWeeklyComplianceDetails(
-  submissions: { week_number?: number; compliance_status?: string }[],
+export function calculateLoadBasedCompliance(
+  submissions: { compliance_status?: string; week_number?: number }[],
+  teachingLoadsCount: number,
   totalWeeks: number = 10
-): WeekComplianceDetails[] {
+): LoadBasedComplianceStats {
+  const expectedTotal = teachingLoadsCount * totalWeeks;
+  
+  const counts = countSubmissionsByStatus(submissions);
+  const compliant = counts.compliant;
+  const late = counts.late;
+  const non_compliant = counts.nonCompliant;
+
+  // Non-compliant count = expected - (compliant + late)
+  // But we also count explicit non-compliant submissions
+  const actualNonCompliant = expectedTotal - compliant - late;
+
+  const compliancePercentage = expectedTotal > 0 
+    ? Math.round((compliant / expectedTotal) * 100)
+    : 0;
+
+  return {
+    expected_total: expectedTotal,
+    compliant_count: compliant,
+    late_count: late,
+    non_compliant_count: actualNonCompliant,
+    compliance_percentage: compliancePercentage,
+    breakdown_by_status: {
+      compliant,
+      late,
+      non_compliant: actualNonCompliant
+    }
+  };
+}
+
+/**
+ * Get weekly breakdown of load-based compliance.
+ * For each week, shows what's expected vs what was received per teaching load.
+ */
+export function getWeeklyLoadBreakdown(
+  submissions: { compliance_status?: string; week_number?: number }[],
+  teachingLoadsCount: number,
+  totalWeeks: number = 10
+): WeeklyLoadBreakdown[] {
   const weekMap = new Map<number, any[]>();
 
   // Group submissions by week
   for (const sub of submissions) {
-    const week = sub.week_number || getWeekNumber(new Date(sub.created_at || new Date()));
+    const week = sub.week_number || 1;
     if (!weekMap.has(week)) {
       weekMap.set(week, []);
     }
     weekMap.get(week)!.push(sub);
   }
 
-  // Calculate score for each week
-  const details: WeekComplianceDetails[] = [];
+  const breakdown: WeeklyLoadBreakdown[] = [];
+  
   for (let w = 1; w <= totalWeeks; w++) {
     const weekSubs = weekMap.get(w) || [];
-    const score = calculateWeekNonComplianceScore(weekSubs);
     const counts = countSubmissionsByStatus(weekSubs);
 
-    details.push({
+    const expectedPerWeek = teachingLoadsCount;
+    const received = counts.compliant + counts.late + counts.nonCompliant;
+    const pending = expectedPerWeek - received;
+
+    const weekCompliancePercentage = expectedPerWeek > 0
+      ? Math.round((counts.compliant / expectedPerWeek) * 100)
+      : 0;
+
+    breakdown.push({
       week_number: w,
-      non_compliance_score: score,
-      submission_count: weekSubs.length,
-      compliant_count: counts.compliant,
-      is_compliant: score === 0
+      expected_per_week: expectedPerWeek,
+      received_compliant: counts.compliant,
+      received_late: counts.late,
+      received_non_compliant: counts.nonCompliant,
+      received_total: received,
+      pending_count: pending,
+      week_compliance_percentage: weekCompliancePercentage
     });
   }
 
-  return details;
+  return breakdown;
 }
 
 /**
- * Calculate overall compliance percentage using the new week-based logic.
- * 
- * Formula: (Fully Compliant Weeks / Total Weeks) × 100
- * 
- * Where "fully compliant week" = week with non-compliance score of 0
+ * Get comprehensive load-based compliance summary.
+ * Includes total stats, weekly breakdown, and real-time compliance tracking.
  */
-export function calculateWeekBasedCompliancePercentage(
-  submissions: { week_number?: number; compliance_status?: string }[],
-  totalWeeks: number = 10
-): number {
-  const details = getWeeklyComplianceDetails(submissions, totalWeeks);
-  const compliantWeeks = details.filter(d => d.is_compliant).length;
-  const percentage = (compliantWeeks / totalWeeks) * 100;
-  return Math.round(percentage);
-}
-
-/**
- * Get compliance summary showing both old and new calculation methods.
- * Useful for transition period or comparison purposes.
- */
-export function getComplianceSummary(
-  submissions: { week_number?: number; compliance_status?: string; created_at?: string }[],
+export function getLoadBasedComplianceSummary(
+  submissions: { compliance_status?: string; week_number?: number }[],
+  teachingLoadsCount: number,
   totalWeeks: number = 10
 ): {
-  weekly_details: WeekComplianceDetails[];
-  week_based_percentage: number;
-  traditional_percentage: number;
-  compliant_weeks_count: number;
-  non_compliant_weeks_count: number;
+  overall_stats: LoadBasedComplianceStats;
+  weekly_breakdown: WeeklyLoadBreakdown[];
+  total_submissions: number;
+  submission_rate: number; // (received total / expected total) × 100
 } {
-  const weekly_details = getWeeklyComplianceDetails(submissions, totalWeeks);
-  const week_based_percentage = calculateWeekBasedCompliancePercentage(submissions, totalWeeks);
+  const overall_stats = calculateLoadBasedCompliance(submissions, teachingLoadsCount, totalWeeks);
+  const weekly_breakdown = getWeeklyLoadBreakdown(submissions, teachingLoadsCount, totalWeeks);
   
   const counts = countSubmissionsByStatus(submissions);
-  const total = counts.total > 0 ? counts.total : 1;
-  const traditional_percentage = Math.round((counts.compliant / total) * 100);
-
-  const compliant_weeks_count = weekly_details.filter(d => d.is_compliant).length;
-  const non_compliant_weeks_count = totalWeeks - compliant_weeks_count;
+  const total_submissions = counts.total;
+  const submission_rate = overall_stats.expected_total > 0
+    ? Math.round((total_submissions / overall_stats.expected_total) * 100)
+    : 0;
 
   return {
-    weekly_details,
-    week_based_percentage,
-    traditional_percentage,
-    compliant_weeks_count,
-    non_compliant_weeks_count
+    overall_stats,
+    weekly_breakdown,
+    total_submissions,
+    submission_rate
   };
 }

@@ -14,6 +14,8 @@
     } from "$lib/utils/reportEngine";
     import {
         calculateCompliance,
+        calculateLoadBasedCompliance,
+        getLoadBasedComplianceSummary,
         groupSubmissionsByWeek,
         getComplianceColor,
         getComplianceClass,
@@ -141,9 +143,21 @@
         teachingLoadsCount = loadsResult.count || 0;
         const calendar = calendarResult.data || [];
 
-        // Calculate compliance stats using ACTUAL submission statuses
-        // Rate = compliant / total (no estimated expected)
-        complianceStats = calculateCompliance(submissions, teachingLoadsCount);
+        // Calculate compliance stats using NEW load-based approach
+        // Expected = teachingLoadsCount × totalWeeks
+        // Non-compliant = expected - (compliant + late)
+        // Rate = (compliant / expected) × 100
+        const loadBasedStats = calculateLoadBasedCompliance(submissions, teachingLoadsCount, 10);
+        
+        // Map load-based stats to the existing complianceStats format
+        complianceStats = {
+            Compliant: loadBasedStats.compliant_count,
+            Late: loadBasedStats.late_count,
+            NonCompliant: loadBasedStats.non_compliant_count,
+            totalUploaded: loadBasedStats.compliant_count + loadBasedStats.late_count,
+            expected: loadBasedStats.expected_total,
+            rate: loadBasedStats.compliance_percentage,
+        };
 
         // Weekly breakdown for chart + widget (uses calendar weeks)
         weeklyData = groupSubmissionsByWeek(
@@ -428,8 +442,8 @@
             <div in:fly={{ y: 20, duration: 400, delay: 0 }}>
                 <StatCard
                     icon="CloudUpload"
-                    value={stats.totalUploads}
-                    label="Total Uploads"
+                    value="{complianceStats.totalUploaded}/{complianceStats.expected}"
+                    label="Submissions (Compliant/Expected)"
                 />
             </div>
             <div in:fly={{ y: 20, duration: 400, delay: 100 }}>
@@ -452,7 +466,7 @@
                 <StatCard
                     icon="ShieldAlert"
                     value={complianceStats.NonCompliant}
-                    label="Non-compliant"
+                    label="Non-compliant Count"
                     color="from-gov-red to-red-700"
                 />
             </div>
