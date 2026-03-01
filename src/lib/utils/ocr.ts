@@ -128,7 +128,12 @@ function createDefaultMetadata(): DocMetadata {
 async function extractRasterMetadata(page: any, pdfjsLib: any): Promise<DocMetadata> {
     try {
         console.log('[ocr] Starting raster OCR fallback...');
-        const viewport = page.getViewport({ scale: 2.5 }); // Higher scale for better OCR
+
+        // Detect mobile to use a lower scale if needed
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        const scale = isMobile ? 1.5 : 2.5;
+
+        const viewport = page.getViewport({ scale });
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         if (!context) throw new Error('Could not get canvas context');
@@ -137,13 +142,13 @@ async function extractRasterMetadata(page: any, pdfjsLib: any): Promise<DocMetad
         canvas.width = viewport.width;
 
         await page.render({ canvasContext: context, viewport }).promise;
-        const dataUrl = canvas.toDataURL('image/png');
+        const dataUrl = canvas.toDataURL('image/png', 0.8); // Slight compression
 
         const { createWorker } = await import('tesseract.js');
         const worker = await createWorker('eng');
         try {
             const { data: { text, confidence } } = await worker.recognize(dataUrl);
-            console.log(`[ocr] Raster OCR complete (${text.length} chars), confidence:`, confidence);
+            console.log(`[ocr] Raster OCR complete (${text.length} chars), scale: ${scale}, confidence:`, confidence);
             const metadata = parseMetadata(text);
             return { ...metadata, rawText: text, confidence, language: 'English' };
         } finally {
@@ -156,12 +161,8 @@ async function extractRasterMetadata(page: any, pdfjsLib: any): Promise<DocMetad
 }
 
 function fileToDataUrl(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
+    // Optimization: createObjectURL is much lighter than FileReader for large images
+    return Promise.resolve(URL.createObjectURL(file));
 }
 
 /**

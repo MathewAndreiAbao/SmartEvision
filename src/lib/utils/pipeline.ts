@@ -11,7 +11,7 @@ import { stampQrCode } from './qr-stamp';
 import { supabase } from './supabase';
 import { enqueue } from './offline';
 
-export type PipelinePhase = 'transcoding' | 'compressing' | 'hashing' | 'stamping' | 'uploading' | 'done' | 'error';
+export type PipelinePhase = 'transcoding' | 'compressing' | 'analyzing' | 'hashing' | 'stamping' | 'uploading' | 'done' | 'error';
 
 export interface PipelineEvent {
     phase: PipelinePhase;
@@ -39,6 +39,7 @@ export interface PipelineOptions {
     teachingLoadId?: string;
     enforceOcr?: boolean;
     submissionWindowDays?: number;
+    preDetectedMetadata?: any;
 }
 
 function calculateComplianceStatus(
@@ -82,42 +83,53 @@ export async function* runPipeline(
         yield { phase: 'transcoding', progress: 100, message: 'Document converted' };
 
         // Phase 2: OCR Scanning / Metadata Extraction
-        yield { phase: 'hashing', progress: 0, message: 'Analyzing document content...' };
-        let detectedMetadata: any = null;
-        try {
-            const { extractMetadata, parseMetadata } = await import('./ocr');
-            if (transcodeResult.text) {
-                console.log('[pipeline] Using text from Word doc for metadata extraction');
-                detectedMetadata = parseMetadata(transcodeResult.text);
-            } else {
-                detectedMetadata = await extractMetadata(file);
-            }
+        yield { phase: 'analyzing', progress: 0, message: 'Analyzing document content...' };
+        let detectedMetadata: any = options.preDetectedMetadata || null;
 
-            console.log('[pipeline] Metadata Result:', detectedMetadata);
-
-            // ── OCR Enforcement (WBS 19.3) ──
-            if (options.enforceOcr) {
-                const isUnknown = !detectedMetadata || detectedMetadata.docType === 'Unknown';
-                const hasManualOverride = options.docType && options.docType !== 'Unknown';
-
-                if (isUnknown && !hasManualOverride) {
-                    throw new Error('OCR Enforcement: Document type could not be verified from the file content. Please ensure the document header is correct.');
-                }
-                const hasNoWeek = !detectedMetadata?.weekNumber && !options.weekNumber;
-                if (hasNoWeek) {
-                    throw new Error('OCR Enforcement: Week number not found in document. Please ensure "(WEEK X)" is present in the header.');
-                }
-            }
-
+        if (detectedMetadata) {
+            console.log('[pipeline] Using pre-detected metadata');
             yield {
-                phase: 'hashing',
-                progress: 50,
-                message: `Detected: ${detectedMetadata.docType} for Week ${detectedMetadata.weekNumber || '#'}`,
+                phase: 'analyzing',
+                progress: 100,
+                message: `Analyzed: ${detectedMetadata.docType} for Week ${detectedMetadata.weekNumber || '#'}`,
                 metadata: detectedMetadata
             };
-        } catch (ocrErr) {
-            console.warn('[pipeline] Metadata extraction failed:', ocrErr);
-            if (options.enforceOcr) throw ocrErr;
+        } else {
+            try {
+                const { extractMetadata, parseMetadata } = await import('./ocr');
+                if (transcodeResult.text) {
+                    console.log('[pipeline] Using text from Word doc for metadata extraction');
+                    detectedMetadata = parseMetadata(transcodeResult.text);
+                } else {
+                    detectedMetadata = await extractMetadata(file);
+                }
+
+                console.log('[pipeline] Metadata Result:', detectedMetadata);
+
+                // ── OCR Enforcement (WBS 19.3) ──
+                if (options.enforceOcr) {
+                    const isUnknown = !detectedMetadata || detectedMetadata.docType === 'Unknown';
+                    const hasManualOverride = options.docType && options.docType !== 'Unknown';
+
+                    if (isUnknown && !hasManualOverride) {
+                        throw new Error('OCR Enforcement: Document type could not be verified from the file content. Please ensure the document header is correct.');
+                    }
+                    const hasNoWeek = !detectedMetadata?.weekNumber && !options.weekNumber;
+                    if (hasNoWeek) {
+                        throw new Error('OCR Enforcement: Week number not found in document. Please ensure "(WEEK X)" is present in the header.');
+                    }
+                }
+
+                yield {
+                    phase: 'analyzing',
+                    progress: 100,
+                    message: `Filtered: ${detectedMetadata.docType} for Week ${detectedMetadata.weekNumber || '#'}`,
+                    metadata: detectedMetadata
+                };
+            } catch (ocrErr) {
+                console.warn('[pipeline] Metadata extraction failed:', ocrErr);
+                if (options.enforceOcr) throw ocrErr;
+            }
         }
 
         // Phase 3: Compress
