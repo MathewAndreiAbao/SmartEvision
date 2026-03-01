@@ -144,14 +144,30 @@ export async function* runPipeline(
 
         // Check for duplicates (ONLY if online)
         if (navigator.onLine) {
-            const { data: existing } = await supabase
+            yield { phase: 'hashing', progress: 100, message: 'Verifying uniqueness with server...' };
+
+            // Add a timeout for the network check to prevent mobile hangs
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Network Timeout: Uniqueness check took too long.')), 10000)
+            );
+
+            const duplicateCheckPromise = supabase
                 .from('submissions')
                 .select('id')
                 .eq('file_hash', fileHash)
                 .maybeSingle();
 
-            if (existing) {
-                throw new Error('Duplicate file detected. This document has already been archived.');
+            try {
+                const { data: existing }: any = await Promise.race([duplicateCheckPromise, timeoutPromise]);
+                if (existing) {
+                    throw new Error('Duplicate file detected. This document has already been archived.');
+                }
+            } catch (checkErr) {
+                console.warn('[pipeline] Uniqueness check failed/timed out:', checkErr);
+                // If it's a real duplicate error, rethrow it
+                if (checkErr instanceof Error && checkErr.message.includes('Duplicate')) throw checkErr;
+                // Otherwise (timeout/network error), proceed anyway to avoid blocking the user
+                console.info('[pipeline] Proceeding despite uniqueness check failure.');
             }
         }
 
