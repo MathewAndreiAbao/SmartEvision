@@ -18,7 +18,7 @@ export async function hashFromBuffer(buffer: ArrayBuffer | Uint8Array): Promise<
     }
 
     try {
-        const hashBuffer = await crypto.subtle.digest('SHA-256', input);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', input as Uint8Array);
         const hashArray = new Uint8Array(hashBuffer);
 
         // 3. Optimized hex conversion (avoiding large intermediate arrays)
