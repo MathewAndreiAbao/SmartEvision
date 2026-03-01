@@ -183,6 +183,9 @@ export async function* runPipeline(
         const fileName = file.name.replace(/\.\w+$/, '.pdf');
         const filePath = `${options.userId}/${Date.now()}_${fileName}`;
 
+        // Sanitize options to prevent IndexedDB cloning errors (Svelte proxies)
+        const sanitizedOptions = JSON.parse(JSON.stringify(options));
+
         if (isOnline) {
             try {
                 // Wrap upload and DB insertion in a timeout for mobile resilience
@@ -263,7 +266,7 @@ export async function* runPipeline(
                     fileHash,
                     fileSize: stamped.byteLength,
                     pdfBytes: stamped,
-                    options,
+                    options: sanitizedOptions,
                     timestamp: Date.now()
                 });
 
@@ -282,7 +285,7 @@ export async function* runPipeline(
                 fileHash,
                 fileSize: stamped.byteLength,
                 pdfBytes: stamped,
-                options,
+                options: sanitizedOptions,
                 timestamp: Date.now()
             });
 
