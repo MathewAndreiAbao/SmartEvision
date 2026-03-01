@@ -234,12 +234,12 @@
 					id="dashboard-title"
 					class="text-lg font-black text-text-primary leading-none tracking-tighter"
 				>
-					Smart E-vision
+					Smart E-VISION
 				</h1>
 				<p
 					class="text-[10px] text-text-muted font-bold uppercase tracking-[0.2em] mt-1"
 				>
-					Instructional Supervision
+					System Hub
 				</p>
 			</div>
 		</div>
