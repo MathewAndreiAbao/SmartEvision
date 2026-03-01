@@ -1,0 +1,1 @@
+import{w as i}from"./D02y27Ec.js";let c=0;function n(){const{subscribe:s,update:t}=i([]);return{subscribe:s,add(o,a,e=5e3){const r=c++;t(d=>[...d,{id:r,type:o,message:a}]),e>0&&setTimeout(()=>this.remove(r),e)},remove(o){t(a=>a.filter(e=>e.id!==o))}}}const m=n(),u=(s,t)=>m.add(s,t);export{u as a,m as t};

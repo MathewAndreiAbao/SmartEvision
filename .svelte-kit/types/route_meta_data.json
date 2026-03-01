@@ -1,0 +1,16 @@
+{
+	"/": [],
+	"/auth/login": [],
+	"/dashboard": [],
+	"/dashboard/admin": [],
+	"/dashboard/analytics": [],
+	"/dashboard/archive": [],
+	"/dashboard/calendar": [],
+	"/dashboard/load": [],
+	"/dashboard/master-teacher": [],
+	"/dashboard/monitoring/district": [],
+	"/dashboard/monitoring/school": [],
+	"/dashboard/settings": [],
+	"/dashboard/upload": [],
+	"/verify/[hash]": []
+}
