@@ -39,6 +39,7 @@
     let ocrConfidence = $state<number | null>(null);
     let fileSizeWarning = $state(false);
     let detectingMetadata = $state(false);
+    let detectedMetadata = $state<any>(null);
 
     // Watch for changes that could invalidate uniqueness
     $effect(() => {
@@ -241,6 +242,7 @@
         try {
             const metadata = await extractMetadata(file);
             console.log("[upload] OCR metadata result:", metadata);
+            detectedMetadata = metadata;
 
             if (metadata.docType !== "Unknown") {
                 docType = metadata.docType;
@@ -312,6 +314,7 @@
             teachingLoadId,
             enforceOcr: $settings.enforce_ocr,
             submissionWindowDays: $settings.submission_window_days,
+            preDetectedMetadata: detectedMetadata,
         });
 
         processLog = [];

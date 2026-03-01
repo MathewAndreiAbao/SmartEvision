@@ -18,6 +18,7 @@
     const steps: Step[] = [
         { phase: "transcoding", label: "Transcoding", icon: "" },
         { phase: "compressing", label: "Compressing", icon: "" },
+        { phase: "analyzing", label: "Analyzing", icon: "" },
         { phase: "hashing", label: "Hashing", icon: "" },
         { phase: "stamping", label: "Stamping", icon: "" },
         { phase: "uploading", label: "Syncing", icon: "" },
