@@ -14,11 +14,6 @@
     } from "$lib/utils/reportEngine";
     import {
         calculateCompliance,
-        calculateLoadBasedCompliance,
-        calculateDataDrivenCompliance,
-        getLoadBasedComplianceSummary,
-        generateExpectedSubmissions,
-        determineSubmissionStatus,
         groupSubmissionsByWeek,
         getComplianceColor,
         getComplianceClass,
@@ -146,37 +141,17 @@
         teachingLoadsCount = loadsResult.count || 0;
         const calendar = calendarResult.data || [];
 
-        // Calculate compliance stats using DATA-DRIVEN approach
-        // This generates all expected submissions based on teaching loads × weeks
-        // and determines status (compliant/late/missing) based on actual submission dates vs deadlines
-        const dataDrivenReport = calculateDataDrivenCompliance(
-            userProfile.id,
-            teachingLoadsCount,
-            calendar,
-            submissions
-        );
-        
-        // Map data-driven stats to the existing complianceStats format
-        complianceStats = {
-            Compliant: dataDrivenReport.summary.compliant_count,
-            Late: dataDrivenReport.summary.late_count,
-            NonCompliant: dataDrivenReport.summary.missing_count + dataDrivenReport.summary.non_compliant_count,
-            totalUploaded: dataDrivenReport.summary.compliant_count + dataDrivenReport.summary.late_count,
-            expected: dataDrivenReport.expected_total,
-            rate: dataDrivenReport.summary.compliance_percentage,
-        };
+        // Calculate compliance stats using ACTUAL submission statuses
+        // Rate = compliant / total (no estimated expected)
+        complianceStats = calculateCompliance(submissions, teachingLoadsCount);
 
-        // Weekly breakdown from data-driven report (automatically includes all weeks)
-        // Convert to the format expected by the chart component
-        weeklyData = dataDrivenReport.weekly_breakdown.map(wb => ({
-            week: wb.week_number,
-            label: `W${wb.week_number}`,
-            Compliant: wb.received_compliant,
-            Late: wb.received_late,
-            NonCompliant: wb.received_non_compliant,
-            rate: wb.week_compliance_percentage,
-            docs: wb.received_total
-        })).slice(0, 8); // Show last 8 weeks
+        // Weekly breakdown for chart + widget (uses calendar weeks)
+        weeklyData = groupSubmissionsByWeek(
+            submissions,
+            teachingLoadsCount,
+            8,
+            calendar,
+        );
 
         // Recent activity for the bottom section
         recentActivity = (subsResult.data || []).slice(0, 5);
@@ -320,7 +295,7 @@
 </script>
 
 <svelte:head>
-    <title>Dashboard — Smart E-vision Instructional Supervision</title>
+    <title>Dashboard — Smart E-VISION</title>
 </svelte:head>
 
 <div>
@@ -453,8 +428,8 @@
             <div in:fly={{ y: 20, duration: 400, delay: 0 }}>
                 <StatCard
                     icon="CloudUpload"
-                    value="{complianceStats.totalUploaded}/{complianceStats.expected}"
-                    label="Submissions (Compliant/Expected)"
+                    value={stats.totalUploads}
+                    label="Total Uploads"
                 />
             </div>
             <div in:fly={{ y: 20, duration: 400, delay: 100 }}>
@@ -477,7 +452,7 @@
                 <StatCard
                     icon="ShieldAlert"
                     value={complianceStats.NonCompliant}
-                    label="Non-compliant Count"
+                    label="Non-compliant"
                     color="from-gov-red to-red-700"
                 />
             </div>
