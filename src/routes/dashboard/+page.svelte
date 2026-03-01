@@ -295,7 +295,7 @@
 </script>
 
 <svelte:head>
-    <title>Dashboard — Smart E-VISION</title>
+    <title>Dashboard — Smart E-vision Instructional Supervision</title>
 </svelte:head>
 
 <div>

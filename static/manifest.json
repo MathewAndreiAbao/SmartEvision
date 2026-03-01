@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Smart E-VISION",
-  "short_name": "E-VISION",
+  "name": "Smart E-vision Instructional Supervision",
+  "short_name": "Smart E-vision",
   "description": "A Progressive Web App for Instructional Supervision Archiving — DepEd Calapan City, Calapan East District",
   "start_url": "/",
   "scope": "/",
@@ -56,14 +56,14 @@
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Smart E-VISION Dashboard"
+      "label": "Smart E-vision Dashboard"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Smart E-VISION Mobile"
+      "label": "Smart E-vision Mobile"
     }
   ],
   "shortcuts": [

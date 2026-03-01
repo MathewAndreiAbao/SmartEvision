@@ -396,3 +396,144 @@ export async function markMissingSubmissions(
   return marked;
 }
 
+/**
+ * WBS 14.6 — NEW Week-Based Compliance Calculation
+ * Smart E-vision Instructional Supervision
+ * 
+ * This implements the new compliance logic where:
+ * - Each week starts with a baseline non-compliance score of 2
+ * - Score reduces to 1 if there's at least 1 compliant/on-time submission
+ * - Score becomes 0 if ONLY compliant/on-time submissions exist
+ * - No submission keeps score at 2
+ * - Overall compliance = (Fully Compliant Weeks / Total Weeks) × 100
+ */
+
+export interface WeekComplianceDetails {
+  week_number: number;
+  non_compliance_score: number; // 0, 1, or 2
+  submission_count: number;
+  compliant_count: number;
+  is_compliant: boolean; // true if score = 0
+}
+
+/**
+ * Calculate non-compliance score for a single week.
+ * 
+ * Returns:
+ * - 0: Week is fully compliant (no non-compliant submissions)
+ * - 1: Week has partial compliance (mix of statuses)
+ * - 2: Week has no submission or only non-compliant submissions
+ */
+export function calculateWeekNonComplianceScore(
+  weekSubmissions: { compliance_status?: string }[]
+): number {
+  if (weekSubmissions.length === 0) {
+    return 2; // No submission = non-compliant
+  }
+
+  const counts = countSubmissionsByStatus(weekSubmissions);
+  const compliant = counts.compliant;
+  const total = counts.total;
+
+  // All submissions are compliant = fully compliant week
+  if (compliant === total && total > 0) {
+    return 0;
+  }
+
+  // Some compliant submissions = partial compliance
+  if (compliant > 0) {
+    return 1;
+  }
+
+  // No compliant submissions = non-compliant week
+  return 2;
+}
+
+/**
+ * Get week-by-week compliance breakdown for a teacher.
+ * 
+ * Returns array of weeks with their non-compliance scores and compliance status.
+ */
+export function getWeeklyComplianceDetails(
+  submissions: { week_number?: number; compliance_status?: string }[],
+  totalWeeks: number = 10
+): WeekComplianceDetails[] {
+  const weekMap = new Map<number, any[]>();
+
+  // Group submissions by week
+  for (const sub of submissions) {
+    const week = sub.week_number || getWeekNumber(new Date(sub.created_at || new Date()));
+    if (!weekMap.has(week)) {
+      weekMap.set(week, []);
+    }
+    weekMap.get(week)!.push(sub);
+  }
+
+  // Calculate score for each week
+  const details: WeekComplianceDetails[] = [];
+  for (let w = 1; w <= totalWeeks; w++) {
+    const weekSubs = weekMap.get(w) || [];
+    const score = calculateWeekNonComplianceScore(weekSubs);
+    const counts = countSubmissionsByStatus(weekSubs);
+
+    details.push({
+      week_number: w,
+      non_compliance_score: score,
+      submission_count: weekSubs.length,
+      compliant_count: counts.compliant,
+      is_compliant: score === 0
+    });
+  }
+
+  return details;
+}
+
+/**
+ * Calculate overall compliance percentage using the new week-based logic.
+ * 
+ * Formula: (Fully Compliant Weeks / Total Weeks) × 100
+ * 
+ * Where "fully compliant week" = week with non-compliance score of 0
+ */
+export function calculateWeekBasedCompliancePercentage(
+  submissions: { week_number?: number; compliance_status?: string }[],
+  totalWeeks: number = 10
+): number {
+  const details = getWeeklyComplianceDetails(submissions, totalWeeks);
+  const compliantWeeks = details.filter(d => d.is_compliant).length;
+  const percentage = (compliantWeeks / totalWeeks) * 100;
+  return Math.round(percentage);
+}
+
+/**
+ * Get compliance summary showing both old and new calculation methods.
+ * Useful for transition period or comparison purposes.
+ */
+export function getComplianceSummary(
+  submissions: { week_number?: number; compliance_status?: string; created_at?: string }[],
+  totalWeeks: number = 10
+): {
+  weekly_details: WeekComplianceDetails[];
+  week_based_percentage: number;
+  traditional_percentage: number;
+  compliant_weeks_count: number;
+  non_compliant_weeks_count: number;
+} {
+  const weekly_details = getWeeklyComplianceDetails(submissions, totalWeeks);
+  const week_based_percentage = calculateWeekBasedCompliancePercentage(submissions, totalWeeks);
+  
+  const counts = countSubmissionsByStatus(submissions);
+  const total = counts.total > 0 ? counts.total : 1;
+  const traditional_percentage = Math.round((counts.compliant / total) * 100);
+
+  const compliant_weeks_count = weekly_details.filter(d => d.is_compliant).length;
+  const non_compliant_weeks_count = totalWeeks - compliant_weeks_count;
+
+  return {
+    weekly_details,
+    week_based_percentage,
+    traditional_percentage,
+    compliant_weeks_count,
+    non_compliant_weeks_count
+  };
+}

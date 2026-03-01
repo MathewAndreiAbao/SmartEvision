@@ -62,7 +62,7 @@
 </script>
 
 <svelte:head>
-	<title>Smart E-VISION</title>
+	<title>Smart E-vision Instructional Supervision</title>
 </svelte:head>
 
 <Toast />
