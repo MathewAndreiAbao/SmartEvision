@@ -15,7 +15,10 @@
     import {
         calculateCompliance,
         calculateLoadBasedCompliance,
+        calculateDataDrivenCompliance,
         getLoadBasedComplianceSummary,
+        generateExpectedSubmissions,
+        determineSubmissionStatus,
         groupSubmissionsByWeek,
         getComplianceColor,
         getComplianceClass,
@@ -143,29 +146,37 @@
         teachingLoadsCount = loadsResult.count || 0;
         const calendar = calendarResult.data || [];
 
-        // Calculate compliance stats using NEW load-based approach
-        // Expected = teachingLoadsCount × totalWeeks
-        // Non-compliant = expected - (compliant + late)
-        // Rate = (compliant / expected) × 100
-        const loadBasedStats = calculateLoadBasedCompliance(submissions, teachingLoadsCount, 10);
+        // Calculate compliance stats using DATA-DRIVEN approach
+        // This generates all expected submissions based on teaching loads × weeks
+        // and determines status (compliant/late/missing) based on actual submission dates vs deadlines
+        const dataDrivenReport = calculateDataDrivenCompliance(
+            userProfile.id,
+            teachingLoadsCount,
+            calendar,
+            submissions
+        );
         
-        // Map load-based stats to the existing complianceStats format
+        // Map data-driven stats to the existing complianceStats format
         complianceStats = {
-            Compliant: loadBasedStats.compliant_count,
-            Late: loadBasedStats.late_count,
-            NonCompliant: loadBasedStats.non_compliant_count,
-            totalUploaded: loadBasedStats.compliant_count + loadBasedStats.late_count,
-            expected: loadBasedStats.expected_total,
-            rate: loadBasedStats.compliance_percentage,
+            Compliant: dataDrivenReport.summary.compliant_count,
+            Late: dataDrivenReport.summary.late_count,
+            NonCompliant: dataDrivenReport.summary.missing_count + dataDrivenReport.summary.non_compliant_count,
+            totalUploaded: dataDrivenReport.summary.compliant_count + dataDrivenReport.summary.late_count,
+            expected: dataDrivenReport.expected_total,
+            rate: dataDrivenReport.summary.compliance_percentage,
         };
 
-        // Weekly breakdown for chart + widget (uses calendar weeks)
-        weeklyData = groupSubmissionsByWeek(
-            submissions,
-            teachingLoadsCount,
-            8,
-            calendar,
-        );
+        // Weekly breakdown from data-driven report (automatically includes all weeks)
+        // Convert to the format expected by the chart component
+        weeklyData = dataDrivenReport.weekly_breakdown.map(wb => ({
+            week: wb.week_number,
+            label: `W${wb.week_number}`,
+            Compliant: wb.received_compliant,
+            Late: wb.received_late,
+            NonCompliant: wb.received_non_compliant,
+            rate: wb.week_compliance_percentage,
+            docs: wb.received_total
+        })).slice(0, 8); // Show last 8 weeks
 
         // Recent activity for the bottom section
         recentActivity = (subsResult.data || []).slice(0, 5);
