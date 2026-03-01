@@ -437,6 +437,38 @@ export interface WeeklyLoadBreakdown {
 }
 
 /**
+ * Expected submission entry structure
+ * Represents each individual submission slot that should exist
+ */
+export interface ExpectedSubmission {
+  week_number: number;
+  teaching_load_number: number;
+  deadline_date?: string;
+  status: 'missing' | 'compliant' | 'late' | 'non-compliant'; // Default: missing
+}
+
+/**
+ * Data-Driven Compliance Report
+ * Combines expected submissions with actual submissions for complete analysis
+ */
+export interface DataDrivenComplianceReport {
+  teacher_id: string;
+  teaching_loads_count: number;
+  total_weeks: number;
+  expected_total: number; // teachingLoadsCount × totalWeeks
+  expected_submissions: ExpectedSubmission[];
+  actual_submissions: any[]; // Actual submission records from DB
+  summary: {
+    compliant_count: number;
+    late_count: number;
+    missing_count: number;
+    non_compliant_count: number;
+    compliance_percentage: number;
+  };
+  weekly_breakdown: WeeklyLoadBreakdown[];
+}
+
+/**
  * Calculate load-based compliance statistics.
  * Takes into account all teaching loads and all weeks.
  * 
@@ -555,5 +587,208 @@ export function getLoadBasedComplianceSummary(
     weekly_breakdown,
     total_submissions,
     submission_rate
+  };
+}
+
+/**
+ * WBS 14.7 — DATA-DRIVEN COMPLIANCE LOGIC
+ * 
+ * This implements the compliance logic where:
+ * 1. All possible submission slots = teachingLoads × academicWeeks are generated
+ * 2. Each slot starts as 'missing' (auto-marked non-compliant)
+ * 3. When a submission arrives:
+ *    - If submission_date <= deadline_date → status = 'compliant'
+ *    - If submission_date > deadline_date → status = 'late'
+ *    - If submitted BEYOND late period → stays as 'missing'/'non-compliant'
+ * 4. Compliance % = (compliant count / expected total) × 100
+ * 
+ * All data comes from the actual database, NOT hardcoded.
+ */
+
+/**
+ * Generate all expected submission slots for a teacher.
+ * Returns one entry per (teaching_load × week) combination.
+ */
+export function generateExpectedSubmissions(
+  teachingLoadsCount: number,
+  academicWeeks: AcademicWeek[]
+): ExpectedSubmission[] {
+  const expected: ExpectedSubmission[] = [];
+
+  for (let loadNum = 1; loadNum <= teachingLoadsCount; loadNum++) {
+    for (const week of academicWeeks) {
+      expected.push({
+        week_number: week.week_number,
+        teaching_load_number: loadNum,
+        deadline_date: week.deadline_date,
+        status: 'missing' // Default: all expected slots start as missing
+      });
+    }
+  }
+
+  return expected;
+}
+
+/**
+ * Determine the compliance status of a submission based on submission date vs deadline.
+ * 
+ * Returns:
+ * - 'compliant': submitted on or before the deadline
+ * - 'late': submitted after deadline but within grace period (configurable, default 7 days)
+ * - 'non-compliant': submitted but outside allowed submission window
+ * - 'missing': not submitted
+ */
+export function determineSubmissionStatus(
+  submissionDate: string | Date | null,
+  deadlineDate: string | Date | null,
+  gracePeriodDays: number = 7
+): 'missing' | 'compliant' | 'late' | 'non-compliant' {
+  // No submission = missing
+  if (!submissionDate) {
+    return 'missing';
+  }
+
+  // No deadline set = treat as compliant if submitted
+  if (!deadlineDate) {
+    return 'compliant';
+  }
+
+  const subDate = new Date(submissionDate);
+  const deadDate = new Date(deadlineDate);
+  const graceLimitDate = new Date(deadDate);
+  graceLimitDate.setDate(graceLimitDate.getDate() + gracePeriodDays);
+
+  // On or before deadline
+  if (subDate <= deadDate) {
+    return 'compliant';
+  }
+
+  // After deadline but within grace period
+  if (subDate <= graceLimitDate) {
+    return 'late';
+  }
+
+  // Beyond grace period = not accepted / non-compliant
+  return 'non-compliant';
+}
+
+/**
+ * Calculate data-driven compliance for a teacher.
+ * Merges expected submissions with actual submissions from database.
+ * 
+ * Parameters:
+ * - teacherId: the teacher's user ID
+ * - teachingLoadsCount: number of teaching loads the teacher has
+ * - academicWeeks: array of academic calendar weeks with deadlines
+ * - actualSubmissions: actual submissions pulled from DB for this teacher
+ * 
+ * Returns: Complete compliance report with expected, actual, and summary stats
+ */
+export function calculateDataDrivenCompliance(
+  teacherId: string,
+  teachingLoadsCount: number,
+  academicWeeks: AcademicWeek[],
+  actualSubmissions: any[] = []
+): DataDrivenComplianceReport {
+  // 1. Generate all expected submission slots
+  const expectedSubmissions = generateExpectedSubmissions(teachingLoadsCount, academicWeeks);
+
+  // 2. Build a map of actual submissions for quick lookup
+  // Map key: "${week_number}_${teaching_load_number}" (or just week if load not tracked)
+  const submissionMap = new Map<string, any>();
+  for (const sub of actualSubmissions) {
+    // Extract week and load info from submission
+    const weekNum = sub.week_number || 1;
+    const loadNum = sub.teaching_load_number || 1;
+    const key = `${weekNum}_${loadNum}`;
+    submissionMap.set(key, sub);
+  }
+
+  // 3. Determine status for each expected slot
+  let compliantCount = 0;
+  let lateCount = 0;
+  let missingCount = 0;
+  let nonCompliantCount = 0;
+
+  const updatedExpected = expectedSubmissions.map(exp => {
+    const key = `${exp.week_number}_${exp.teaching_load_number}`;
+    const actualSub = submissionMap.get(key);
+
+    if (actualSub) {
+      // Submission exists: determine if compliant, late, or non-compliant
+      const status = determineSubmissionStatus(
+        actualSub.created_at || actualSub.submission_date,
+        exp.deadline_date,
+        7 // grace period
+      );
+      exp.status = status;
+
+      if (status === 'compliant') compliantCount++;
+      else if (status === 'late') lateCount++;
+      else if (status === 'non-compliant') nonCompliantCount++;
+    } else {
+      // No submission = missing
+      exp.status = 'missing';
+      missingCount++;
+    }
+
+    return exp;
+  });
+
+  // 4. Build weekly breakdown
+  const weeklyMap = new Map<number, any>();
+  for (const exp of updatedExpected) {
+    const w = exp.week_number;
+    if (!weeklyMap.has(w)) {
+      weeklyMap.set(w, {
+        week_number: w,
+        expected_per_week: 0,
+        received_compliant: 0,
+        received_late: 0,
+        received_non_compliant: 0,
+        received_total: 0,
+        pending_count: 0,
+        week_compliance_percentage: 0
+      });
+    }
+    const weekData = weeklyMap.get(w)!;
+    weekData.expected_per_week++;
+
+    if (exp.status === 'compliant') weekData.received_compliant++;
+    else if (exp.status === 'late') weekData.received_late++;
+    else if (exp.status === 'missing' || exp.status === 'non-compliant') {
+      weekData.received_non_compliant++;
+    }
+
+    weekData.received_total = weekData.received_compliant + weekData.received_late + weekData.received_non_compliant;
+    weekData.pending_count = weekData.expected_per_week - weekData.received_total;
+    weekData.week_compliance_percentage = weekData.expected_per_week > 0
+      ? Math.round((weekData.received_compliant / weekData.expected_per_week) * 100)
+      : 0;
+  }
+
+  const weeklyBreakdown = Array.from(weeklyMap.values()).sort((a, b) => a.week_number - b.week_number);
+
+  // 5. Build final report
+  const expectedTotal = expectedSubmissions.length;
+  const compliancePercentage = expectedTotal > 0
+    ? Math.round((compliantCount / expectedTotal) * 100)
+    : 0;
+
+  return {
+    teacher_id: teacherId,
+    teaching_loads_count: teachingLoadsCount,
+    total_weeks: academicWeeks.length,
+    expected_total: expectedTotal,
+    expected_submissions: updatedExpected,
+    actual_submissions: actualSubmissions,
+    summary: {
+      compliant_count: compliantCount,
+      late_count: lateCount,
+      missing_count: missingCount,
+      non_compliant_count: nonCompliantCount,
+      compliance_percentage: compliancePercentage
+    },
+    weekly_breakdown: weeklyBreakdown
   };
 }
