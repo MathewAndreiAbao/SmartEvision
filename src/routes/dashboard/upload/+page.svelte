@@ -42,9 +42,8 @@
     let submissionAlreadyExists = $state(false);
     let ocrConfidence = $state<number | null>(null);
     let fileSizeWarning = $state(false);
+    let detectingMetadata = $state(false);
     let detectedMetadata = $state<any>(null);
-    let manualLoadSelected = $state(false);
-    let manualWeekSelected = $state(false);
 
     // Selection Pickers
     let showLoadPicker = $state(false);
@@ -54,17 +53,9 @@
     // Watch for changes that could invalidate uniqueness
     $effect(() => {
         if (teachingLoadId && weekNumber && docType && $profile) {
-            untrack(() => checkExistingSubmission());
+            checkExistingSubmission();
         } else {
             submissionAlreadyExists = false;
-        }
-    });
-
-    // Keep subject in sync with teachingLoadId for pipeline
-    $effect(() => {
-        if (teachingLoadId && teachingLoads.length > 0) {
-            const load = teachingLoads.find((l) => l.id === teachingLoadId);
-            if (load) subject = load.subject;
         }
     });
 
@@ -229,19 +220,6 @@
         return fuzzyMatch ? fuzzyMatch.id : "";
     }
 
-    // Modal Action Handlers
-    function selectLoad(id: string) {
-        teachingLoadId = id;
-        manualLoadSelected = true;
-        showLoadPicker = false;
-    }
-
-    function selectWeek(wk: number) {
-        weekNumber = wk;
-        manualWeekSelected = true;
-        showWeekPicker = false;
-    }
-
     function parseDocDate(dateStr: string | null): Date | null {
         if (!dateStr) return null;
         try {
@@ -333,15 +311,11 @@
             }
 
             // Priority 1: Explicitly stated Week Number
-            if (metadata.weekNumber && !manualWeekSelected) {
+            if (metadata.weekNumber) {
                 weekNumber = metadata.weekNumber;
             }
             // Priority 2: Derive Week Number from Date if missing
-            else if (
-                metadata.date &&
-                $profile?.district_id &&
-                !manualWeekSelected
-            ) {
+            else if (metadata.date && $profile?.district_id) {
                 const docDate = parseDocDate(metadata.date);
                 if (docDate) {
                     const derivedWeek = await lookupWeekByDate(
@@ -361,11 +335,9 @@
                 ocrConfidence = metadata.confidence;
             }
 
-            // Auto-map teaching load if not manually overridden
-            if (!manualLoadSelected) {
-                const mappedId = mapTeachingLoad(metadata);
-                if (mappedId) teachingLoadId = mappedId;
-            }
+            // Auto-map teaching load
+            const mappedId = mapTeachingLoad(metadata);
+            if (mappedId) teachingLoadId = mappedId;
 
             const { speak } = await import("$lib/utils/voiceGuide");
             speak("Smart detection complete. Fields updated.");
@@ -392,89 +364,82 @@
         processing = true;
         result = null;
 
-        try {
-            // Voice Guidance feedback
-            const { speak, VoicePrompts } = await import(
-                "$lib/utils/voiceGuide"
-            );
-            speak(VoicePrompts.UPLOAD_START);
+        // Voice Guidance feedback
+        const { speak, VoicePrompts } = await import("$lib/utils/voiceGuide");
+        speak(VoicePrompts.UPLOAD_START);
 
-            const pipeline = runPipeline(selectedFile, {
-                userId: $profile.id,
-                docType,
-                subject: subject || undefined,
-                weekNumber,
-                teachingLoadId,
-                enforceOcr: $settings.enforce_ocr,
-                submissionWindowDays: $settings.submission_window_days,
-                preDetectedMetadata: detectedMetadata,
-            });
+        const pipeline = runPipeline(selectedFile, {
+            userId: $profile.id,
+            docType,
+            subject: subject || undefined,
+            weekNumber,
+            teachingLoadId,
+            enforceOcr: $settings.enforce_ocr,
+            submissionWindowDays: $settings.submission_window_days,
+            preDetectedMetadata: detectedMetadata,
+        });
 
-            processLog = [];
-            const startTime = Date.now();
+        processLog = [];
+        const startTime = Date.now();
 
-            for await (const event of pipeline) {
-                currentPhase = event.phase;
-                progress = event.progress;
-                message = event.message;
+        for await (const event of pipeline) {
+            currentPhase = event.phase;
+            progress = event.progress;
+            message = event.message;
 
-                // Add to log if message changed (WBS 14.5 Granular Progress)
-                if (
-                    processLog.length === 0 ||
-                    processLog[processLog.length - 1].message !== event.message
-                ) {
-                    processLog = [
-                        ...processLog,
-                        {
-                            timestamp: new Date().toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                second: "2-digit",
-                            }),
-                            message: event.message,
-                        },
-                    ];
-                }
-
-                if (event.metadata) {
-                    if (event.metadata.docType !== "Unknown") {
-                        docType = event.metadata.docType;
-                    }
-                    if (event.metadata.weekNumber && !manualWeekSelected) {
-                        weekNumber = event.metadata.weekNumber;
-                    }
-                    if (event.metadata.confidence !== undefined) {
-                        ocrConfidence = event.metadata.confidence;
-                    }
-                    const { speak } = await import("$lib/utils/voiceGuide");
-                    speak("Smart detection complete. Details updated.");
-                }
-
-                if (event.phase === "done" && event.result) {
-                    result = event.result;
-                    speak(VoicePrompts.UPLOAD_COMPLETE);
-                    addToast(
-                        "success",
-                        `Document queued for background sync! Hash: ${event.result.fileHash.slice(0, 12)}...`,
-                    );
-                    selectedFile = null;
-                }
-
-                if (event.phase === "error") {
-                    const { speak, VoicePrompts } = await import(
-                        "$lib/utils/voiceGuide"
-                    );
-                    speak(VoicePrompts.ERROR);
-                    addToast("error", event.message);
-                }
+            // Add to log if message changed (WBS 14.5 Granular Progress)
+            if (
+                processLog.length === 0 ||
+                processLog[processLog.length - 1].message !== event.message
+            ) {
+                processLog = [
+                    ...processLog,
+                    {
+                        timestamp: new Date().toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                        }),
+                        message: event.message,
+                    },
+                ];
             }
-        } catch (err: any) {
-            console.error("[upload] Fatal upload error:", err);
-            addToast("error", "An unexpected error occurred during upload.");
-        } finally {
-            processing = false;
-            queueCount = await getQueueSize();
+
+            if (event.metadata) {
+                if (event.metadata.docType !== "Unknown") {
+                    docType = event.metadata.docType;
+                }
+                if (event.metadata.weekNumber) {
+                    weekNumber = event.metadata.weekNumber;
+                }
+                if (event.metadata.confidence !== undefined) {
+                    ocrConfidence = event.metadata.confidence;
+                }
+                const { speak } = await import("$lib/utils/voiceGuide");
+                speak("Smart detection complete. Details updated.");
+            }
+
+            if (event.phase === "done" && event.result) {
+                result = event.result;
+                speak(VoicePrompts.UPLOAD_COMPLETE);
+                addToast(
+                    "success",
+                    `Document queued for background sync! Hash: ${event.result.fileHash.slice(0, 12)}...`,
+                );
+                selectedFile = null;
+            }
+
+            if (event.phase === "error") {
+                const { speak, VoicePrompts } = await import(
+                    "$lib/utils/voiceGuide"
+                );
+                speak(VoicePrompts.ERROR);
+                addToast("error", event.message);
+            }
         }
+
+        processing = false;
+        queueCount = await getQueueSize();
     }
 </script>
 
@@ -1066,7 +1031,10 @@
             <div class="max-h-[60vh] overflow-y-auto p-4 space-y-2">
                 {#each teachingLoads as load}
                     <button
-                        onclick={() => selectLoad(load.id)}
+                        onclick={() => {
+                            teachingLoadId = load.id;
+                            showLoadPicker = false;
+                        }}
                         class="w-full p-4 rounded-2xl text-left transition-all flex items-center justify-between group {teachingLoadId ===
                         load.id
                             ? 'bg-gov-blue text-white shadow-lg'
@@ -1145,7 +1113,10 @@
             >
                 {#each academicWeeks as wk}
                     <button
-                        onclick={() => selectWeek(wk)}
+                        onclick={() => {
+                            weekNumber = wk;
+                            showWeekPicker = false;
+                        }}
                         class="p-6 rounded-2xl text-center transition-all flex flex-col items-center justify-center gap-1 group {weekNumber ===
                         wk
                             ? 'bg-gov-blue text-white shadow-lg'
