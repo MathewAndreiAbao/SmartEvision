@@ -1,15 +1,13 @@
 /**
- * Upload Pipeline Orchestrator
- * Chains: Transcode → Compress → Hash → QR-Stamp → Upload/Queue
- * Yields status events for the multi-phase UI indicator.
+ * Upload Pipeline Orchestrator (Worker-Powered)
+ * Chains: Transcode → OCR/Analyze → Worker(Compress+Hash) → Worker(QR-Stamp) → Upload/Queue
+ * Offloads heavy PDF operations to a background thread to keep UI responsive.
  */
 
 import { transcodeToPdf } from './transcode';
-import { compressFile } from './compress';
-import { hashFromBuffer } from './hash';
-import { stampQrCode } from './qr-stamp';
 import { supabase } from './supabase';
 import { enqueue } from './offline';
+import PdfWorker from './pdf.worker?worker';
 
 export type PipelinePhase = 'transcoding' | 'compressing' | 'analyzing' | 'hashing' | 'stamping' | 'uploading' | 'done' | 'error';
 
@@ -71,10 +69,28 @@ function calculateComplianceStatus(
     return 'non-compliant';
 }
 
+
+// Helper to wrap worker calls in a promise
+function runWorkerTask(worker: Worker, type: string, payload: any): Promise<any> {
+    return new Promise((resolve, reject) => {
+        const id = Math.random().toString(36).substring(7);
+        const handler = (e: MessageEvent) => {
+            if (e.data.id === id) {
+                worker.removeEventListener('message', handler);
+                if (e.data.success) resolve(e.data.payload);
+                else reject(new Error(e.data.error));
+            }
+        };
+        worker.addEventListener('message', handler);
+        worker.postMessage({ type, payload, id });
+    });
+}
+
 export async function* runPipeline(
     file: File,
     options: PipelineOptions
 ): AsyncGenerator<PipelineEvent> {
+    const worker = new PdfWorker();
     try {
         // Phase 1: Transcode
         yield { phase: 'transcoding', progress: 0, message: 'Converting document to PDF...' };
@@ -132,14 +148,9 @@ export async function* runPipeline(
             }
         }
 
-        // Phase 3: Compress
-        yield { phase: 'compressing', progress: 0, message: 'Compressing file...' };
-        const compressed = await compressFile(pdfBytes);
-        yield { phase: 'compressing', progress: 100, message: `Compressed to ${(compressed.byteLength / 1024).toFixed(0)}KB` };
-
-        // Phase 3: Hash
-        yield { phase: 'hashing', progress: 0, message: 'Computing SHA-256 hash...' };
-        const fileHash = await hashFromBuffer(compressed.buffer as ArrayBuffer);
+        // Phase 3 & 4: Worker-powered Compress & Hash
+        yield { phase: 'compressing', progress: 0, message: 'Compressing and hashing PDF...' };
+        const { compressedBytes, fileHash } = await runWorkerTask(worker, 'COMPRESS_AND_HASH', { pdfBytes });
         yield { phase: 'hashing', progress: 100, message: `Hash: ${fileHash.slice(0, 12)}...` };
 
         // Check for duplicates (ONLY if online)
@@ -171,12 +182,21 @@ export async function* runPipeline(
             }
         }
 
-        // Phase 4: QR Stamp
+        // Phase 5: QR Stamp (Managed by Worker)
         yield { phase: 'stamping', progress: 0, message: 'Embedding verification QR code...' };
-        const stamped = await stampQrCode(compressed, fileHash);
+        const { generateQrPng } = await import('./qr-stamp');
+        const qrBytes = await generateQrPng(fileHash);
+
+        const { stampedBytes } = await runWorkerTask(worker, 'STAMP_QR', {
+            compressedBytes,
+            qrBytes,
+            fileHash
+        });
+
+        const stamped = stampedBytes;
         yield { phase: 'stamping', progress: 100, message: 'QR code stamped' };
 
-        // Phase 5: Upload
+        // Phase 6: Upload
         yield { phase: 'uploading', progress: 0, message: 'Uploading to secure storage...' };
 
         const isOnline = navigator.onLine;

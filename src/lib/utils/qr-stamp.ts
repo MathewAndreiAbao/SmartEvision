@@ -7,19 +7,12 @@
 import { PDFDocument } from 'pdf-lib';
 import { config } from './config';
 
-export async function stampQrCode(
-    pdfBytes: Uint8Array,
-    fileHash: string,
-    appUrl: string = ''
-): Promise<Uint8Array> {
-    const QRCode = (await import('qrcode')).default;
 
-    // Generate verification URL
-    // Fallback to appUrl arg if provided, otherwise config.APP_URL
+export async function generateQrPng(fileHash: string, appUrl: string = ''): Promise<Uint8Array> {
+    const QRCode = (await import('qrcode')).default;
     const baseUrl = appUrl || config.APP_URL;
     const verifyUrl = `${baseUrl}/verify/${fileHash}`;
 
-    // Generate QR code as PNG data URL
     const qrDataUrl = await QRCode.toDataURL(verifyUrl, {
         width: 100,
         margin: 1,
@@ -29,19 +22,27 @@ export async function stampQrCode(
         }
     });
 
-    // Convert data URL to bytes
     const qrBase64 = qrDataUrl.split(',')[1];
-    const qrBytes = Uint8Array.from(atob(qrBase64), (c) => c.charCodeAt(0));
+    return Uint8Array.from(atob(qrBase64), (c) => c.charCodeAt(0));
+}
 
-    // Load the PDF and embed QR
+/**
+ * @deprecated Use generateQrPng + Worker for better performance
+ */
+export async function stampQrCode(
+    pdfBytes: Uint8Array,
+    fileHash: string,
+    appUrl: string = ''
+): Promise<Uint8Array> {
+    const qrBytes = await generateQrPng(fileHash, appUrl);
+
     const pdfDoc = await PDFDocument.load(pdfBytes);
     const qrImage = await pdfDoc.embedPng(qrBytes);
 
-    // Stamp onto the first page — bottom-right corner
     const firstPage = pdfDoc.getPages()[0];
     const { width, height } = firstPage.getSize();
 
-    const qrSize = 72; // ~1 inch
+    const qrSize = 72;
     const margin = 30;
 
     firstPage.drawImage(qrImage, {
@@ -51,7 +52,6 @@ export async function stampQrCode(
         height: qrSize
     });
 
-    // Add small text label below QR
     const { StandardFonts, rgb } = await import('pdf-lib');
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
