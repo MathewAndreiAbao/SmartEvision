@@ -103,29 +103,33 @@
 
   async function loadData() {
     const userProfile = $profile;
-    if (!userProfile) return;
+    if (!userProfile?.school_id) return;
 
-    // Master Teacher sees schools they supervise
-    // Batch fetch everything
+    const schoolId = userProfile.school_id;
+
+    // Master Teacher sees teachers and data ONLY for their school
     const [schoolsRes, teachersRes, subsRes, loadsRes] = await Promise.all([
-      supabase.from("schools").select("id, name").order("name"),
+      supabase.from("schools").select("id, name").eq("id", schoolId).single(),
       supabase
         .from("profiles")
         .select("id, full_name, role, school_id")
+        .eq("school_id", schoolId)
         .eq("role", "Teacher")
         .order("full_name"),
       supabase
         .from("submissions")
         .select(
-          "id, user_id, status, compliance_status, created_at, week_number",
+          "id, user_id, status, compliance_status, created_at, week_number, uploader:profiles!inner(school_id)",
         )
+        .eq("profiles.school_id", schoolId)
         .order("created_at", { ascending: false }),
       supabase
         .from("teaching_loads")
-        .select("id, user_id, profiles!inner(school_id)"),
+        .select("id, user_id, profiles!inner(school_id)")
+        .eq("profiles.school_id", schoolId),
     ]);
 
-    schools = schoolsRes.data || [];
+    schools = schoolsRes.data ? [schoolsRes.data] : [];
     allTeachers = teachersRes.data || [];
     allSubmissions = subsRes.data || [];
     const allLoads = loadsRes.data || [];
@@ -337,9 +341,7 @@
         class="glass-card-static p-6"
         in:fly={{ y: 20, duration: 500, delay: 500 }}
       >
-        <h3 class="text-lg font-bold text-text-primary mb-4">
-          Multi-School Trend
-        </h3>
+        <h3 class="text-lg font-bold text-text-primary mb-4">School Trend</h3>
         {#if trendLabels.length > 0}
           <ComplianceTrendChart
             labels={trendLabels}

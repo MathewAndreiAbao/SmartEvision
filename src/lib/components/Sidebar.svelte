@@ -99,6 +99,12 @@
 			roles: ["School Head", "Master Teacher", "District Supervisor"],
 		},
 		{
+			href: "/dashboard/master-teacher",
+			label: "Coaching Hub",
+			icon: Briefcase,
+			roles: ["Master Teacher"],
+		},
+		{
 			href: "/dashboard/settings",
 			label: "Settings",
 			icon: Settings,

@@ -45,6 +45,11 @@
     let detectingMetadata = $state(false);
     let detectedMetadata = $state<any>(null);
 
+    // Selection Pickers
+    let showLoadPicker = $state(false);
+    let showWeekPicker = $state(false);
+    let academicWeeks = $state<number[]>([]);
+
     // Watch for changes that could invalidate uniqueness
     $effect(() => {
         if (teachingLoadId && weekNumber && docType && $profile) {
@@ -153,13 +158,28 @@
                 addToast("error", "Failed to load teaching loads");
             }
 
-            // Also fetch current week deadline immediately
-            const { getWeekNumber } = await import(
-                "$lib/utils/useDashboardData"
-            );
-            const wk = getWeekNumber();
+            // Fetch academic weeks for selection
             if ($profile.district_id) {
-                fetchCurrentDeadline(wk, $profile.district_id);
+                const cachedCal = await getCachedMetadata(
+                    `calendar_${$profile.district_id}`,
+                );
+                if (cachedCal?.data) {
+                    academicWeeks = (cachedCal.data as any[]).map(
+                        (w) => w.week_number,
+                    );
+                } else if (navigator.onLine) {
+                    const { data } = await supabase
+                        .from("academic_calendar")
+                        .select("week_number")
+                        .eq("district_id", $profile.district_id)
+                        .order("week_number", { ascending: true });
+                    if (data) academicWeeks = data.map((w) => w.week_number);
+                }
+
+                // If no weeks found, fallback to 1-10
+                if (academicWeeks.length === 0) {
+                    academicWeeks = Array.from({ length: 10 }, (_, i) => i + 1);
+                }
             }
         }
         loadingTeachingLoads = false;
@@ -582,12 +602,7 @@
                                         >Matched Teaching Load</span
                                     >
                                     <button
-                                        onclick={() => {
-                                            const newId = prompt(
-                                                "Enter Teaching Load ID or select from list (Manual Select)",
-                                            );
-                                            if (newId) teachingLoadId = newId;
-                                        }}
+                                        onclick={() => (showLoadPicker = true)}
                                         class="text-[10px] font-bold text-text-muted hover:text-gov-blue transition-colors uppercase"
                                     >
                                         Change
@@ -657,13 +672,8 @@
                                             >Week Number</span
                                         >
                                         <button
-                                            onclick={() => {
-                                                const w = prompt(
-                                                    "Enter Week Number",
-                                                    weekNumber?.toString(),
-                                                );
-                                                if (w) weekNumber = parseInt(w);
-                                            }}
+                                            onclick={() =>
+                                                (showWeekPicker = true)}
                                             class="text-[10px] font-bold text-gov-blue/60 hover:text-gov-blue transition-colors uppercase"
                                         >
                                             Edit
@@ -944,3 +954,184 @@
         </div>
     </div>
 </div>
+
+<!-- Selection Modals -->
+{#if showLoadPicker}
+    <div
+        class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm transition-opacity"
+        onclick={() => (showLoadPicker = false)}
+        transition:fade={{ duration: 200 }}
+    >
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+            class="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up sm:animate-scale-in"
+            onclick={(e) => e.stopPropagation()}
+        >
+            <div
+                class="p-6 border-b border-gray-100 flex items-center justify-between"
+            >
+                <h3 class="text-xl font-black text-text-primary">
+                    Select Teaching Load
+                </h3>
+                <button
+                    onclick={() => (showLoadPicker = false)}
+                    class="p-2 hover:bg-gray-100 rounded-full text-text-muted"
+                >
+                    <svg
+                        class="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        ><path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"
+                        /></svg
+                    >
+                </button>
+            </div>
+            <div class="max-h-[60vh] overflow-y-auto p-4 space-y-2">
+                {#each teachingLoads as load}
+                    <button
+                        onclick={() => {
+                            teachingLoadId = load.id;
+                            showLoadPicker = false;
+                        }}
+                        class="w-full p-4 rounded-2xl text-left transition-all flex items-center justify-between group {teachingLoadId ===
+                        load.id
+                            ? 'bg-gov-blue text-white shadow-lg'
+                            : 'bg-surface-muted hover:bg-gov-blue/5 border border-transparent hover:border-gov-blue/20'}"
+                    >
+                        <div>
+                            <p class="font-bold text-lg">{load.subject}</p>
+                            <p
+                                class="text-xs font-medium {teachingLoadId ===
+                                load.id
+                                    ? 'text-white/70'
+                                    : 'text-text-muted'} uppercase tracking-wider"
+                            >
+                                {load.grade_level}
+                            </p>
+                        </div>
+                        {#if teachingLoadId === load.id}
+                            <svg
+                                class="w-6 h-6"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                ><path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="3"
+                                    d="M5 13l4 4L19 7"
+                                /></svg
+                            >
+                        {/if}
+                    </button>
+                {/each}
+            </div>
+        </div>
+    </div>
+{/if}
+
+{#if showWeekPicker}
+    <div
+        class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm transition-opacity"
+        onclick={() => (showWeekPicker = false)}
+        transition:fade={{ duration: 200 }}
+    >
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+            class="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up sm:animate-scale-in"
+            onclick={(e) => e.stopPropagation()}
+        >
+            <div
+                class="p-6 border-b border-gray-100 flex items-center justify-between"
+            >
+                <h3 class="text-xl font-black text-text-primary">
+                    Select Week
+                </h3>
+                <button
+                    onclick={() => (showWeekPicker = false)}
+                    class="p-2 hover:bg-gray-100 rounded-full text-text-muted"
+                >
+                    <svg
+                        class="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        ><path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"
+                        /></svg
+                    >
+                </button>
+            </div>
+            <div
+                class="max-h-[60vh] overflow-y-auto p-4 grid grid-cols-2 gap-3"
+            >
+                {#each academicWeeks as wk}
+                    <button
+                        onclick={() => {
+                            weekNumber = wk;
+                            showWeekPicker = false;
+                        }}
+                        class="p-6 rounded-2xl text-center transition-all flex flex-col items-center justify-center gap-1 group {weekNumber ===
+                        wk
+                            ? 'bg-gov-blue text-white shadow-lg'
+                            : 'bg-surface-muted hover:bg-gov-blue/5 border border-transparent hover:border-gov-blue/20'}"
+                    >
+                        <span
+                            class="text-[10px] font-black uppercase tracking-widest {weekNumber ===
+                            wk
+                                ? 'text-white/70'
+                                : 'text-text-muted'}">Week</span
+                        >
+                        <span class="text-3xl font-black tracking-tighter"
+                            >{wk}</span
+                        >
+                    </button>
+                {/each}
+            </div>
+        </div>
+    </div>
+{/if}
+
+<style>
+    /* Premium glass/card aesthetics */
+    :global(.glass-card-static) {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(20px);
+    }
+
+    @keyframes slide-up {
+        from {
+            transform: translateY(100%);
+        }
+        to {
+            transform: translateY(0);
+        }
+    }
+    .animate-slide-up {
+        animation: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes scale-in {
+        from {
+            transform: scale(0.95);
+            opacity: 0;
+        }
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+    .animate-scale-in {
+        animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+</style>

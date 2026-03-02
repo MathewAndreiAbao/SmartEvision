@@ -101,35 +101,66 @@
         const userProfile = $profile;
         if (!userProfile) return { weeklyData: [], schoolData: [] };
 
-        // 1. Fetch Trend Data (Last 8 Weeks)
-        const weeklyData = await getWeeklyCompliance();
+        const isSchoolLevel =
+            userProfile.role === "School Head" ||
+            userProfile.role === "Master Teacher";
+        const schoolId = userProfile.school_id;
 
-        // 2. Fetch School Comparison Data
-        const schoolData = await getSchoolComparison();
+        // 1. Fetch Trend Data (Last 8 Weeks)
+        const weeklyData = await getWeeklyCompliance(
+            isSchoolLevel ? schoolId : null,
+        );
+
+        // 2. Fetch Comparison Data
+        const schoolData = await getSchoolComparison(
+            isSchoolLevel ? schoolId : null,
+        );
 
         // 3. Update Summary Stats
         stats.currentCompliance = weeklyData[weeklyData.length - 1] || 0;
         stats.improvement = weeklyData[0]
             ? stats.currentCompliance - weeklyData[0]
             : 0;
-        stats.topSchools = schoolData.filter((s) => s.rate >= 80).length;
+        stats.topSchools = schoolData.filter((s: any) => s.rate >= 80).length;
 
         // 4. Run Predictive Risk Analysis
-        const { data: subs } = await supabase
+        let subsQuery = supabase
             .from("submissions")
             .select("week_number, compliance_status")
             .order("week_number", { ascending: true });
+
+        if (isSchoolLevel && schoolId) {
+            subsQuery = subsQuery.eq(
+                "uploader:profiles!inner(school_id)",
+                schoolId,
+            );
+        }
+
+        const { data: subs } = await subsQuery;
         prediction = analyzeComplianceRisk(subs || []);
 
         return { weeklyData, schoolData };
     }
 
-    async function getWeeklyCompliance(): Promise<number[]> {
-        // Fetch weeks from academic_calendar (not hard-coded)
+    async function getWeeklyCompliance(
+        schoolId: string | null = null,
+    ): Promise<number[]> {
+        // Fetch weeks from academic_calendar
+        let uploadsQuery = supabase
+            .from("submissions")
+            .select(
+                "compliance_status, week_number, created_at, uploader:profiles!inner(school_id)",
+            );
+
+        if (schoolId) {
+            uploadsQuery = uploadsQuery.eq(
+                "uploader:profiles!inner(school_id)",
+                schoolId,
+            );
+        }
+
         const [uploadsRes, calendarRes] = await Promise.all([
-            supabase
-                .from("submissions")
-                .select("compliance_status, week_number, created_at"),
+            uploadsQuery,
             supabase
                 .from("academic_calendar")
                 .select("week_number")
@@ -158,7 +189,48 @@
         });
     }
 
-    async function getSchoolComparison() {
+    async function getSchoolComparison(schoolId: string | null = null) {
+        if (schoolId) {
+            // SH view: Compare Teachers in their school
+            const [teachersRes, subsRes, loadsRes] = await Promise.all([
+                supabase
+                    .from("profiles")
+                    .select("id, full_name")
+                    .eq("school_id", schoolId)
+                    .eq("role", "Teacher"),
+                supabase
+                    .from("submissions")
+                    .select("compliance_status, uploader_id"),
+                supabase.from("teaching_loads").select("id, teacher_id"),
+            ]);
+
+            const teachers = teachersRes.data || [];
+            const submissions = subsRes.data || [];
+            const loads = loadsRes.data || [];
+
+            return teachers.map((teacher) => {
+                const teacherSubmissions = submissions.filter(
+                    (s: any) => s.uploader_id === teacher.id,
+                );
+                const teacherLoadsCount = loads.filter(
+                    (l: any) => l.teacher_id === teacher.id,
+                ).length;
+                const stats = calculateCompliance(
+                    teacherSubmissions,
+                    teacherLoadsCount,
+                );
+
+                return {
+                    name: teacher.full_name,
+                    compliant: stats.Compliant,
+                    late: stats.Late,
+                    nonCompliant: stats.NonCompliant,
+                    rate: stats.rate,
+                };
+            });
+        }
+
+        // DS view: Compare Schools
         const [schoolsRes, subsRes, loadsRes] = await Promise.all([
             supabase.from("schools").select("id, name"),
             supabase
@@ -343,7 +415,10 @@
                         <h3
                             class="text-sm font-black text-text-primary uppercase tracking-widest"
                         >
-                            Global Trend
+                            {$profile?.role === "School Head" ||
+                            $profile?.role === "Master Teacher"
+                                ? "School Trend"
+                                : "Global Trend"}
                         </h3>
                     </div>
                     <div
@@ -372,7 +447,10 @@
                         <h3
                             class="text-sm font-black text-text-primary uppercase tracking-widest"
                         >
-                            School Comparison
+                            {$profile?.role === "School Head" ||
+                            $profile?.role === "Master Teacher"
+                                ? "Teacher Comparison"
+                                : "School Comparison"}
                         </h3>
                     </div>
                 </div>
