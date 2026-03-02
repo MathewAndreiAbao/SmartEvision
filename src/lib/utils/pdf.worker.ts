@@ -5,6 +5,9 @@
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
+// Use any to avoid TS environment conflicts with DedicatedWorkerGlobalScope
+const ctx = self as any;
+
 // Hash using Web Crypto API in worker
 async function hashPdf(buffer: ArrayBuffer | Uint8Array): Promise<string> {
     const input = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
@@ -81,31 +84,31 @@ self.onmessage = async (e: MessageEvent) => {
             // 2. Hash
             const fileHash = await hashPdf(compressedBytes);
 
-            self.postMessage({
+            ctx.postMessage({
                 id,
                 success: true,
                 payload: {
                     compressedBytes,
                     fileHash
                 }
-            });
+            }, [compressedBytes.buffer]); // TRANSFER BACK
         } else if (type === 'STAMP_QR') {
             const { compressedBytes, qrBytes, fileHash } = payload;
 
             // 3. Stamp
             const stampedBytes = await stampQrCode(compressedBytes, qrBytes, fileHash);
 
-            self.postMessage({
+            ctx.postMessage({
                 id,
                 success: true,
                 payload: {
                     stampedBytes
                 }
-            });
+            }, [stampedBytes.buffer]); // TRANSFER BACK
         }
     } catch (error) {
         console.error('[pdf.worker] Error:', error);
-        self.postMessage({
+        ctx.postMessage({
             id,
             success: false,
             error: error instanceof Error ? error.message : 'Unknown worker error'

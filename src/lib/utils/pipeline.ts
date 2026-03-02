@@ -70,8 +70,8 @@ function calculateComplianceStatus(
 }
 
 
-// Helper to wrap worker calls in a promise
-function runWorkerTask(worker: Worker, type: string, payload: any): Promise<any> {
+// Helper to wrap worker calls in a promise with Transferable support
+function runWorkerTask(worker: Worker, type: string, payload: any, transfer: Transferable[] = []): Promise<any> {
     return new Promise((resolve, reject) => {
         const id = Math.random().toString(36).substring(7);
         const handler = (e: MessageEvent) => {
@@ -82,7 +82,7 @@ function runWorkerTask(worker: Worker, type: string, payload: any): Promise<any>
             }
         };
         worker.addEventListener('message', handler);
-        worker.postMessage({ type, payload, id });
+        worker.postMessage({ type, payload, id }, transfer);
     });
 }
 
@@ -150,16 +150,23 @@ export async function* runPipeline(
 
         // Phase 3 & 4: Worker-powered Compress & Hash
         yield { phase: 'compressing', progress: 0, message: 'Compressing and hashing PDF...' };
-        const { compressedBytes, fileHash } = await runWorkerTask(worker, 'COMPRESS_AND_HASH', { pdfBytes });
+
+        // OPTIMIZATION: Use Transferables for zero-copy move to worker
+        const { compressedBytes, fileHash } = await runWorkerTask(
+            worker,
+            'COMPRESS_AND_HASH',
+            { pdfBytes },
+            [pdfBytes.buffer]
+        );
         yield { phase: 'hashing', progress: 100, message: `Hash: ${fileHash.slice(0, 12)}...` };
 
         // Check for duplicates (ONLY if online)
         if (navigator.onLine) {
             yield { phase: 'hashing', progress: 100, message: 'Verifying uniqueness with server...' };
 
-            // Add a timeout for the network check to prevent mobile hangs
+            // OPTIMIZATION: Faster duplicate check timeout (5s instead of 10s)
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Network Timeout: Uniqueness check took too long.')), 10000)
+                setTimeout(() => reject(new Error('Network Timeout: Uniqueness check took too long.')), 5000)
             );
 
             const duplicateCheckPromise = supabase
@@ -187,11 +194,16 @@ export async function* runPipeline(
         const { generateQrPng } = await import('./qr-stamp');
         const qrBytes = await generateQrPng(fileHash);
 
-        const { stampedBytes } = await runWorkerTask(worker, 'STAMP_QR', {
-            compressedBytes,
-            qrBytes,
-            fileHash
-        });
+        const { stampedBytes } = await runWorkerTask(
+            worker,
+            'STAMP_QR',
+            {
+                compressedBytes,
+                qrBytes,
+                fileHash
+            },
+            [compressedBytes.buffer, qrBytes.buffer] // TRANSFER
+        );
 
         const stamped = stampedBytes;
         yield { phase: 'stamping', progress: 100, message: 'QR code stamped' };
@@ -208,10 +220,25 @@ export async function* runPipeline(
 
         if (isOnline) {
             try {
+                // OPTIMIZATION: Pre-upload Connection Handshake (3s Ping)
+                // Fast-fail if even a simple ping takes too long on low-end devices
+                yield { phase: 'uploading', progress: 5, message: 'Checking connection strength...' };
+                const controller = new AbortController();
+                const pingTimeout = setTimeout(() => controller.abort(), 3000);
+                try {
+                    await fetch(window.location.origin, { method: 'HEAD', signal: controller.signal });
+                    clearTimeout(pingTimeout);
+                } catch (pingErr) {
+                    throw new Error('Sync Timeout (Handshake)');
+                }
+
                 // Wrap upload and DB insertion in a timeout for mobile resilience
-                // Increased to 45s for better mobile support (Storage + DB ops)
+                // OPTIMIZATION: Reduced from 45s to 20s for "Fast-Fail" logic
+                const SYNC_TIMEOUT_MS = 20000;
                 const uploadTimeout = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Sync Timeout')), 45000)
+                    setTimeout(() => {
+                        reject(new Error('Sync Timeout'));
+                    }, SYNC_TIMEOUT_MS)
                 );
 
                 const performUpload = (async () => {
@@ -273,13 +300,17 @@ export async function* runPipeline(
                     result: { fileHash, filePath, fileSize: stamped.byteLength, fileName }
                 };
             } catch (syncErr) {
-                const isTimeout = syncErr instanceof Error && syncErr.message === 'Sync Timeout';
+                const errMessage = syncErr instanceof Error ? syncErr.message : '';
+                const isTimeout = errMessage.includes('Sync Timeout');
+
                 console.warn(`[pipeline] Online sync ${isTimeout ? 'timed out' : 'failed'}. Falling back to offline queue:`, syncErr);
 
                 yield {
                     phase: 'uploading',
                     progress: 50,
-                    message: isTimeout ? 'Connection slow, saving for background sync...' : 'Upload failed, saving for offline retry...'
+                    message: isTimeout
+                        ? 'Connection too slow, saving for background sync...'
+                        : 'Upload failed, saving for offline retry...'
                 };
 
                 await enqueue({

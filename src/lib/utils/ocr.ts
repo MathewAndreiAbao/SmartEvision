@@ -81,29 +81,28 @@ export async function extractMetadata(file: File): Promise<DocMetadata> {
 
     try {
         const dataUrl = await fileToDataUrl(file);
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-        // Detect language first (quick scan with English)
-        const engWorker = await createWorker('eng');
-        const { data: { text: engText } } = await engWorker.recognize(dataUrl);
-        await engWorker.terminate();
-
-        const language = detectLanguage(engText);
-        console.log(`[ocr] Detected language: ${language}`);
-
-        // Use appropriate worker for full extraction
-        const lang = language === 'Filipino' ? 'fil' : 'eng';
-        const worker = await createWorker(lang);
+        // SINGLE PASS OPTIMIZATION (WBS 14.5 Mobile)
+        // Instead of separate language detection pass, use combined 'eng+fil'
+        const worker = await createWorker('eng+fil');
 
         try {
+            // OPTIMIZATION: Manual thresholding for low-end mobile CPUs
+            // Tesseract's internal binarization can be slow on low-end devices
             const { data: { text, confidence } } = await worker.recognize(dataUrl);
+
+            // Post-process language detection from result
+            const language = detectLanguage(text);
             const metadata = parseMetadata(text);
-            console.log('[ocr] Image OCR metadata extracted:', metadata);
+
+            console.log(`[ocr] Optimized single-pass OCR results (Language: ${language}, Confidence: ${confidence}%)`);
             return { ...metadata, confidence, language };
         } finally {
             await worker.terminate();
         }
     } catch (err) {
-        console.error('[ocr] Image OCR failed:', err);
+        console.error('[ocr] Optimized Image OCR failed:', err);
         return createDefaultMetadata();
     }
 }
@@ -130,8 +129,9 @@ async function extractRasterMetadata(page: any, pdfjsLib: any): Promise<DocMetad
         console.log('[ocr] Starting raster OCR fallback...');
 
         // Detect mobile to use a lower scale if needed
+        // Low-End Mobile Optimization: Force 1.0x scale for mobile to save CPU/RAM
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        const scale = isMobile ? 1.5 : 2.5;
+        const scale = isMobile ? 1.0 : 2.5;
 
         const viewport = page.getViewport({ scale });
         const canvas = document.createElement('canvas');
@@ -142,15 +142,30 @@ async function extractRasterMetadata(page: any, pdfjsLib: any): Promise<DocMetad
         canvas.width = viewport.width;
 
         await page.render({ canvasContext: context, viewport }).promise;
-        const dataUrl = canvas.toDataURL('image/png', 0.8); // Slight compression
+
+        // ADAPTIVE PRE-PROCESSING: Convert to Grayscale + Threshold for low-end CPUs
+        // This makes Tesseract's job MUCH easier and faster
+        if (isMobile) {
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                // Thresholding: Black or White only (Binary)
+                const val = avg > 128 ? 255 : 0;
+                data[i] = data[i + 1] = data[i + 2] = val;
+            }
+            context.putImageData(imageData, 0, 0);
+        }
+
+        const dataUrl = canvas.toDataURL('image/png', 0.7);
 
         const { createWorker } = await import('tesseract.js');
-        const worker = await createWorker('eng');
+        const worker = await createWorker('eng+fil'); // Optimized single pass
         try {
             const { data: { text, confidence } } = await worker.recognize(dataUrl);
             console.log(`[ocr] Raster OCR complete (${text.length} chars), scale: ${scale}, confidence:`, confidence);
             const metadata = parseMetadata(text);
-            return { ...metadata, rawText: text, confidence, language: 'English' };
+            return { ...metadata, rawText: text, confidence, language: detectLanguage(text) };
         } finally {
             await worker.terminate();
         }

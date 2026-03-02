@@ -325,7 +325,7 @@
             progress = event.progress;
             message = event.message;
 
-            // Add to log if message changed
+            // Add to log if message changed (WBS 14.5 Granular Progress)
             if (
                 processLog.length === 0 ||
                 processLog[processLog.length - 1].message !== event.message
@@ -333,7 +333,11 @@
                 processLog = [
                     ...processLog,
                     {
-                        timestamp: new Date().toLocaleTimeString(),
+                        timestamp: new Date().toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                        }),
                         message: event.message,
                     },
                 ];
