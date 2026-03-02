@@ -164,23 +164,35 @@ export async function* runPipeline(
         if (navigator.onLine) {
             yield { phase: 'hashing', progress: 100, message: 'Verifying uniqueness with server...' };
 
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Uniqueness check timeout')), 5000)
+            );
+
             try {
-                const { data: existing, error: checkError } = await supabase
+                const duplicateCheckPromise = supabase
                     .from('submissions')
                     .select('id')
                     .eq('file_hash', fileHash)
                     .maybeSingle();
+
+                const { data: existing, error: checkError }: any = await Promise.race([
+                    duplicateCheckPromise,
+                    timeoutPromise
+                ]);
 
                 if (checkError) throw checkError;
                 if (existing) {
                     throw new Error('Duplicate file detected. This document has already been archived.');
                 }
             } catch (checkErr: any) {
-                console.warn('[pipeline] Uniqueness check warning:', checkErr);
+                const isTimeout = checkErr?.message === 'Uniqueness check timeout';
+                console.warn(`[pipeline] Uniqueness check ${isTimeout ? 'timed out' : 'warning'}:`, checkErr);
+
                 // If it's a real duplicate error, rethrow it
                 if (checkErr?.message?.includes('Duplicate')) throw checkErr;
-                // Otherwise (network error), proceed to let the upload attempt happen or fallback
-                console.info('[pipeline] Proceeding despite uniqueness check failure.');
+
+                // Otherwise (network error or timeout), proceed to let the upload attempt happen
+                console.info('[pipeline] Proceeding despite uniqueness check failure/timeout.');
             }
         }
 
