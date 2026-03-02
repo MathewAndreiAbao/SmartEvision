@@ -13,6 +13,7 @@ export const pendingSyncCount = writable<number>(0);
 
 const CACHE_PREFIX_DOCS = 'cached_docs_';
 const CACHE_PREFIX_HISTORY = 'cached_history_';
+const CACHE_PREFIX_METADATA = 'cached_metadata_';
 
 /**
  * Cache a verified document hash locally for offline verification.
@@ -44,6 +45,65 @@ export async function cacheDashboardData(userId: string, data: any) {
  */
 export async function getCachedDashboardData(userId: string) {
     return await get(`${CACHE_PREFIX_HISTORY}${userId}`);
+}
+
+/**
+ * Generic metadata caching for offline fallbacks.
+ */
+export async function cacheMetadata(key: string, data: any) {
+    await set(`${CACHE_PREFIX_METADATA}${key}`, {
+        data,
+        timestamp: Date.now()
+    });
+}
+
+/**
+ * Retrieve generic cached metadata.
+ */
+export async function getCachedMetadata(key: string) {
+    return await get(`${CACHE_PREFIX_METADATA}${key}`);
+}
+
+/**
+ * WBS 20.4 — Pre-fetch essential metadata for offline upload manual selection.
+ * Fetches teaching loads and academic calendar, caching them in IndexedDB.
+ */
+export async function prefetchOfflineMetadata(userId: string, districtId?: string): Promise<void> {
+    if (!navigator.onLine) return;
+
+    try {
+        console.log('[offline] Pre-fetching metadata for offline upload...');
+
+        // 1. Fetch Teaching Loads
+        const { data: loads, error: loadsErr } = await supabase
+            .from('teaching_loads')
+            .select('id, subject, grade_level')
+            .eq('user_id', userId)
+            .eq('is_active', true);
+
+        if (!loadsErr && loads) {
+            await cacheMetadata(`teaching_loads_${userId}`, loads);
+            console.log(`[offline] Cached ${loads.length} teaching loads`);
+        }
+
+        // 2. Fetch Academic Calendar (Upcoming weeks)
+        if (districtId) {
+            const { data: calendar, error: calErr } = await supabase
+                .from('academic_calendar')
+                .select('week_number, deadline_date, description')
+                .eq('district_id', districtId)
+                .gte('deadline_date', new Date().toISOString())
+                .order('deadline_date', { ascending: true })
+                .limit(10);
+
+            if (!calErr && calendar) {
+                await cacheMetadata(`calendar_${districtId}`, calendar);
+                console.log(`[offline] Cached ${calendar.length} calendar events`);
+            }
+        }
+    } catch (err) {
+        console.warn('[offline] prefetchOfflineMetadata error:', err);
+    }
 }
 
 /**

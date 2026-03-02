@@ -4,9 +4,13 @@
 	import QRScanner from "$lib/components/QRScanner.svelte";
 	import { showQRScanner } from "$lib/stores/ui";
 	import { goto } from "$app/navigation";
-	import { initAuth } from "$lib/utils/auth";
-	import { initOfflineSync } from "$lib/utils/offline";
+	import { initAuth, profile } from "$lib/utils/auth";
+	import {
+		initOfflineSync,
+		prefetchOfflineMetadata,
+	} from "$lib/utils/offline";
 	import { onMount } from "svelte";
+	import { get } from "svelte/store";
 
 	let { children } = $props();
 
@@ -33,6 +37,12 @@
 
 		// Then initialize offline sync
 		initOfflineSync();
+
+		// Pre-fetch metadata if online (Phase 20.4)
+		const user = get(profile);
+		if (user && user.id) {
+			prefetchOfflineMetadata(user.id, user.district_id || undefined);
+		}
 
 		// Defer service worker registration to prevent interference with auth
 		// Use a longer timeout to ensure auth is fully initialized

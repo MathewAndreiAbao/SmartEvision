@@ -6,7 +6,11 @@
         type PipelinePhase,
         type PipelineResult,
     } from "$lib/utils/pipeline";
-    import { getQueueSize } from "$lib/utils/offline";
+    import {
+        getQueueSize,
+        getCachedMetadata,
+        cacheMetadata,
+    } from "$lib/utils/offline";
     import { profile } from "$lib/utils/auth";
     import { settings } from "$lib/stores/settings";
     import { addToast } from "$lib/stores/toast";
@@ -77,13 +81,30 @@
     });
 
     async function fetchCurrentDeadline(wk: number, districtId: string) {
-        const { data } = await supabase
-            .from("academic_calendar")
-            .select("deadline_date, description")
-            .eq("district_id", districtId)
-            .eq("week_number", wk)
-            .maybeSingle();
-        currentDeadline = data;
+        if (navigator.onLine) {
+            const { data } = await supabase
+                .from("academic_calendar")
+                .select("deadline_date, description")
+                .eq("district_id", districtId)
+                .eq("week_number", wk)
+                .maybeSingle();
+
+            if (data) {
+                currentDeadline = data;
+                // Update specific cache entry if needed or just rely on the batch pre-fetch
+                return;
+            }
+        }
+
+        // Offline Fallback
+        const cached = await getCachedMetadata(`calendar_${districtId}`);
+        if (cached?.data) {
+            const entry = cached.data.find((e: any) => e.week_number === wk);
+            if (entry) {
+                currentDeadline = entry;
+                console.log("[upload] Using cached deadline for week", wk);
+            }
+        }
     }
 
     onMount(async () => {
@@ -91,24 +112,45 @@
 
         // Fetch teaching loads for the current user
         if ($profile) {
-            const { data, error } = await supabase
-                .from("teaching_loads")
-                .select("id, subject, grade_level")
-                .eq("user_id", $profile.id)
-                .eq("is_active", true)
-                .order("subject, grade_level");
+            let loads = [];
+            if (navigator.onLine) {
+                const { data, error } = await supabase
+                    .from("teaching_loads")
+                    .select("id, subject, grade_level")
+                    .eq("user_id", $profile.id)
+                    .eq("is_active", true)
+                    .order("subject, grade_level");
 
-            if (error) {
-                console.error(
-                    "[v0] Error fetching teaching loads:",
-                    error.message,
+                if (!error && data) {
+                    loads = data;
+                    // Update cache for next time
+                    cacheMetadata(`teaching_loads_${$profile.id}`, data);
+                } else if (error) {
+                    console.error(
+                        "[v0] Error fetching teaching loads:",
+                        error.message,
+                    );
+                }
+            }
+
+            // Fallback to cache if offline or fetch failed
+            if (loads.length === 0) {
+                const cached = await getCachedMetadata(
+                    `teaching_loads_${$profile.id}`,
                 );
-                addToast("error", "Failed to load teaching loads");
-            } else if (data) {
-                teachingLoads = data;
+                if (cached?.data) {
+                    loads = cached.data;
+                    console.log("[upload] Using cached teaching loads");
+                }
+            }
+
+            if (loads.length > 0) {
+                teachingLoads = loads;
                 if (teachingLoads.length > 0) {
                     teachingLoadId = teachingLoads[0].id;
                 }
+            } else if (navigator.onLine) {
+                addToast("error", "Failed to load teaching loads");
             }
 
             // Also fetch current week deadline immediately
