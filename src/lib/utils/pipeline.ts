@@ -6,6 +6,7 @@
 
 import { transcodeToPdf } from './transcode';
 import { supabase } from './supabase';
+import { env } from '$env/dynamic/public';
 import PdfWorker from './pdf.worker?worker';
 
 export type PipelinePhase = 'transcoding' | 'compressing' | 'analyzing' | 'hashing' | 'stamping' | 'uploading' | 'done' | 'error';
@@ -220,20 +221,31 @@ export async function* runPipeline(
         const fileName = file.name.replace(/\.\w+$/, '.pdf');
         const filePath = `${options.userId}/${Date.now()}_${fileName}`;
 
-        // 1. Upload file to Supabase Storage
-        // CRITICAL FIX: Worker Transferables detach the original buffer.
-        // Mobile browsers silently fail when uploading from detached buffers.
-        // Solution: Copy to a fresh Uint8Array, then wrap in a File object.
+        // 1. Upload file to Supabase Storage via DIRECT REST API
+        // The supabase.storage.upload() client hangs on mobile devices.
+        // Bypassing it with a direct fetch + FormData for maximum compatibility.
         const freshBytes = new Uint8Array(stamped);
         const uploadFile = new File([freshBytes], fileName, { type: 'application/pdf' });
-        const { error: uploadError } = await supabase.storage
-            .from('submissions')
-            .upload(filePath, uploadFile, {
-                contentType: 'application/pdf',
-                upsert: false
-            });
 
-        if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`);
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+        if (!accessToken) throw new Error('Not authenticated. Please sign in again.');
+
+        const storageUrl = `${env.PUBLIC_SUPABASE_URL}/storage/v1/object/submissions/${filePath}`;
+
+        const uploadResponse = await fetch(storageUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'x-upsert': 'false'
+            },
+            body: uploadFile
+        });
+
+        if (!uploadResponse.ok) {
+            const errBody = await uploadResponse.text().catch(() => 'Unknown error');
+            throw new Error(`Storage upload failed (${uploadResponse.status}): ${errBody}`);
+        }
 
         yield { phase: 'uploading', progress: 60, message: 'Saving to database...' };
 
