@@ -209,8 +209,9 @@ export async function* runPipeline(
         if (isOnline) {
             try {
                 // Wrap upload and DB insertion in a timeout for mobile resilience
+                // Increased to 45s for better mobile support (Storage + DB ops)
                 const uploadTimeout = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Sync Timeout')), 15000)
+                    setTimeout(() => reject(new Error('Sync Timeout')), 45000)
                 );
 
                 const performUpload = (async () => {
@@ -272,12 +273,13 @@ export async function* runPipeline(
                     result: { fileHash, filePath, fileSize: stamped.byteLength, fileName }
                 };
             } catch (syncErr) {
-                console.warn('[pipeline] Online sync failed or timed out. Falling back to offline queue:', syncErr);
+                const isTimeout = syncErr instanceof Error && syncErr.message === 'Sync Timeout';
+                console.warn(`[pipeline] Online sync ${isTimeout ? 'timed out' : 'failed'}. Falling back to offline queue:`, syncErr);
 
                 yield {
                     phase: 'uploading',
                     progress: 50,
-                    message: 'Upload slow, saving for offline sync...'
+                    message: isTimeout ? 'Connection slow, saving for background sync...' : 'Upload failed, saving for offline retry...'
                 };
 
                 await enqueue({
@@ -293,7 +295,9 @@ export async function* runPipeline(
                 yield {
                     phase: 'done',
                     progress: 100,
-                    message: 'Queued for upload — will sync when connection stabilizes',
+                    message: isTimeout
+                        ? 'Queued (connection slow) — will finish in background'
+                        : 'Queued for offline sync — will retry automatically',
                     result: { fileHash, filePath, fileSize: stamped.byteLength, fileName }
                 };
             }
