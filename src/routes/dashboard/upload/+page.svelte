@@ -668,7 +668,7 @@
                                     <div
                                         class="flex p-1.5 bg-surface-muted/50 border border-border-subtle rounded-2xl"
                                     >
-                                        {#each ["DLL", "ISP"] as type}
+                                        {#each ["DLL", "ISP", "ISR"] as type}
                                             <button
                                                 onclick={() => (docType = type)}
                                                 class="flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all {docType ===
@@ -785,7 +785,9 @@
                         {:else}
                             <button
                                 onclick={handleUpload}
-                                disabled={!teachingLoadId || processing}
+                                disabled={!teachingLoadId ||
+                                    !weekNumber ||
+                                    processing}
                                 class="mt-6 w-full py-4 bg-gradient-to-r from-gov-blue to-gov-blue-dark text-white text-lg font-extrabold rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:grayscale transition-all duration-300 min-h-[60px] flex items-center justify-center gap-3 uppercase tracking-wide"
                             >
                                 {#if processing}
