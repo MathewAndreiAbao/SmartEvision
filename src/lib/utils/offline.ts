@@ -7,6 +7,7 @@
 import { get, set, del, keys } from 'idb-keyval';
 import { writable } from 'svelte/store';
 import { supabase } from './supabase';
+import { env } from '$env/dynamic/public';
 
 export const pendingSyncCount = writable<number>(0);
 
@@ -129,6 +130,11 @@ export async function enqueue(item: QueueItem): Promise<void> {
     const key = `${QUEUE_PREFIX}${item.timestamp}_${item.fileHash.slice(0, 8)}`;
     await set(key, item);
     await updatePendingCount();
+
+    // Auto-sync if online
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+        processQueue();
+    }
 }
 
 export async function getQueueSize(): Promise<number> {
@@ -248,19 +254,33 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                     continue;
                 }
 
-                // Upload to Supabase Storage
-                const { error: uploadError } = await supabase.storage
-                    .from('submissions')
-                    .upload(item.filePath, item.pdfBytes, {
-                        contentType: 'application/pdf',
-                        upsert: false
-                    });
+                // 1. Upload to Supabase Storage via DIRECT REST API
+                // The supabase.storage.upload() client hangs on mobile devices.
+                // Bypassing it with a direct fetch + FormData for maximum compatibility.
+                const { data: sessionData } = await supabase.auth.getSession();
+                const accessToken = sessionData?.session?.access_token;
+                if (!accessToken) throw new Error('Not authenticated for background sync');
 
-                if (uploadError) {
-                    throw new Error(`Upload failed: ${uploadError.message}`);
+                const storageUrl = `${env.PUBLIC_SUPABASE_URL}/storage/v1/object/submissions/${item.filePath}`;
+
+                // Create a file object from the Uint8Array
+                const uploadFile = new File([item.pdfBytes as any], item.fileName, { type: 'application/pdf' });
+
+                const uploadResponse = await fetch(storageUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'x-upsert': 'false'
+                    },
+                    body: uploadFile
+                });
+
+                if (!uploadResponse.ok) {
+                    const errBody = await uploadResponse.text().catch(() => 'Unknown error');
+                    throw new Error(`Storage upload failed (${uploadResponse.status}): ${errBody}`);
                 }
 
-                // Fetch deadline if possible for offline sync
+                // 2. Fetch deadline if possible for compliance calculation
                 let deadlineDate: Date | undefined;
                 if (item.options.calendarId) {
                     const { data } = await supabase.from('academic_calendar').select('deadline_date').eq('id', item.options.calendarId).single();
@@ -278,26 +298,8 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                     }
                 }
 
-                const now = new Date();
-                let complianceStatus: 'compliant' | 'late' | 'non-compliant' = 'non-compliant';
-
-                if (deadlineDate) {
-                    const deadline = new Date(deadlineDate);
-                    deadline.setHours(23, 59, 59, 999);
-
-                    if (now <= deadline) complianceStatus = 'compliant';
-                    else {
-                        const lateDeadline = new Date(deadline);
-                        lateDeadline.setDate(lateDeadline.getDate() + 1);
-                        if (now <= lateDeadline) complianceStatus = 'late';
-                        else complianceStatus = 'non-compliant';
-                    }
-                } else {
-                    const day = now.getDay();
-                    if (day === 1 || day === 0) complianceStatus = 'compliant';
-                    else if (day === 2) complianceStatus = 'late';
-                    else complianceStatus = 'non-compliant';
-                }
+                // 3. Insert database record
+                const complianceStatus = calculateComplianceStatus(new Date(), deadlineDate);
 
                 const { error: dbError } = await supabase.from('submissions').insert({
                     user_id: item.options.userId,
@@ -344,6 +346,37 @@ export async function processQueue(force = false): Promise<{ success: number; fa
     }
 
     return { success, failed };
+}
+
+/**
+ * Shared compliance logic (WBS 14.5)
+ */
+export function calculateComplianceStatus(
+    submissionDate: Date,
+    deadlineDate?: Date,
+    windowDays: number = 5
+): 'compliant' | 'late' | 'non-compliant' {
+    const now = submissionDate;
+
+    if (deadlineDate) {
+        const deadline = new Date(deadlineDate);
+        deadline.setHours(23, 59, 59, 999);
+
+        if (now <= deadline) return 'compliant';
+
+        const lateDeadline = new Date(deadline);
+        lateDeadline.setDate(lateDeadline.getDate() + (windowDays || 5));
+
+        if (now <= lateDeadline) return 'late';
+
+        return 'non-compliant';
+    }
+
+    // Fallback if no supervisor deadline is set:
+    const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+    if (dayOfWeek === 1 || dayOfWeek === 0) return 'compliant';
+    if (dayOfWeek === 2) return 'late';
+    return 'non-compliant';
 }
 
 // Auto-resume when online + Periodic Check

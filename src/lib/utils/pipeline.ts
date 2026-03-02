@@ -40,34 +40,6 @@ export interface PipelineOptions {
     preDetectedMetadata?: any;
 }
 
-function calculateComplianceStatus(
-    submissionDate: Date,
-    deadlineDate?: Date,
-    windowDays: number = 5
-): 'compliant' | 'late' | 'non-compliant' {
-    const now = submissionDate;
-
-    if (deadlineDate) {
-        const deadline = new Date(deadlineDate);
-        deadline.setHours(23, 59, 59, 999);
-
-        if (now <= deadline) return 'compliant';
-
-        // Use dynamic window days for "late" status (WBS 14.5)
-        const lateDeadline = new Date(deadline);
-        lateDeadline.setDate(lateDeadline.getDate() + (windowDays || 5));
-
-        if (now <= lateDeadline) return 'late';
-
-        return 'non-compliant';
-    }
-
-    // Fallback if no supervisor deadline is set:
-    const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-    if (dayOfWeek === 1) return 'compliant';
-    if (dayOfWeek === 2) return 'late';
-    return 'non-compliant';
-}
 
 
 // Helper to wrap worker calls in a promise with Transferable support
@@ -215,76 +187,39 @@ export async function* runPipeline(
         const stamped = stampedBytes;
         yield { phase: 'stamping', progress: 100, message: 'QR code stamped' };
 
-        // Phase 6: Direct Upload to Storage & Database
-        yield { phase: 'uploading', progress: 0, message: 'Uploading to secure storage...' };
+        // Phase 6: Sync to Background Queue (WBS 20.1)
+        yield { phase: 'uploading', progress: 0, message: 'Queueing for background sync...' };
+
+        const { enqueue } = await import('./offline');
 
         const fileName = file.name.replace(/\.\w+$/, '.pdf');
+        // Standardize file path format
         const filePath = `${options.userId}/${Date.now()}_${fileName}`;
 
-        // 1. Upload file to Supabase Storage via DIRECT REST API
-        // The supabase.storage.upload() client hangs on mobile devices.
-        // Bypassing it with a direct fetch + FormData for maximum compatibility.
-        const freshBytes = new Uint8Array(stamped);
-        const uploadFile = new File([freshBytes], fileName, { type: 'application/pdf' });
-
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData?.session?.access_token;
-        if (!accessToken) throw new Error('Not authenticated. Please sign in again.');
-
-        const storageUrl = `${env.PUBLIC_SUPABASE_URL}/storage/v1/object/submissions/${filePath}`;
-
-        const uploadResponse = await fetch(storageUrl, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'x-upsert': 'false'
+        await enqueue({
+            fileName,
+            filePath,
+            fileHash,
+            fileSize: stamped.byteLength,
+            pdfBytes: new Uint8Array(stamped),
+            options: {
+                userId: options.userId,
+                docType: options.docType,
+                weekNumber: options.weekNumber,
+                schoolYear: options.schoolYear,
+                subject: options.subject,
+                calendarId: options.calendarId,
+                teachingLoadId: options.teachingLoadId,
             },
-            body: uploadFile
+            timestamp: Date.now()
         });
 
-        if (!uploadResponse.ok) {
-            const errBody = await uploadResponse.text().catch(() => 'Unknown error');
-            throw new Error(`Storage upload failed (${uploadResponse.status}): ${errBody}`);
-        }
-
-        yield { phase: 'uploading', progress: 60, message: 'Saving to database...' };
-
-        // 2. Fetch deadline for compliance calculation
-        let deadlineDate: Date | undefined;
-        if (options.calendarId) {
-            const { data } = await supabase.from('academic_calendar').select('deadline_date').eq('id', options.calendarId).single();
-            if (data?.deadline_date) deadlineDate = new Date(data.deadline_date);
-        } else if (options.weekNumber) {
-            const { data: profileData } = await supabase.from('profiles').select('district_id').eq('id', options.userId).single();
-            if (profileData?.district_id) {
-                const { data: calData } = await supabase
-                    .from('academic_calendar')
-                    .select('deadline_date')
-                    .eq('district_id', profileData.district_id)
-                    .eq('week_number', options.weekNumber)
-                    .maybeSingle();
-                if (calData?.deadline_date) deadlineDate = new Date(calData.deadline_date);
-            }
-        }
-
-        // 3. Insert database record
-        const complianceStatus = calculateComplianceStatus(new Date(), deadlineDate, options.submissionWindowDays);
-        const { error: dbError } = await supabase.from('submissions').insert({
-            user_id: options.userId,
-            file_name: fileName,
-            file_path: filePath,
-            file_hash: fileHash,
-            file_size: stamped.byteLength,
-            doc_type: options.docType || 'Unknown',
-            week_number: options.weekNumber,
-            subject: options.subject,
-            school_year: options.schoolYear || '2025-2026',
-            calendar_id: options.calendarId,
-            teaching_load_id: options.teachingLoadId,
-            compliance_status: complianceStatus
-        });
-
-        if (dbError) throw new Error(`Database save failed: ${dbError.message}`);
+        yield {
+            phase: 'done',
+            progress: 100,
+            message: 'Queued for background sync!',
+            result: { fileHash, filePath, fileSize: stamped.byteLength, fileName }
+        };
 
         yield {
             phase: 'done',

@@ -362,7 +362,7 @@
                 speak(VoicePrompts.UPLOAD_COMPLETE);
                 addToast(
                     "success",
-                    `Document uploaded successfully! Hash: ${event.result.fileHash.slice(0, 12)}...`,
+                    `Document queued for background sync! Hash: ${event.result.fileHash.slice(0, 12)}...`,
                 );
                 selectedFile = null;
             }
@@ -440,10 +440,10 @@
                         const { processQueue } = await import(
                             "$lib/utils/offline"
                         );
-                        const result = await processQueue(true);
+                        await processQueue(true); // Force sync
                         queueCount = await getQueueSize();
                     }}
-                    class="px-3 py-1 bg-gov-gold text-white text-xs rounded-lg hover:bg-gov-gold-dark transition-colors shadow-sm"
+                    class="px-3 py-1 bg-gov-blue text-white text-xs rounded-lg hover:bg-gov-blue-dark transition-colors shadow-sm"
                 >
                     Sync Now
                 </button>
@@ -776,7 +776,7 @@
                 >
                     <div class="flex items-center gap-3 mb-3">
                         <h3 class="text-lg font-bold text-gov-green">
-                            Upload Successful!
+                            Queued for Background Sync!
                         </h3>
                     </div>
                     <div class="grid grid-cols-2 gap-3 text-sm">
