@@ -164,27 +164,22 @@ export async function* runPipeline(
         if (navigator.onLine) {
             yield { phase: 'hashing', progress: 100, message: 'Verifying uniqueness with server...' };
 
-            // OPTIMIZATION: Faster duplicate check timeout (5s instead of 10s)
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Network Timeout: Uniqueness check took too long.')), 5000)
-            );
-
-            const duplicateCheckPromise = supabase
-                .from('submissions')
-                .select('id')
-                .eq('file_hash', fileHash)
-                .maybeSingle();
-
             try {
-                const { data: existing }: any = await Promise.race([duplicateCheckPromise, timeoutPromise]);
+                const { data: existing, error: checkError } = await supabase
+                    .from('submissions')
+                    .select('id')
+                    .eq('file_hash', fileHash)
+                    .maybeSingle();
+
+                if (checkError) throw checkError;
                 if (existing) {
                     throw new Error('Duplicate file detected. This document has already been archived.');
                 }
-            } catch (checkErr) {
-                console.warn('[pipeline] Uniqueness check failed/timed out:', checkErr);
+            } catch (checkErr: any) {
+                console.warn('[pipeline] Uniqueness check warning:', checkErr);
                 // If it's a real duplicate error, rethrow it
-                if (checkErr instanceof Error && checkErr.message.includes('Duplicate')) throw checkErr;
-                // Otherwise (timeout/network error), proceed anyway to avoid blocking the user
+                if (checkErr?.message?.includes('Duplicate')) throw checkErr;
+                // Otherwise (network error), proceed to let the upload attempt happen or fallback
                 console.info('[pipeline] Proceeding despite uniqueness check failure.');
             }
         }
@@ -220,97 +215,67 @@ export async function* runPipeline(
 
         if (isOnline) {
             try {
-                // OPTIMIZATION: Pre-upload Connection Handshake (3s Ping)
-                // Fast-fail if even a simple ping takes too long on low-end devices
-                yield { phase: 'uploading', progress: 5, message: 'Checking connection strength...' };
-                const controller = new AbortController();
-                const pingTimeout = setTimeout(() => controller.abort(), 3000);
-                try {
-                    await fetch(window.location.origin, { method: 'HEAD', signal: controller.signal });
-                    clearTimeout(pingTimeout);
-                } catch (pingErr) {
-                    throw new Error('Sync Timeout (Handshake)');
-                }
-
-                // Wrap upload and DB insertion in a timeout for mobile resilience
-                // OPTIMIZATION: Reduced from 45s to 20s for "Fast-Fail" logic
-                const SYNC_TIMEOUT_MS = 20000;
-                const uploadTimeout = new Promise((_, reject) =>
-                    setTimeout(() => {
-                        reject(new Error('Sync Timeout'));
-                    }, SYNC_TIMEOUT_MS)
-                );
-
-                const performUpload = (async () => {
-                    // 1. Storage Upload
-                    const { error: uploadError } = await supabase.storage
-                        .from('submissions')
-                        .upload(filePath, stamped, {
-                            contentType: 'application/pdf',
-                            upsert: false
-                        });
-
-                    if (uploadError) throw new Error(`Storage error: ${uploadError.message}`);
-
-                    // 2. Fetch deadline
-                    let deadlineDate: Date | undefined;
-                    if (options.calendarId) {
-                        const { data } = await supabase.from('academic_calendar').select('deadline_date').eq('id', options.calendarId).single();
-                        if (data?.deadline_date) deadlineDate = new Date(data.deadline_date);
-                    } else if (options.weekNumber) {
-                        const { data: profileData } = await supabase.from('profiles').select('district_id').eq('id', options.userId).single();
-                        if (profileData?.district_id) {
-                            const { data: calData } = await supabase
-                                .from('academic_calendar')
-                                .select('deadline_date')
-                                .eq('district_id', profileData.district_id)
-                                .eq('week_number', options.weekNumber)
-                                .maybeSingle();
-                            if (calData?.deadline_date) deadlineDate = new Date(calData.deadline_date);
-                        }
-                    }
-
-                    // 3. Database Entry
-                    const complianceStatus = calculateComplianceStatus(new Date(), deadlineDate, options.submissionWindowDays);
-                    const { error: dbError } = await supabase.from('submissions').insert({
-                        user_id: options.userId,
-                        file_name: fileName,
-                        file_path: filePath,
-                        file_hash: fileHash,
-                        file_size: stamped.byteLength,
-                        doc_type: options.docType || 'Unknown',
-                        week_number: options.weekNumber,
-                        subject: options.subject,
-                        school_year: options.schoolYear || '2025-2026',
-                        calendar_id: options.calendarId,
-                        teaching_load_id: options.teachingLoadId,
-                        compliance_status: complianceStatus
+                // DIRECT UPLOAD: No artificial sync timeouts
+                // 1. Storage Upload
+                const { error: uploadError } = await supabase.storage
+                    .from('submissions')
+                    .upload(filePath, stamped, {
+                        contentType: 'application/pdf',
+                        upsert: false
                     });
 
-                    if (dbError) throw new Error(`Database error: ${dbError.message}`);
-                    return true;
-                })();
+                if (uploadError) throw new Error(`Storage error: ${uploadError.message}`);
 
-                await Promise.race([performUpload, uploadTimeout]);
+                // 2. Fetch deadline
+                let deadlineDate: Date | undefined;
+                if (options.calendarId) {
+                    const { data } = await supabase.from('academic_calendar').select('deadline_date').eq('id', options.calendarId).single();
+                    if (data?.deadline_date) deadlineDate = new Date(data.deadline_date);
+                } else if (options.weekNumber) {
+                    const { data: profileData } = await supabase.from('profiles').select('district_id').eq('id', options.userId).single();
+                    if (profileData?.district_id) {
+                        const { data: calData } = await supabase
+                            .from('academic_calendar')
+                            .select('deadline_date')
+                            .eq('district_id', profileData.district_id)
+                            .eq('week_number', options.weekNumber)
+                            .maybeSingle();
+                        if (calData?.deadline_date) deadlineDate = new Date(calData.deadline_date);
+                    }
+                }
+
+                // 3. Database Entry
+                const complianceStatus = calculateComplianceStatus(new Date(), deadlineDate, options.submissionWindowDays);
+                const { error: dbError } = await supabase.from('submissions').insert({
+                    user_id: options.userId,
+                    file_name: fileName,
+                    file_path: filePath,
+                    file_hash: fileHash,
+                    file_size: stamped.byteLength,
+                    doc_type: options.docType || 'Unknown',
+                    week_number: options.weekNumber,
+                    subject: options.subject,
+                    school_year: options.schoolYear || '2025-2026',
+                    calendar_id: options.calendarId,
+                    teaching_load_id: options.teachingLoadId,
+                    compliance_status: complianceStatus
+                });
+
+                if (dbError) throw new Error(`Database error: ${dbError.message}`);
 
                 yield {
                     phase: 'done',
                     progress: 100,
-                    message: 'Upload complete!',
+                    message: 'Upload Successful!',
                     result: { fileHash, filePath, fileSize: stamped.byteLength, fileName }
                 };
             } catch (syncErr) {
-                const errMessage = syncErr instanceof Error ? syncErr.message : '';
-                const isTimeout = errMessage.includes('Sync Timeout');
-
-                console.warn(`[pipeline] Online sync ${isTimeout ? 'timed out' : 'failed'}. Falling back to offline queue:`, syncErr);
+                console.warn('[pipeline] Online sync failed. Falling back to offline queue:', syncErr);
 
                 yield {
                     phase: 'uploading',
                     progress: 50,
-                    message: isTimeout
-                        ? 'Connection too slow, saving for background sync...'
-                        : 'Upload failed, saving for offline retry...'
+                    message: 'Scan complete. Network unstable — finishing in background...'
                 };
 
                 await enqueue({
@@ -326,9 +291,7 @@ export async function* runPipeline(
                 yield {
                     phase: 'done',
                     progress: 100,
-                    message: isTimeout
-                        ? 'Queued (connection slow) — will finish in background'
-                        : 'Queued for offline sync — will retry automatically',
+                    message: 'Queued for background sync — will finish automatically',
                     result: { fileHash, filePath, fileSize: stamped.byteLength, fileName }
                 };
             }
@@ -347,7 +310,7 @@ export async function* runPipeline(
             yield {
                 phase: 'done',
                 progress: 100,
-                message: 'Queued for upload — will sync when online',
+                message: 'Offline — will sync when connection is restored',
                 result: { fileHash, filePath, fileSize: stamped.byteLength, fileName }
             };
         }

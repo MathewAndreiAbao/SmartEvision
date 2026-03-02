@@ -387,7 +387,9 @@
 
 <div>
     <!-- Header -->
-    <div class="mb-8 flex items-start justify-between">
+    <div
+        class="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+    >
         <div>
             <h1
                 class="text-2xl font-bold text-text-primary flex items-center gap-2"
@@ -420,9 +422,19 @@
 
         {#if queueCount > 0}
             <div
-                class="flex items-center gap-2 px-4 py-2 rounded-xl bg-gov-gold/10 text-gov-gold-dark text-sm font-semibold"
+                class="flex items-center justify-between sm:justify-end gap-2 px-4 py-2 rounded-xl bg-gov-gold/10 text-gov-gold-dark text-sm font-semibold w-full sm:w-auto"
             >
-                {queueCount} file{queueCount > 1 ? "s" : ""} queued offline
+                <div class="flex items-center gap-2">
+                    <span class="relative flex h-2 w-2">
+                        <span
+                            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-gov-gold opacity-75"
+                        ></span>
+                        <span
+                            class="relative inline-flex rounded-full h-2 w-2 bg-gov-gold"
+                        ></span>
+                    </span>
+                    {queueCount} file{queueCount > 1 ? "s" : ""} queued offline
+                </div>
                 <button
                     onclick={async () => {
                         const { processQueue } = await import(
@@ -431,7 +443,7 @@
                         const result = await processQueue(true);
                         queueCount = await getQueueSize();
                     }}
-                    class="ml-2 px-2 py-1 bg-gov-gold text-white text-xs rounded hover:bg-gov-gold-dark transition-colors"
+                    class="px-3 py-1 bg-gov-gold text-white text-xs rounded-lg hover:bg-gov-gold-dark transition-colors shadow-sm"
                 >
                     Sync Now
                 </button>

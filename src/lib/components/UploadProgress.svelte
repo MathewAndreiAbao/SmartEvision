@@ -46,12 +46,14 @@
 
 <div class="glass-card-static p-6">
     <!-- Steps -->
-    <div class="flex items-center justify-between mb-6">
+    <div
+        class="grid grid-cols-3 sm:flex sm:items-center sm:justify-between gap-y-6 gap-x-2 mb-6 relative"
+    >
         {#each steps as step, i}
             {@const status = getStepStatus(step)}
-            <div class="flex flex-col items-center gap-2 flex-1">
+            <div class="flex flex-col items-center gap-2 relative z-10">
                 <div
-                    class="w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-all duration-300
+                    class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-[10px] sm:text-xs font-bold transition-all duration-300
 						{status === 'done' ? 'bg-gov-green text-white shadow-md' : ''}
 						{status === 'active'
                         ? 'bg-gov-blue text-white shadow-lg animate-pulse-glow'
@@ -60,23 +62,37 @@
 						{status === 'error' ? 'bg-gov-red text-white' : ''}"
                 >
                     {#if status === "done"}
-                        DONE
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="w-5 h-5"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="3"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            ><polyline points="20 6 9 17 4 12"></polyline></svg
+                        >
                     {:else}
-                        {step.icon}
+                        {i + 1}
                     {/if}
                 </div>
                 <span
-                    class="text-xs font-medium text-center
+                    class="text-[10px] sm:text-xs font-medium text-center leading-tight
 					{status === 'active' ? 'text-gov-blue font-semibold' : 'text-text-muted'}"
                 >
                     {step.label}
                 </span>
             </div>
 
+            <!-- Connector (only visible on desktop/tablet) -->
             {#if i < steps.length - 1}
                 <div
-                    class="flex-shrink-0 w-8 h-0.5 mt-[-1.5rem]
+                    class="hidden sm:block absolute top-[1.5rem] h-0.5 z-0
 					{getStepStatus(steps[i]) === 'done' ? 'bg-gov-green' : 'bg-gray-200'}"
+                    style="left: calc({(i / (steps.length - 1)) *
+                        100}% + 2rem); width: calc({100 /
+                        (steps.length - 1)}% - 4rem);"
                 ></div>
             {/if}
         {/each}
