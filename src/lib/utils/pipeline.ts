@@ -221,9 +221,12 @@ export async function* runPipeline(
         const filePath = `${options.userId}/${Date.now()}_${fileName}`;
 
         // 1. Upload file to Supabase Storage
+        // CRITICAL: Wrap in Blob for mobile compatibility.
+        // Raw Uint8Array from Web Worker Transferables can hang on mobile fetch().
+        const uploadBlob = new Blob([stamped], { type: 'application/pdf' });
         const { error: uploadError } = await supabase.storage
             .from('submissions')
-            .upload(filePath, stamped, {
+            .upload(filePath, uploadBlob, {
                 contentType: 'application/pdf',
                 upsert: false
             });
