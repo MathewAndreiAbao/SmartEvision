@@ -46,15 +46,15 @@
         aria-label="Loading Dashboard"
     >
         <div class="text-center animate-fade-in">
-            <div
-                class="w-16 h-16 mx-auto rounded-2xl gov-header-gradient flex items-center justify-center text-white text-3xl font-bold shadow-elevated mb-4 animate-pulse-glow"
-            >
-                V
-            </div>
+            <img
+                src="/app_icon.png"
+                alt="Smart E-VISION"
+                class="w-20 h-20 mx-auto rounded-2xl shadow-elevated mb-6 animate-pulse-glow"
+            />
             <p
-                class="text-lg text-text-secondary font-medium uppercase tracking-widest text-xs"
+                class="text-sm font-bold text-text-secondary uppercase tracking-[0.25em]"
             >
-                INITIALIZING CORE...
+                Loading...
             </p>
         </div>
     </div>

@@ -78,7 +78,7 @@ self.addEventListener('install', (event) => {
 </head>
 <body>
     <div class="container">
-        <div class="icon">E</div>
+        <div class="icon"><img src="/app_icon.png" alt="Smart E-VISION" style="width:48px;height:48px;border-radius:8px;"></div>
         <h1>You're Offline</h1>
         <p>Don't worry — your queued uploads are saved and will sync automatically when your connection is restored.</p>
         <button onclick="window.location.reload()">Try Again</button>

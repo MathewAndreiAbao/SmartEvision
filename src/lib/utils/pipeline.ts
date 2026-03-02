@@ -221,12 +221,14 @@ export async function* runPipeline(
         const filePath = `${options.userId}/${Date.now()}_${fileName}`;
 
         // 1. Upload file to Supabase Storage
-        // CRITICAL: Wrap in Blob for mobile compatibility.
-        // Raw Uint8Array from Web Worker Transferables can hang on mobile fetch().
-        const uploadBlob = new Blob([stamped], { type: 'application/pdf' });
+        // CRITICAL FIX: Worker Transferables detach the original buffer.
+        // Mobile browsers silently fail when uploading from detached buffers.
+        // Solution: Copy to a fresh Uint8Array, then wrap in a File object.
+        const freshBytes = new Uint8Array(stamped);
+        const uploadFile = new File([freshBytes], fileName, { type: 'application/pdf' });
         const { error: uploadError } = await supabase.storage
             .from('submissions')
-            .upload(filePath, uploadBlob, {
+            .upload(filePath, uploadFile, {
                 contentType: 'application/pdf',
                 upsert: false
             });
