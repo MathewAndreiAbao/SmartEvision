@@ -591,99 +591,133 @@
                     {:else}
                         <div class="space-y-6 animate-fade-in">
                             <!-- Matched Teaching Load -->
-                            <div
-                                class="p-4 rounded-2xl bg-gov-blue/5 border border-gov-blue/10"
-                            >
-                                <div
-                                    class="flex justify-between items-start mb-1"
+                            <div class="space-y-2">
+                                <span
+                                    class="text-[10px] font-bold text-text-muted uppercase tracking-widest ml-1"
+                                    >Teaching Load</span
                                 >
-                                    <span
-                                        class="text-[10px] font-bold text-gov-blue uppercase tracking-widest"
-                                        >Matched Teaching Load</span
+                                <button
+                                    onclick={() => (showLoadPicker = true)}
+                                    class="w-full p-5 rounded-2xl transition-all border-2 text-left flex items-center justify-between group {teachingLoadId
+                                        ? 'bg-gov-blue/5 border-gov-blue/20 hover:border-gov-blue/40'
+                                        : 'bg-gov-red/5 border-gov-red/20 border-dashed animate-pulse'}"
+                                >
+                                    <div>
+                                        {#if teachingLoadId}
+                                            <p
+                                                class="text-[10px] font-black text-gov-blue uppercase tracking-tighter mb-1"
+                                            >
+                                                Detected Load
+                                            </p>
+                                            <p
+                                                class="text-xl font-black text-text-primary leading-tight"
+                                            >
+                                                {teachingLoads.find(
+                                                    (l) =>
+                                                        l.id === teachingLoadId,
+                                                )?.subject || "Unknown"}
+                                            </p>
+                                            <p
+                                                class="text-xs font-bold text-text-secondary mt-0.5"
+                                            >
+                                                Grade {teachingLoads.find(
+                                                    (l) =>
+                                                        l.id === teachingLoadId,
+                                                )?.grade_level || ""}
+                                            </p>
+                                        {:else}
+                                            <p
+                                                class="text-lg font-black text-gov-red"
+                                            >
+                                                Tap to Select Load
+                                            </p>
+                                            <p
+                                                class="text-xs font-medium text-gov-red/60 uppercase"
+                                            >
+                                                Manual selection required
+                                            </p>
+                                        {/if}
+                                    </div>
+                                    <div
+                                        class="p-2 rounded-xl bg-white shadow-sm border border-border-subtle group-hover:scale-110 transition-transform"
                                     >
-                                    <button
-                                        onclick={() => (showLoadPicker = true)}
-                                        class="text-[10px] font-bold text-text-muted hover:text-gov-blue transition-colors uppercase"
-                                    >
-                                        Change
-                                    </button>
-                                </div>
-                                <p class="text-lg font-bold text-text-primary">
-                                    {#if teachingLoadId}
-                                        {teachingLoads.find(
-                                            (l) => l.id === teachingLoadId,
-                                        )?.subject || "Unknown"} - {teachingLoads
-                                            .find(
-                                                (l) => l.id === teachingLoadId,
-                                            )
-                                            ?.grade_level.toLowerCase()
-                                            .includes("grade")
-                                            ? ""
-                                            : "Grade "}{teachingLoads.find(
-                                            (l) => l.id === teachingLoadId,
-                                        )?.grade_level || ""}
-                                    {:else}
-                                        <span class="text-gov-red"
-                                            >No matching load found</span
+                                        <svg
+                                            class="w-5 h-5 text-gov-blue"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
                                         >
-                                    {/if}
-                                </p>
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2.5"
+                                                d="M19 9l-7 7-7-7"
+                                            />
+                                        </svg>
+                                    </div>
+                                </button>
                             </div>
 
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 <!-- Doc Type -->
-                                <div
-                                    class="p-4 rounded-2xl bg-surface-muted/30 border border-border-subtle"
-                                >
+                                <div class="space-y-2">
+                                    <span
+                                        class="text-[10px] font-bold text-text-muted uppercase tracking-widest ml-1"
+                                        >Document Type</span
+                                    >
                                     <div
-                                        class="flex justify-between items-start mb-1"
+                                        class="flex p-1.5 bg-surface-muted/50 border border-border-subtle rounded-2xl"
                                     >
-                                        <span
-                                            class="text-[10px] font-bold text-text-muted uppercase tracking-widest"
-                                            >Document Type</span
-                                        >
-                                        <button
-                                            onclick={() =>
-                                                (docType =
-                                                    docType === "DLL"
-                                                        ? "ISP"
-                                                        : "DLL")}
-                                            class="text-[10px] font-bold text-gov-blue/60 hover:text-gov-blue transition-colors uppercase"
-                                        >
-                                            Switch
-                                        </button>
+                                        {#each ["DLL", "ISP"] as type}
+                                            <button
+                                                onclick={() => (docType = type)}
+                                                class="flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all {docType ===
+                                                type
+                                                    ? 'bg-white text-gov-blue shadow-sm'
+                                                    : 'text-text-muted hover:text-text-primary'}"
+                                            >
+                                                {type}
+                                            </button>
+                                        {/each}
                                     </div>
-                                    <p
-                                        class="text-base font-bold text-text-primary"
-                                    >
-                                        {docType}
-                                    </p>
                                 </div>
 
                                 <!-- Week -->
-                                <div
-                                    class="p-4 rounded-2xl bg-surface-muted/30 border border-border-subtle"
-                                >
-                                    <div
-                                        class="flex justify-between items-start mb-1"
+                                <div class="space-y-2">
+                                    <span
+                                        class="text-[10px] font-bold text-text-muted uppercase tracking-widest ml-1"
+                                        >Target Week</span
                                     >
-                                        <span
-                                            class="text-[10px] font-bold text-text-muted uppercase tracking-widest"
-                                            >Week Number</span
-                                        >
-                                        <button
-                                            onclick={() =>
-                                                (showWeekPicker = true)}
-                                            class="text-[10px] font-bold text-gov-blue/60 hover:text-gov-blue transition-colors uppercase"
+                                    <button
+                                        onclick={() => (showWeekPicker = true)}
+                                        class="w-full p-4 rounded-2xl bg-surface-muted/50 border border-border-subtle transition-all hover:border-gov-blue/30 text-left flex items-center justify-between group"
+                                    >
+                                        <div>
+                                            {#if weekNumber}
+                                                <p
+                                                    class="text-xs font-black text-gov-blue/60 uppercase tracking-tighter mb-0.5"
+                                                >
+                                                    Selected
+                                                </p>
+                                                <p
+                                                    class="text-lg font-black text-text-primary"
+                                                >
+                                                    Week {weekNumber}
+                                                </p>
+                                            {:else}
+                                                <p
+                                                    class="text-lg font-black text-text-muted"
+                                                >
+                                                    Select Week
+                                                </p>
+                                            {/if}
+                                        </div>
+                                        <div
+                                            class="px-2 py-1 rounded bg-gov-blue/10 text-gov-blue text-[10px] font-black uppercase"
                                         >
                                             Edit
-                                        </button>
-                                    </div>
-                                    <p
-                                        class="text-base font-bold text-text-primary"
-                                    >
-                                        Week {weekNumber || "?"}
-                                    </p>
+                                        </div>
+                                    </button>
                                 </div>
                             </div>
                         </div>

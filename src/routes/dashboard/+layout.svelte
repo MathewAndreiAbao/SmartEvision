@@ -3,7 +3,10 @@
     import InstallPrompt from "$lib/components/InstallPrompt.svelte";
     import UpdatePrompt from "$lib/components/UpdatePrompt.svelte";
     import { authLoading, profile, user } from "$lib/utils/auth";
-    import { preloadVerificationHashes } from "$lib/utils/offline";
+    import {
+        preloadVerificationHashes,
+        prefetchOfflineMetadata,
+    } from "$lib/utils/offline";
     import { settings } from "$lib/stores/settings";
     import { goto } from "$app/navigation";
     import { onMount } from "svelte";
@@ -17,11 +20,17 @@
         }
     });
 
-    // WBS 20.3 — Proactive Hash Pre-caching for full offline verification
+    // WBS 20.3 & 20.4 — Proactive caching for full offline functionality
     onMount(async () => {
         settings.init(); // Initialize real-time settings
-        if ($user) {
-            await preloadVerificationHashes();
+        if ($user && $profile) {
+            await Promise.all([
+                preloadVerificationHashes(),
+                prefetchOfflineMetadata(
+                    $profile.id,
+                    $profile.district_id || undefined,
+                ),
+            ]);
         }
     });
 </script>
