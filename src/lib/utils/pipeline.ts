@@ -6,7 +6,6 @@
 
 import { transcodeToPdf } from './transcode';
 import { supabase } from './supabase';
-import { enqueue } from './offline';
 import PdfWorker from './pdf.worker?worker';
 
 export type PipelinePhase = 'transcoding' | 'compressing' | 'analyzing' | 'hashing' | 'stamping' | 'uploading' | 'done' | 'error';
@@ -215,135 +214,70 @@ export async function* runPipeline(
         const stamped = stampedBytes;
         yield { phase: 'stamping', progress: 100, message: 'QR code stamped' };
 
-        // Phase 6: Upload
+        // Phase 6: Direct Upload to Storage & Database
         yield { phase: 'uploading', progress: 0, message: 'Uploading to secure storage...' };
 
-        const isOnline = navigator.onLine;
         const fileName = file.name.replace(/\.\w+$/, '.pdf');
         const filePath = `${options.userId}/${Date.now()}_${fileName}`;
 
-        // Sanitize options to prevent IndexedDB cloning errors (Svelte proxies)
-        const sanitizedOptions = JSON.parse(JSON.stringify(options));
-
-        if (isOnline) {
-            try {
-                // DIRECT UPLOAD with 30s safety timeout to prevent indefinite hangs
-                const UPLOAD_TIMEOUT_MS = 30000;
-                const uploadTimeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Upload timeout')), UPLOAD_TIMEOUT_MS)
-                );
-
-                const directUpload = async () => {
-                    // 1. Storage Upload
-                    const { error: uploadError } = await supabase.storage
-                        .from('submissions')
-                        .upload(filePath, stamped, {
-                            contentType: 'application/pdf',
-                            upsert: false
-                        });
-
-                    if (uploadError) throw new Error(`Storage error: ${uploadError.message}`);
-
-                    yield_msg({ phase: 'uploading', progress: 60, message: 'Saving to database...' });
-
-                    // 2. Fetch deadline
-                    let deadlineDate: Date | undefined;
-                    if (options.calendarId) {
-                        const { data } = await supabase.from('academic_calendar').select('deadline_date').eq('id', options.calendarId).single();
-                        if (data?.deadline_date) deadlineDate = new Date(data.deadline_date);
-                    } else if (options.weekNumber) {
-                        const { data: profileData } = await supabase.from('profiles').select('district_id').eq('id', options.userId).single();
-                        if (profileData?.district_id) {
-                            const { data: calData } = await supabase
-                                .from('academic_calendar')
-                                .select('deadline_date')
-                                .eq('district_id', profileData.district_id)
-                                .eq('week_number', options.weekNumber)
-                                .maybeSingle();
-                            if (calData?.deadline_date) deadlineDate = new Date(calData.deadline_date);
-                        }
-                    }
-
-                    // 3. Database Entry
-                    const complianceStatus = calculateComplianceStatus(new Date(), deadlineDate, options.submissionWindowDays);
-                    const { error: dbError } = await supabase.from('submissions').insert({
-                        user_id: options.userId,
-                        file_name: fileName,
-                        file_path: filePath,
-                        file_hash: fileHash,
-                        file_size: stamped.byteLength,
-                        doc_type: options.docType || 'Unknown',
-                        week_number: options.weekNumber,
-                        subject: options.subject,
-                        school_year: options.schoolYear || '2025-2026',
-                        calendar_id: options.calendarId,
-                        teaching_load_id: options.teachingLoadId,
-                        compliance_status: complianceStatus
-                    });
-
-                    if (dbError) throw new Error(`Database error: ${dbError.message}`);
-                    return true;
-                };
-
-                // Helper to collect yield messages from the async fn
-                let pendingMsg: any = null;
-                const yield_msg = (msg: any) => { pendingMsg = msg; };
-
-                await Promise.race([directUpload(), uploadTimeoutPromise]);
-
-                yield {
-                    phase: 'done',
-                    progress: 100,
-                    message: 'Upload Successful!',
-                    result: { fileHash, filePath, fileSize: stamped.byteLength, fileName }
-                };
-            } catch (syncErr) {
-                console.warn('[pipeline] Online sync failed. Falling back to offline queue:', syncErr);
-
-                yield {
-                    phase: 'uploading',
-                    progress: 50,
-                    message: 'Scan complete. Network unstable — finishing in background...'
-                };
-
-                await enqueue({
-                    fileName,
-                    filePath,
-                    fileHash,
-                    fileSize: stamped.byteLength,
-                    pdfBytes: stamped,
-                    options: sanitizedOptions,
-                    timestamp: Date.now()
-                });
-
-                yield {
-                    phase: 'done',
-                    progress: 100,
-                    message: 'Queued for background sync — will finish automatically',
-                    result: { fileHash, filePath, fileSize: stamped.byteLength, fileName }
-                };
-            }
-        } else {
-            // Offline: queue for later
-            await enqueue({
-                fileName,
-                filePath,
-                fileHash,
-                fileSize: stamped.byteLength,
-                pdfBytes: stamped,
-                options: sanitizedOptions,
-                timestamp: Date.now()
+        // 1. Upload file to Supabase Storage
+        const { error: uploadError } = await supabase.storage
+            .from('submissions')
+            .upload(filePath, stamped, {
+                contentType: 'application/pdf',
+                upsert: false
             });
 
-            yield {
-                phase: 'done',
-                progress: 100,
-                message: 'Offline — will sync when connection is restored',
-                result: { fileHash, filePath, fileSize: stamped.byteLength, fileName }
-            };
+        if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`);
+
+        yield { phase: 'uploading', progress: 60, message: 'Saving to database...' };
+
+        // 2. Fetch deadline for compliance calculation
+        let deadlineDate: Date | undefined;
+        if (options.calendarId) {
+            const { data } = await supabase.from('academic_calendar').select('deadline_date').eq('id', options.calendarId).single();
+            if (data?.deadline_date) deadlineDate = new Date(data.deadline_date);
+        } else if (options.weekNumber) {
+            const { data: profileData } = await supabase.from('profiles').select('district_id').eq('id', options.userId).single();
+            if (profileData?.district_id) {
+                const { data: calData } = await supabase
+                    .from('academic_calendar')
+                    .select('deadline_date')
+                    .eq('district_id', profileData.district_id)
+                    .eq('week_number', options.weekNumber)
+                    .maybeSingle();
+                if (calData?.deadline_date) deadlineDate = new Date(calData.deadline_date);
+            }
         }
+
+        // 3. Insert database record
+        const complianceStatus = calculateComplianceStatus(new Date(), deadlineDate, options.submissionWindowDays);
+        const { error: dbError } = await supabase.from('submissions').insert({
+            user_id: options.userId,
+            file_name: fileName,
+            file_path: filePath,
+            file_hash: fileHash,
+            file_size: stamped.byteLength,
+            doc_type: options.docType || 'Unknown',
+            week_number: options.weekNumber,
+            subject: options.subject,
+            school_year: options.schoolYear || '2025-2026',
+            calendar_id: options.calendarId,
+            teaching_load_id: options.teachingLoadId,
+            compliance_status: complianceStatus
+        });
+
+        if (dbError) throw new Error(`Database save failed: ${dbError.message}`);
+
+        yield {
+            phase: 'done',
+            progress: 100,
+            message: 'Upload Successful!',
+            result: { fileHash, filePath, fileSize: stamped.byteLength, fileName }
+        };
     } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         yield { phase: 'error', progress: 0, message, error: message };
     }
 }
+
