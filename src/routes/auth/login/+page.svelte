@@ -60,11 +60,11 @@
     <div class="w-full max-w-md animate-slide-up">
         <!-- Logo -->
         <div class="text-center mb-10">
-            <div
-                class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-gov-blue to-gov-blue-dark flex items-center justify-center text-white text-3xl font-bold shadow-elevated mb-4"
-            >
-                E
-            </div>
+            <img
+                src="/app_icon.png"
+                alt="Smart E-VISION"
+                class="w-16 h-16 mx-auto rounded-2xl shadow-elevated mb-4"
+            />
             <h1 class="text-2xl font-bold text-text-primary">Welcome Back</h1>
             <p class="text-base text-text-secondary mt-1">
                 Sign in to Smart E-VISION

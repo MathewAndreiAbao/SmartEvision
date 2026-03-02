@@ -227,53 +227,69 @@ export async function* runPipeline(
 
         if (isOnline) {
             try {
-                // DIRECT UPLOAD: No artificial sync timeouts
-                // 1. Storage Upload
-                const { error: uploadError } = await supabase.storage
-                    .from('submissions')
-                    .upload(filePath, stamped, {
-                        contentType: 'application/pdf',
-                        upsert: false
+                // DIRECT UPLOAD with 30s safety timeout to prevent indefinite hangs
+                const UPLOAD_TIMEOUT_MS = 30000;
+                const uploadTimeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Upload timeout')), UPLOAD_TIMEOUT_MS)
+                );
+
+                const directUpload = async () => {
+                    // 1. Storage Upload
+                    const { error: uploadError } = await supabase.storage
+                        .from('submissions')
+                        .upload(filePath, stamped, {
+                            contentType: 'application/pdf',
+                            upsert: false
+                        });
+
+                    if (uploadError) throw new Error(`Storage error: ${uploadError.message}`);
+
+                    yield_msg({ phase: 'uploading', progress: 60, message: 'Saving to database...' });
+
+                    // 2. Fetch deadline
+                    let deadlineDate: Date | undefined;
+                    if (options.calendarId) {
+                        const { data } = await supabase.from('academic_calendar').select('deadline_date').eq('id', options.calendarId).single();
+                        if (data?.deadline_date) deadlineDate = new Date(data.deadline_date);
+                    } else if (options.weekNumber) {
+                        const { data: profileData } = await supabase.from('profiles').select('district_id').eq('id', options.userId).single();
+                        if (profileData?.district_id) {
+                            const { data: calData } = await supabase
+                                .from('academic_calendar')
+                                .select('deadline_date')
+                                .eq('district_id', profileData.district_id)
+                                .eq('week_number', options.weekNumber)
+                                .maybeSingle();
+                            if (calData?.deadline_date) deadlineDate = new Date(calData.deadline_date);
+                        }
+                    }
+
+                    // 3. Database Entry
+                    const complianceStatus = calculateComplianceStatus(new Date(), deadlineDate, options.submissionWindowDays);
+                    const { error: dbError } = await supabase.from('submissions').insert({
+                        user_id: options.userId,
+                        file_name: fileName,
+                        file_path: filePath,
+                        file_hash: fileHash,
+                        file_size: stamped.byteLength,
+                        doc_type: options.docType || 'Unknown',
+                        week_number: options.weekNumber,
+                        subject: options.subject,
+                        school_year: options.schoolYear || '2025-2026',
+                        calendar_id: options.calendarId,
+                        teaching_load_id: options.teachingLoadId,
+                        compliance_status: complianceStatus
                     });
 
-                if (uploadError) throw new Error(`Storage error: ${uploadError.message}`);
+                    if (dbError) throw new Error(`Database error: ${dbError.message}`);
+                    return true;
+                };
 
-                // 2. Fetch deadline
-                let deadlineDate: Date | undefined;
-                if (options.calendarId) {
-                    const { data } = await supabase.from('academic_calendar').select('deadline_date').eq('id', options.calendarId).single();
-                    if (data?.deadline_date) deadlineDate = new Date(data.deadline_date);
-                } else if (options.weekNumber) {
-                    const { data: profileData } = await supabase.from('profiles').select('district_id').eq('id', options.userId).single();
-                    if (profileData?.district_id) {
-                        const { data: calData } = await supabase
-                            .from('academic_calendar')
-                            .select('deadline_date')
-                            .eq('district_id', profileData.district_id)
-                            .eq('week_number', options.weekNumber)
-                            .maybeSingle();
-                        if (calData?.deadline_date) deadlineDate = new Date(calData.deadline_date);
-                    }
-                }
+                // Helper to collect yield messages from the async fn
+                let pendingMsg: any = null;
+                const yield_msg = (msg: any) => { pendingMsg = msg; };
 
-                // 3. Database Entry
-                const complianceStatus = calculateComplianceStatus(new Date(), deadlineDate, options.submissionWindowDays);
-                const { error: dbError } = await supabase.from('submissions').insert({
-                    user_id: options.userId,
-                    file_name: fileName,
-                    file_path: filePath,
-                    file_hash: fileHash,
-                    file_size: stamped.byteLength,
-                    doc_type: options.docType || 'Unknown',
-                    week_number: options.weekNumber,
-                    subject: options.subject,
-                    school_year: options.schoolYear || '2025-2026',
-                    calendar_id: options.calendarId,
-                    teaching_load_id: options.teachingLoadId,
-                    compliance_status: complianceStatus
-                });
-
-                if (dbError) throw new Error(`Database error: ${dbError.message}`);
+                await Promise.race([directUpload(), uploadTimeoutPromise]);
 
                 yield {
                     phase: 'done',

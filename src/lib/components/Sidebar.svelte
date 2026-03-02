@@ -223,12 +223,11 @@
 		aria-label="Go to Dashboard"
 	>
 		<div class="flex items-center gap-4">
-			<div
-				class="w-12 h-12 rounded-2xl gov-header-gradient flex items-center justify-center text-white text-2xl font-black shadow-lg shadow-gov-blue/20 group-hover:scale-105 transition-transform"
-				aria-hidden="true"
-			>
-				E
-			</div>
+			<img
+				src="/app_icon.png"
+				alt="Smart E-VISION"
+				class="w-12 h-12 rounded-2xl shadow-lg shadow-gov-blue/20 group-hover:scale-105 transition-transform"
+			/>
 			<div>
 				<h1
 					id="dashboard-title"

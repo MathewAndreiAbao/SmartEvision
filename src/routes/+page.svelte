@@ -2,7 +2,7 @@
     import { profile, authLoading } from "$lib/utils/auth";
     import { goto } from "$app/navigation";
     import { onMount } from "svelte";
-    import { ShieldCheck, ArrowRight } from "lucide-svelte";
+    import { ArrowRight } from "lucide-svelte";
     import { fade, fly } from "svelte/transition";
 
     onMount(() => {
@@ -29,11 +29,11 @@
         class="w-full px-8 py-6 border-b border-gray-100 flex items-center justify-between"
     >
         <div class="flex items-center gap-2">
-            <div
-                class="w-10 h-10 rounded-xl bg-gov-blue flex items-center justify-center text-white shadow-lg shadow-gov-blue/20"
-            >
-                <ShieldCheck size={24} />
-            </div>
+            <img
+                src="/app_icon.png"
+                alt="Smart E-VISION"
+                class="w-10 h-10 rounded-xl shadow-lg shadow-gov-blue/20"
+            />
             <div class="flex flex-col">
                 <span
                     class="text-lg font-black tracking-tight text-text-primary"
@@ -41,7 +41,7 @@
                 >
                 <span
                     class="text-[10px] uppercase tracking-[0.2em] font-bold text-gov-blue"
-                    >Educational Hub</span
+                    >Document Hub</span
                 >
             </div>
         </div>
