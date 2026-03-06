@@ -17,6 +17,7 @@
         getTrendIcon,
         formatComplianceRate,
         getWeekNumber,
+        getDefinedWeeksCount,
     } from "$lib/utils/useDashboardData";
 
     // Data
@@ -56,7 +57,7 @@
     let teachers = $state<Teacher[]>([]);
     let allSubmissions = $state<Submission[]>([]);
     let loading = $state(true);
-
+    let currentDefinedWeeks = $state(1);
     // KPI state
     let kpi = $state<KPI>({
         totalTeachers: 0,
@@ -167,6 +168,8 @@
             );
         }
 
+        currentDefinedWeeks = await getDefinedWeeksCount(supabase);
+
         // Attach load count to each teacher
         teachers = teachers.map((t: Teacher) => ({
             ...t,
@@ -186,8 +189,8 @@
             0,
         );
 
-        const currentWk = getWeekNumber();
-        const cumulativeExpectedDistrict = totalSchoolLoads * currentWk;
+        const cumulativeExpectedDistrict =
+            totalSchoolLoads * currentDefinedWeeks;
 
         const overallStats = calculateCompliance(
             allSubmissions,
@@ -306,10 +309,12 @@
             const subs = allSubmissions.filter(
                 (s: Submission) => s.user_id === t.id,
             );
-            const currentWk = getWeekNumber();
+            // We use a promise inside derived which is not ideal, but for now we'll assume definedWeeks is pre-calculated or use a local reactive state
+            // Actually, sortedTeachers is a $derived, so it should be synchronous.
+            // I'll need to pre-fetch definedWeeks in loadSchoolData.
             const stats = calculateCompliance(
                 subs,
-                (t.loadCount || 0) * currentWk,
+                (t.loadCount || 0) * currentDefinedWeeks,
             );
             return { ...t, ...stats };
         });

@@ -17,6 +17,7 @@
         getSubmissionWeek,
         getDynamicSchoolYear,
         getWeekNumber,
+        getDefinedWeeksCount,
     } from "$lib/utils/useDashboardData";
     import {
         analyzeComplianceRisk,
@@ -245,7 +246,7 @@
             uploadsQuery,
             supabase
                 .from("academic_calendar")
-                .select("week_number")
+                .select("week_number, district_id")
                 .order("week_number", { ascending: true }),
             schoolId
                 ? supabase
@@ -258,13 +259,23 @@
         ]);
 
         const uploads = uploadsRes.data || [];
-        const calendarWeeks = calendarRes.data || [];
+        const calendarData = calendarRes.data || [];
+        const userProfile = $profile;
+        const calendar = calendarData.filter(
+            (c: any) =>
+                !userProfile?.district_id ||
+                c.district_id === userProfile.district_id ||
+                !c.district_id,
+        );
+
+        const currentDefinedWeeks = await getDefinedWeeksCount(supabase);
+
         const totalExpectedLoads = loadsRes.count || 0;
 
         // Use actual week numbers from calendar, fallback to 1..8
         const weeks =
-            calendarWeeks.length > 0
-                ? calendarWeeks.map((c: any) => c.week_number)
+            calendar.length > 0
+                ? calendar.map((c: any) => c.week_number)
                 : [1, 2, 3, 4, 5, 6, 7, 8];
 
         // Store labels using actual week numbers
@@ -280,6 +291,8 @@
     }
 
     async function getSchoolComparison(schoolId: string | null = null) {
+        const currentDefinedWeeks = await getDefinedWeeksCount(supabase);
+
         if (schoolId) {
             // SH view: Compare Teachers in their school
             const [teachersRes, subsRes, loadsRes] = await Promise.all([
@@ -305,11 +318,9 @@
                 const teacherLoadsCount = loads.filter(
                     (l: any) => l.user_id === teacher.id,
                 ).length;
-                const currentWeekNum = getWeekNumber();
-                const cumulativeExpected = teacherLoadsCount * currentWeekNum;
                 const stats = calculateCompliance(
                     teacherSubmissions,
-                    cumulativeExpected,
+                    (teacherLoadsCount || 0) * currentDefinedWeeks,
                 );
 
                 return {
@@ -350,11 +361,9 @@
                 return p?.school_id === school.id;
             }).length;
 
-            const currentWeekNum = getWeekNumber();
-            const cumulativeExpected = schoolLoadsCount * currentWeekNum;
             const stats = calculateCompliance(
                 schoolSubmissions,
-                cumulativeExpected,
+                (schoolLoadsCount || 0) * currentDefinedWeeks,
             );
 
             return {

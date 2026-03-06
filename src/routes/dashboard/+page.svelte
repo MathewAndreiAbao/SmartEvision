@@ -24,6 +24,7 @@
         formatComplianceRate,
         getWeekNumber,
         getCurrentWeekFromCalendar,
+        getDefinedWeeksCount,
     } from "$lib/utils/useDashboardData";
     import {
         analyzeComplianceRisk,
@@ -159,9 +160,9 @@
         teachingLoadsCount = loadsResult.count || 0;
         const calendar = calendarResult.data || [];
 
-        // Calculate cumulative expected loads to date
-        const currentWeekNum = await getCurrentWeekFromCalendar(supabase);
-        const cumulativeExpected = teachingLoadsCount * currentWeekNum;
+        // Calculate cumulative expected loads to date based on defined calendar weeks
+        const definedWeeks = await getDefinedWeeksCount(supabase);
+        const cumulativeExpected = teachingLoadsCount * definedWeeks;
 
         // Calculate compliance stats using ACTUAL submission statuses
         // Rate = compliant / cumulativeExpected

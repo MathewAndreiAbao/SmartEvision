@@ -18,6 +18,7 @@
     getWeekNumber,
     getSubmissionWeek,
     markMissingSubmissions,
+    getDefinedWeeksCount,
   } from "$lib/utils/useDashboardData";
 
   // Data Interfaces
@@ -56,6 +57,7 @@
   let schools = $state<School[]>([]);
   let allSubmissions = $state<Submission[]>([]);
   let loading = $state(true);
+  let currentDefinedWeeks = $state(1);
   let kpi = $state<KPI>({
     totalSchools: 0,
     overallRate: 0,
@@ -156,6 +158,8 @@
     );
 
     // 5. Process School Data
+    currentDefinedWeeks = await getDefinedWeeksCount(supabase);
+
     schools = schoolsData.map((school) => {
       const schoolSubmissions = (subsData || []).filter((s: any) => {
         const p = Array.isArray(s.profiles) ? s.profiles[0] : s.profiles;
@@ -167,10 +171,9 @@
         return p?.school_id === school.id;
       }).length;
 
-      const currentWk = getWeekNumber();
       const stats = calculateCompliance(
         schoolSubmissions,
-        schoolLoadsCount * currentWk,
+        (schoolLoadsCount || 0) * currentDefinedWeeks,
       );
 
       return {
@@ -200,7 +203,7 @@
 
     const overallStats = calculateCompliance(
       allSubmissions,
-      totalDistrictLoads * currentWk,
+      totalDistrictLoads * currentDefinedWeeks,
     );
 
     // Prev Week for Trend

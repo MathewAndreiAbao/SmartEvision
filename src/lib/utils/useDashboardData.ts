@@ -93,6 +93,25 @@ export async function getCurrentWeekFromCalendar(
 }
 
 /**
+ * Count the number of weeks defined in the academic_calendar table.
+ * This determines the multiplier for teaching loads in compliance calculations.
+ */
+export async function getDefinedWeeksCount(
+  supabase: any,
+  schoolYear: string = getDynamicSchoolYear(),
+  districtId?: string
+): Promise<number> {
+  const weeks = await getActualWeeks(supabase, schoolYear, districtId);
+
+  // Count only weeks that have already passed or are current (deadline_date <= now)
+  const now = new Date().toISOString();
+  // We count weeks where deadline_date is in the past, or if no deadline is set, we count it.
+  const activeWeeks = weeks.filter(w => !w.deadline_date || w.deadline_date <= now);
+
+  return activeWeeks.length || 1; // Minimum 1 to avoid 0% issues if calendar is empty
+}
+
+/**
  * Count submissions directly by their stored compliance_status.
  * Returns counts for each status category.
  */
