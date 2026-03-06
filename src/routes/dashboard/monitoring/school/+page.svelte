@@ -18,6 +18,7 @@
         formatComplianceRate,
         getWeekNumber,
         getDefinedWeeksCount,
+        markNonCompliantSubmissions,
     } from "$lib/utils/useDashboardData";
 
     // Data
@@ -128,6 +129,15 @@
     async function loadSchoolData() {
         const userProfile = $profile;
         if (!userProfile?.school_id) return;
+
+        // Trigger auto-generation of NC records for this school
+        markNonCompliantSubmissions(
+            supabase,
+            "2025-2026",
+            undefined,
+            undefined,
+            userProfile.school_id,
+        );
 
         // Batch fetch: teachers + all submissions + all teaching loads + academic calendar
         const [teachersRes, subsRes, loadsRes, calendarRes] = await Promise.all(

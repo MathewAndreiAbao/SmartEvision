@@ -25,6 +25,7 @@
         getWeekNumber,
         getCurrentWeekFromCalendar,
         getDefinedWeeksCount,
+        markNonCompliantSubmissions,
     } from "$lib/utils/useDashboardData";
     import {
         analyzeComplianceRisk,
@@ -127,6 +128,13 @@
         const role = userProfile.role;
 
         if (role === "Teacher") {
+            // Trigger auto-generation of NC records for this teacher
+            markNonCompliantSubmissions(
+                supabase,
+                "2025-2026",
+                undefined,
+                userProfile.id,
+            );
             await loadTeacherDashboard(userProfile);
         } else {
             await loadSupervisorDashboard(userProfile, role);
