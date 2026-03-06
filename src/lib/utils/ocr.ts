@@ -481,26 +481,27 @@ export function resolveWeekFromDates(
     const docStart = dateRange.start.getTime();
     const docEnd = dateRange.end.getTime();
 
-    // Strategy 1: Exact overlap — find calendar week whose date range overlaps the document's
+    // Strategy 1: Deadline-based match — if doc end date is near the deadline
     for (const week of calendar) {
-        if (week.start_date && week.end_date) {
-            const calStart = new Date(week.start_date).getTime();
-            const calEnd = new Date(week.end_date).getTime();
+        if (week.deadline_date) {
+            const deadline = new Date(week.deadline_date).getTime();
+            // Assume the week starts 7 days before the deadline
+            const weekStart = deadline - 7 * 24 * 60 * 60 * 1000;
 
-            // Check if document dates overlap with this calendar week
-            if (docStart <= calEnd && docEnd >= calStart) {
-                console.log(`[ocr] Date range matched calendar Week ${week.week_number}`);
+            // Check if document dates overlap with this week window
+            if (docStart <= deadline && docEnd >= weekStart) {
+                console.log(`[ocr] Date range matched calendar Week ${week.week_number} (deadline: ${week.deadline_date})`);
                 return { weekNumber: week.week_number, calendarId: week.id };
             }
         }
     }
 
-    // Strategy 2: Closest match — find the calendar week with the smallest distance
+    // Strategy 2: Closest match — find the calendar week with the smallest distance to deadline
     let closest: { weekNumber: number; calendarId?: string; distance: number } | null = null;
     for (const week of calendar) {
-        if (week.start_date) {
-            const calStart = new Date(week.start_date).getTime();
-            const distance = Math.abs(docStart - calStart);
+        if (week.deadline_date) {
+            const deadline = new Date(week.deadline_date).getTime();
+            const distance = Math.abs(docEnd - deadline);
             if (!closest || distance < closest.distance) {
                 closest = { weekNumber: week.week_number, calendarId: week.id, distance };
             }
@@ -509,7 +510,7 @@ export function resolveWeekFromDates(
 
     // Only accept closest match if within 7 days
     if (closest && closest.distance <= 7 * 24 * 60 * 60 * 1000) {
-        console.log(`[ocr] Date range closest-matched to calendar Week ${closest.weekNumber} (${Math.round(closest.distance / 86400000)}d distance)`);
+        console.log(`[ocr] Date range closest-matched to calendar Week ${closest.weekNumber} (${Math.round(closest.distance / 86400000)}d distance to deadline)`);
         return { weekNumber: closest.weekNumber, calendarId: closest.calendarId };
     }
 

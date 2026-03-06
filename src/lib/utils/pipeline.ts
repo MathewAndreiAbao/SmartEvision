@@ -107,7 +107,7 @@ export async function* runPipeline(
                         if (calendar.length === 0 && navigator.onLine) {
                             const { data } = await (await import('./supabase')).supabase
                                 .from('academic_calendar')
-                                .select('id, week_number, start_date, end_date, deadline_date')
+                                .select('id, week_number, deadline_date')
                                 .order('week_number', { ascending: true });
                             calendar = data || [];
                         }

@@ -44,7 +44,7 @@ export async function getActualWeeks(
 ): Promise<AcademicWeek[]> {
   let query = supabase
     .from('academic_calendar')
-    .select('week_number, start_date, end_date, deadline_date, school_year')
+    .select('week_number, deadline_date, school_year')
     .eq('school_year', schoolYear)
     .order('week_number', { ascending: true });
 
@@ -69,22 +69,15 @@ export async function getCurrentWeekFromCalendar(
   const weeks = await getActualWeeks(supabase, schoolYear, districtId);
   const today = new Date().toISOString().split('T')[0];
 
-  for (const w of weeks) {
-    if (w.start_date && w.end_date) {
-      if (today >= w.start_date && today <= w.end_date) {
-        return w.week_number;
-      }
-    }
+  // If we have weeks, find the first week where the deadline is in the future or today
+  const currentWeek = weeks.find(w => w.deadline_date && w.deadline_date >= today);
+  if (currentWeek) {
+    return currentWeek.week_number;
   }
 
-  // Fallback: return the latest week_number if calendar exists
+  // Fallback: return the latest week_number if all deadlines passed
   if (weeks.length > 0) {
-    // Return the highest week that has a start_date <= today
-    const pastWeeks = weeks.filter(w => w.start_date && w.start_date <= today);
-    if (pastWeeks.length > 0) {
-      return pastWeeks[pastWeeks.length - 1].week_number;
-    }
-    return weeks[0].week_number;
+    return weeks[weeks.length - 1].week_number;
   }
 
   // Ultimate fallback: calculate from hardcoded date
@@ -375,57 +368,59 @@ export async function markNonCompliantSubmissions(
     const weekNumbers = pastWeeks.map((w: any) => w.week_number);
     const { data: existingSubs } = await supabase
       .from('submissions')
-      .select('id, user_id, week_number, compliance_status, file_hash')
+      .select('id, user_id, week_number, compliance_status, file_hash, teaching_load_id')
       .in('user_id', teacherIds)
       .in('week_number', weekNumbers)
       .eq('school_year', schoolYear);
 
-    // 5. Rebalancing Logic per (teacher, week)
+    // 5. Per-Load Rebalancing Logic
     const ncRecords: any[] = [];
     const idsToDelete: string[] = [];
 
     for (const teacher of teachers) {
       const myLoads = teachingLoads.filter((l: any) => l.user_id === teacher.id);
-      const loadCount = myLoads.length;
-      if (loadCount === 0) continue;
+      if (myLoads.length === 0) {
+        console.warn(`[NC] Teacher ${teacher.full_name} has NO teaching loads assigned.`);
+        continue;
+      }
 
       for (const week of pastWeeks) {
-        const mySubs = (existingSubs || []).filter((s: any) => s.user_id === teacher.id && s.week_number === week.week_number);
+        const mySubsForWeek = (existingSubs || []).filter(
+          (s: any) => s.user_id === teacher.id && s.week_number === week.week_number
+        );
 
-        const realCount = mySubs.filter((s: any) => s.compliance_status === 'compliant' || s.compliance_status === 'late').length;
-        const ncSubs = mySubs.filter((s: any) => s.compliance_status === 'non-compliant');
-        const total = realCount + ncSubs.length;
+        for (const load of myLoads) {
+          const loadSubs = mySubsForWeek.filter((s: any) => s.teaching_load_id === load.id);
+          const hasRealSub = loadSubs.some((s: any) => s.compliance_status === 'compliant' || s.compliance_status === 'late');
+          const ncSubs = loadSubs.filter((s: any) => s.compliance_status === 'non-compliant');
 
-        if (total > loadCount) {
-          // Delete excess NC records
-          const excess = total - loadCount;
-          const toDel = ncSubs.slice(0, excess).map((s: any) => s.id);
-          idsToDelete.push(...toDel);
-        } else if (total < loadCount) {
-          // Insert missing NC records
-          const missing = loadCount - total;
-          for (let i = 0; i < missing; i++) {
-            // Find a slot index that doesn't conflict with existing deterministic hashes
-            // Actually, let's just use a timestamp for unique hashes to avoid collisions if rebalancing
-            // but deterministic is safer for batching. Let's use slot based on ncSubs.length + i.
-            const slot = ncSubs.length + i;
-            const hash = `nc_${teacher.id}_${week.week_number}_${slot}_${schoolYear}`;
-
-            // Safety: skip if hash already in mySubs (shouldn't happen if total < loadCount, but just in case)
-            if (mySubs.find((s: any) => s.file_hash === hash)) continue;
-
-            ncRecords.push({
-              user_id: teacher.id,
-              file_name: `[Non-Compliant] Week ${week.week_number} - Slot ${slot + 1}`,
-              file_path: `non-compliant/${teacher.id}/week_${week.week_number}_${slot}`,
-              file_hash: hash,
-              file_size: 0,
-              doc_type: 'Non-Compliant',
-              week_number: week.week_number,
-              school_year: schoolYear,
-              calendar_id: week.id,
-              compliance_status: 'non-compliant'
-            });
+          if (hasRealSub) {
+            // If we have a real submission, we don't need ANY non-compliant placeholders for this load
+            if (ncSubs.length > 0) {
+              idsToDelete.push(...ncSubs.map((s: any) => s.id));
+            }
+          } else {
+            // No real submission. We need EXACTLY ONE non-compliant placeholder.
+            if (ncSubs.length === 0) {
+              // Create one
+              const hash = `nc_${teacher.id}_${week.week_number}_${load.id}_${schoolYear}`;
+              ncRecords.push({
+                user_id: teacher.id,
+                teaching_load_id: load.id,
+                file_name: `[Non-Compliant] ${load.subject} - Week ${week.week_number}`,
+                file_path: `non-compliant/${teacher.id}/week_${week.week_number}_load_${load.id}`,
+                file_hash: hash,
+                file_size: 0,
+                doc_type: 'Non-Compliant',
+                week_number: week.week_number,
+                school_year: schoolYear,
+                calendar_id: week.id,
+                compliance_status: 'non-compliant'
+              });
+            } else if (ncSubs.length > 1) {
+              // Too many placeholders? Remove extras (keep 1)
+              idsToDelete.push(...ncSubs.slice(1).map((s: any) => s.id));
+            }
           }
         }
       }
