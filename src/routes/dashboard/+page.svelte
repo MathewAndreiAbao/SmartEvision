@@ -26,6 +26,11 @@
         getCurrentWeekFromCalendar,
     } from "$lib/utils/useDashboardData";
     import {
+        analyzeComplianceRisk,
+        calculateDistrictRisk,
+        type PredictionResult,
+    } from "$lib/utils/predictiveAnalytics";
+    import {
         detectPatterns,
         type PatternAlert,
     } from "$lib/utils/patternDetection";
@@ -80,6 +85,8 @@
         nonCompliantCount: 0,
     });
     let alerts = $state<PatternAlert[]>([]);
+    let riskPrediction = $state<PredictionResult | null>(null);
+    let districtRisk = $state(0);
     let clusterResults = $state<ClusterResult[]>([]);
     let clusterSummaries = $state<ClusterSummary[]>([]);
     let loading = $state(true);
@@ -168,6 +175,9 @@
         recentActivity = (subsResult.data || []).slice(0, 5);
         stats.totalUploads = (subsResult.data || []).length;
         stats.compliantRate = complianceStats.rate;
+
+        // Run Predictive Analytics
+        riskPrediction = analyzeComplianceRisk(submissions);
     }
 
     async function loadSupervisorDashboard(userProfile: any, role: string) {
@@ -245,6 +255,15 @@
 
         // Run pattern detection for supervisor alerts
         alerts = detectPatterns(allSubs, calendarArr, teachers);
+
+        // Calculate District Risk Aggregate
+        const teacherMapCluster = new Map<string, any[]>();
+        allSubs.forEach((s) => {
+            if (!teacherMapCluster.has(s.user_id))
+                teacherMapCluster.set(s.user_id, []);
+            teacherMapCluster.get(s.user_id)!.push(s);
+        });
+        districtRisk = calculateDistrictRisk(teacherMapCluster);
 
         // Run K-Means clustering on teacher behavioral data
         if (canCluster(teachers.length, allSubs.length)) {
@@ -495,6 +514,52 @@
                     label="Non-compliant"
                     color="from-gov-red to-red-700"
                 />
+            </div>
+            <div in:fly={{ y: 20, duration: 400, delay: 400 }}>
+                <div
+                    class="gov-card-static p-6 h-full flex flex-col justify-between overflow-hidden relative"
+                >
+                    <div
+                        class="absolute -top-4 -right-4 w-20 h-20 bg-gov-blue/5 rounded-full blur-xl"
+                    ></div>
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3
+                                class="text-[10px] font-black text-text-muted uppercase tracking-widest"
+                            >
+                                AI Forecast
+                            </h3>
+                            {#if riskPrediction}
+                                <span
+                                    class="px-2 py-0.5 rounded-full text-[9px] font-bold {riskPrediction.label ===
+                                    'On-Track'
+                                        ? 'bg-gov-green/10 text-gov-green'
+                                        : riskPrediction.label === 'At-Risk'
+                                          ? 'bg-gov-gold/10 text-gov-gold'
+                                          : 'bg-gov-red/10 text-gov-red'}"
+                                >
+                                    {riskPrediction.trend}
+                                </span>
+                            {/if}
+                        </div>
+                        {#if riskPrediction}
+                            <p
+                                class="text-2xl font-black text-text-primary tracking-tight"
+                            >
+                                {riskPrediction.label}
+                            </p>
+                            <p
+                                class="text-[11px] text-text-secondary mt-2 leading-relaxed font-medium"
+                            >
+                                {riskPrediction.message}
+                            </p>
+                        {:else}
+                            <p class="text-lg font-bold text-text-muted">
+                                Awaiting Data
+                            </p>
+                        {/if}
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -763,8 +828,13 @@
     {:else}
         <!-- ========== SUPERVISOR DASHBOARD ========== -->
 
+        <!-- Urgent Patterns (AI Alerts) -->
+        {#if alerts.length > 0}
+            <AlertBanner {alerts} />
+        {/if}
+
         <!-- Stats Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-12">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6 mb-12">
             <div in:fly={{ y: 20, duration: 400, delay: 0 }}>
                 <StatCard
                     icon="Users"
@@ -796,12 +866,24 @@
                     color="gov-gold"
                 />
             </div>
-            <div in:fly={{ y: 20, duration: 400, delay: 300 }}>
+            <div in:fly={{ y: 20, duration: 400, delay: 250 }}>
                 <StatCard
                     icon="ShieldX"
                     value={stats.nonCompliantCount}
                     label="NON-COMPLIANT"
                     color="gov-red"
+                />
+            </div>
+            <div in:fly={{ y: 20, duration: 400, delay: 300 }}>
+                <StatCard
+                    icon="Activity"
+                    value="{districtRisk}%"
+                    label="DISTRICT RISK"
+                    color={districtRisk > 60
+                        ? "gov-red"
+                        : districtRisk > 30
+                          ? "gov-gold"
+                          : "gov-green"}
                 />
             </div>
         </div>
