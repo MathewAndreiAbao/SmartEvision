@@ -12,7 +12,6 @@ export interface ComplianceStats {
   NonCompliant: number;
   totalUploaded: number;
   expected: number;
-  missing: number;
   rate: number; // 0-100
 }
 
@@ -139,8 +138,9 @@ export function countSubmissionsByStatus(
 /**
  * Calculate compliance stats from an array of submissions.
  * 
- * Rate = Compliant / Total (compliant + late + non-compliant)
- * Uses ONLY the actual compliance_status stored in database.
+ * Rate = Compliant / Expected
+ * Non-compliant records are now explicitly inserted into the DB by
+ * markNonCompliantSubmissions, so we simply count what exists.
  */
 export function calculateCompliance(
   submissions: { compliance_status?: string; created_at?: string }[],
@@ -151,22 +151,15 @@ export function calculateCompliance(
   const expected = expectedOverride !== undefined ? expectedOverride : teachingLoadsCount;
 
   // Rate = Compliant / Expected (Strict Load-Based)
-  // If no loads are set, we fallback to total uploaded to avoid division by zero, 
-  // though in production we expect teachingLoadsCount to be >= 1 for active teachers.
   const denominator = expected > 0 ? expected : counts.total;
   const rate = denominator > 0 ? Math.min(100, Math.round((counts.compliant / denominator) * 100)) : 0;
-
-  // Actual Non-Compliant = (Missing from loads) + (Uploaded as non-compliant)
-  const missing = Math.max(0, expected - counts.total);
-  const adjustedNonCompliant = counts.nonCompliant + missing;
 
   return {
     Compliant: counts.compliant,
     Late: counts.late,
-    NonCompliant: adjustedNonCompliant,
+    NonCompliant: counts.nonCompliant,
     totalUploaded: counts.total,
     expected,
-    missing,
     rate
   };
 }
@@ -305,15 +298,20 @@ export function getSubmissionWeek(s: { week_number?: number | null, created_at?:
 }
 
 /**
- * WBS 14.5 — Active Missing Submission Detection
+ * WBS 14.5 — Active Non-Compliant Submission Detection (Per Teaching Load)
  * 
- * Scans past-deadline calendar weeks and marks teachers who have NO submission
- * for that week with an explicit 'non-compliant' placeholder record.
- * This replaces the passive "infer missing from absence" approach.
+ * Scans past-deadline calendar weeks and, for each teacher, checks how many
+ * teaching loads they have. For each (teacher, load, week) tuple with no
+ * matching submission, inserts a 'non-compliant' placeholder record.
  * 
- * Returns the number of newly marked missing submissions.
+ * Example: Teacher has 4 loads, Weeks 1 & 2 are past-deadline.
+ *   - Week 1: 1 submission uploaded → 3 non-compliant records inserted
+ *   - Week 2: 2 submissions uploaded → 2 non-compliant records inserted
+ *   Total auto-inserted: 5 non-compliant records
+ * 
+ * Returns the number of newly inserted non-compliant records.
  */
-export async function markMissingSubmissions(
+export async function markNonCompliantSubmissions(
   supabase: any,
   schoolYear: string = getDynamicSchoolYear(),
   districtId?: string
@@ -337,14 +335,13 @@ export async function markMissingSubmissions(
     const { data: pastWeeks, error: calError } = await calQuery;
     if (calError || !pastWeeks || pastWeeks.length === 0) return 0;
 
-    // 2. Get all teachers (with teaching loads) in this district
+    // 2. Get all teachers in scope
     let teacherQuery = supabase
       .from('profiles')
       .select('id, full_name, school_id')
       .eq('role', 'Teacher');
 
     if (districtId) {
-      // Get teachers from schools in this district
       const { data: schools } = await supabase
         .from('schools')
         .select('id')
@@ -359,35 +356,62 @@ export async function markMissingSubmissions(
     const { data: teachers, error: teacherError } = await teacherQuery;
     if (teacherError || !teachers || teachers.length === 0) return 0;
 
-    // 3. Get all existing submissions for these weeks
-    const weekNumbers = pastWeeks.map((w: any) => w.week_number);
     const teacherIds = teachers.map((t: any) => t.id);
+
+    // 3. Get teaching loads for these teachers
+    const { data: teachingLoads } = await supabase
+      .from('teaching_loads')
+      .select('id, user_id, subject')
+      .in('user_id', teacherIds);
+
+    if (!teachingLoads || teachingLoads.length === 0) return 0;
+
+    // 4. Get existing submission counts per (user_id, week_number)
+    const weekNumbers = pastWeeks.map((w: any) => w.week_number);
 
     const { data: existingSubs } = await supabase
       .from('submissions')
-      .select('user_id, week_number')
+      .select('user_id, week_number, file_hash')
       .in('user_id', teacherIds)
       .in('week_number', weekNumbers)
       .eq('school_year', schoolYear);
 
-    // 4. Build a set of existing (user_id, week_number) pairs
-    const existingSet = new Set(
-      (existingSubs || []).map((s: any) => `${s.user_id}_${s.week_number}`)
-    );
+    // Build a count map: how many submissions each teacher has per week
+    const subCountMap = new Map<string, number>();
+    const existingHashes = new Set<string>();
+    for (const s of (existingSubs || [])) {
+      const key = `${s.user_id}_${s.week_number}`;
+      subCountMap.set(key, (subCountMap.get(key) || 0) + 1);
+      if (s.file_hash) existingHashes.add(s.file_hash);
+    }
 
-    // 5. For each teacher × past week with no submission, insert a 'non-compliant' placeholder
-    const missingRecords: any[] = [];
+    // 5. For each teacher × week, calculate how many non-compliant slots to fill
+    const ncRecords: any[] = [];
     for (const teacher of teachers) {
+      const teacherLoads = teachingLoads.filter((l: any) => l.user_id === teacher.id);
+      const loadCount = teacherLoads.length;
+      if (loadCount === 0) continue;
+
       for (const week of pastWeeks) {
         const key = `${teacher.id}_${week.week_number}`;
-        if (!existingSet.has(key)) {
-          missingRecords.push({
+        const existingCount = subCountMap.get(key) || 0;
+        const slotsToFill = Math.max(0, loadCount - existingCount);
+
+        // Create one non-compliant record per unfilled load slot
+        for (let slot = 0; slot < slotsToFill; slot++) {
+          // Use a deterministic hash so we never double-insert
+          const hash = `nc_${teacher.id}_${week.week_number}_${slot}_${schoolYear}`;
+          if (existingHashes.has(hash)) continue;
+
+          // Try to match to a specific load if possible
+          const load = teacherLoads[slot] || teacherLoads[0];
+          ncRecords.push({
             user_id: teacher.id,
-            file_name: `[MISSING] Week ${week.week_number}`,
-            file_path: `missing/${teacher.id}/week_${week.week_number}`,
-            file_hash: `missing_${teacher.id}_${week.week_number}_${schoolYear}`,
+            file_name: `[Non-Compliant] Week ${week.week_number} - ${load.subject || 'Load ' + (slot + 1)}`,
+            file_path: `non-compliant/${teacher.id}/week_${week.week_number}_slot_${slot}`,
+            file_hash: hash,
             file_size: 0,
-            doc_type: 'Unknown',
+            doc_type: 'Non-Compliant',
             week_number: week.week_number,
             school_year: schoolYear,
             calendar_id: week.id,
@@ -397,21 +421,19 @@ export async function markMissingSubmissions(
       }
     }
 
-    // 6. Batch insert (skip duplicates via file_hash uniqueness check)
-    if (missingRecords.length > 0) {
-      // Insert in batches of 50 to avoid payload limits
-      for (let i = 0; i < missingRecords.length; i += 50) {
-        const batch = missingRecords.slice(i, i + 50);
+    // 6. Batch insert (skip duplicates via file_hash)
+    if (ncRecords.length > 0) {
+      for (let i = 0; i < ncRecords.length; i += 50) {
+        const batch = ncRecords.slice(i, i + 50);
 
-        // Check which hashes already exist to avoid duplicates
         const hashes = batch.map((r: any) => r.file_hash);
         const { data: existing } = await supabase
           .from('submissions')
           .select('file_hash')
           .in('file_hash', hashes);
 
-        const existingHashes = new Set((existing || []).map((e: any) => e.file_hash));
-        const newRecords = batch.filter((r: any) => !existingHashes.has(r.file_hash));
+        const alreadyExist = new Set((existing || []).map((e: any) => e.file_hash));
+        const newRecords = batch.filter((r: any) => !alreadyExist.has(r.file_hash));
 
         if (newRecords.length > 0) {
           const { error: insertError } = await supabase
@@ -428,10 +450,10 @@ export async function markMissingSubmissions(
     }
 
     if (marked > 0) {
-      console.log(`[compliance] Marked ${marked} missing submissions as non-compliant`);
+      console.log(`[compliance] Inserted ${marked} non-compliant placeholder records`);
     }
   } catch (err) {
-    console.error('[compliance] markMissingSubmissions error:', err);
+    console.error('[compliance] markNonCompliantSubmissions error:', err);
   }
 
   return marked;

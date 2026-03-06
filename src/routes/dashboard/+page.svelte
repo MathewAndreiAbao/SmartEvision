@@ -251,9 +251,7 @@
             (s) => s.compliance_status === "late",
         ).length;
         stats.nonCompliantCount = allSubs.filter(
-            (s) =>
-                s.compliance_status === "non-compliant" ||
-                s.compliance_status === "missing",
+            (s) => s.compliance_status === "non-compliant",
         ).length;
 
         recentActivity = allSubs.slice(0, 5);
@@ -313,10 +311,7 @@
                 )
                     cs = "compliant";
                 else if (cs.toLowerCase() === "late") cs = "late";
-                else if (
-                    cs.toLowerCase() === "missing" ||
-                    cs.toLowerCase() === "non-compliant"
-                )
+                else if (cs.toLowerCase() === "non-compliant")
                     cs = "non-compliant";
 
                 return cs === filterStatus;
@@ -351,7 +346,7 @@
     function getStatusBadgeType(
         s: any,
     ): "compliant" | "late" | "non-compliant" | "pending" | "review" {
-        const cs = (s.compliance_status || "missing").toLowerCase();
+        const cs = (s.compliance_status || "non-compliant").toLowerCase();
         if (cs === "compliant" || cs === "on-time") return "compliant";
         if (cs === "late") return "late";
         return "non-compliant";

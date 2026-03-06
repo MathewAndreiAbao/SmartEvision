@@ -17,7 +17,7 @@
     getTrendIcon,
     getWeekNumber,
     getSubmissionWeek,
-    markMissingSubmissions,
+    markNonCompliantSubmissions,
     getDefinedWeeksCount,
   } from "$lib/utils/useDashboardData";
 
@@ -88,13 +88,15 @@
   onMount(async () => {
     await loadDistrictData();
 
-    // WBS 14.5 — Actively mark missing submissions for past deadlines
+    // WBS 14.5 — Actively mark non-compliant submissions for past deadlines
     if ($profile?.district_id) {
-      markMissingSubmissions(supabase, "2025-2026", $profile.district_id).then(
-        (count) => {
-          if (count > 0) loadDistrictData(); // Refresh if new records added
-        },
-      );
+      markNonCompliantSubmissions(
+        supabase,
+        "2025-2026",
+        $profile.district_id,
+      ).then((count) => {
+        if (count > 0) loadDistrictData(); // Refresh if new records added
+      });
     }
 
     loading = false;
@@ -458,7 +460,7 @@
                 >Late</th
               >
               <th class="px-4 py-3 text-center font-semibold text-text-muted"
-                >Missing</th
+                >Non-Compliant</th
               >
               <th
                 class="px-4 py-3 text-center font-semibold text-text-muted cursor-pointer hover:text-text-primary"
@@ -539,7 +541,7 @@
           </p>
         </div>
         <div class="bg-gov-red/5 p-3 rounded-lg text-center">
-          <p class="text-xs text-text-muted mb-1">Missing</p>
+          <p class="text-xs text-text-muted mb-1">Non-Compliant</p>
           <p class="text-lg font-bold text-gov-red">
             {selectedSchool.NonCompliant}
           </p>
@@ -560,8 +562,7 @@
             <StatusBadge
               status={sub.compliance_status === "late"
                 ? "late"
-                : sub.compliance_status === "non-compliant" ||
-                    sub.compliance_status === "missing"
+                : sub.compliance_status === "non-compliant"
                   ? "non-compliant"
                   : "compliant"}
               size="sm"
