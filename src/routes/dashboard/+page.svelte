@@ -159,9 +159,13 @@
         teachingLoadsCount = loadsResult.count || 0;
         const calendar = calendarResult.data || [];
 
+        // Calculate cumulative expected loads to date
+        const currentWeekNum = await getCurrentWeekFromCalendar(supabase);
+        const cumulativeExpected = teachingLoadsCount * currentWeekNum;
+
         // Calculate compliance stats using ACTUAL submission statuses
-        // Rate = compliant / total (no estimated expected)
-        complianceStats = calculateCompliance(submissions, teachingLoadsCount);
+        // Rate = compliant / cumulativeExpected
+        complianceStats = calculateCompliance(submissions, cumulativeExpected);
 
         // Weekly breakdown for chart + widget (uses calendar weeks)
         weeklyData = groupSubmissionsByWeek(

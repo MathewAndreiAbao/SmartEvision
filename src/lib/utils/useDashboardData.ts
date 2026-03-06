@@ -12,6 +12,7 @@ export interface ComplianceStats {
   NonCompliant: number;
   totalUploaded: number;
   expected: number;
+  missing: number;
   rate: number; // 0-100
 }
 
@@ -125,21 +126,28 @@ export function countSubmissionsByStatus(
 export function calculateCompliance(
   submissions: { compliance_status?: string; created_at?: string }[],
   teachingLoadsCount: number = 0,
-  expected?: number,
-  deadlineDate?: string | Date
+  expectedOverride?: number
 ): ComplianceStats {
   const counts = countSubmissionsByStatus(submissions);
+  const expected = expectedOverride !== undefined ? expectedOverride : teachingLoadsCount;
 
-  // Rate = Compliant / Total submissions (not estimated expected)
-  const total = counts.total;
-  const rate = total > 0 ? Math.min(100, Math.round((counts.compliant / total) * 100)) : 0;
+  // Rate = Compliant / Expected (Strict Load-Based)
+  // If no loads are set, we fallback to total uploaded to avoid division by zero, 
+  // though in production we expect teachingLoadsCount to be >= 1 for active teachers.
+  const denominator = expected > 0 ? expected : counts.total;
+  const rate = denominator > 0 ? Math.min(100, Math.round((counts.compliant / denominator) * 100)) : 0;
+
+  // Actual Non-Compliant = (Missing from loads) + (Uploaded as non-compliant)
+  const missing = Math.max(0, expected - counts.total);
+  const adjustedNonCompliant = counts.nonCompliant + missing;
 
   return {
     Compliant: counts.compliant,
     Late: counts.late,
-    NonCompliant: counts.nonCompliant,
-    totalUploaded: total,
-    expected: expected !== undefined ? expected : teachingLoadsCount,
+    NonCompliant: adjustedNonCompliant,
+    totalUploaded: counts.total,
+    expected,
+    missing,
     rate
   };
 }

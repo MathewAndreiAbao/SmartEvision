@@ -27,7 +27,7 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/" | "/api" | "/api/convert" | "/api/summarize" | "/auth" | "/auth/login" | "/dashboard" | "/dashboard/admin" | "/dashboard/analytics" | "/dashboard/archive" | "/dashboard/calendar" | "/dashboard/load" | "/dashboard/master-teacher" | "/dashboard/monitoring" | "/dashboard/monitoring/district" | "/dashboard/monitoring/school" | "/dashboard/settings" | "/dashboard/upload" | "/verify" | "/verify/[hash]";
+		RouteId(): "/" | "/api" | "/api/convert" | "/api/summarize" | "/auth" | "/auth/login" | "/dashboard" | "/dashboard/admin" | "/dashboard/analytics" | "/dashboard/archive" | "/dashboard/calendar" | "/dashboard/load" | "/dashboard/monitoring" | "/dashboard/monitoring/district" | "/dashboard/monitoring/school" | "/dashboard/settings" | "/dashboard/upload" | "/verify" | "/verify/[hash]";
 		RouteParams(): {
 			"/verify/[hash]": { hash: string }
 		};
@@ -44,7 +44,6 @@ declare module "$app/types" {
 			"/dashboard/archive": Record<string, never>;
 			"/dashboard/calendar": Record<string, never>;
 			"/dashboard/load": Record<string, never>;
-			"/dashboard/master-teacher": Record<string, never>;
 			"/dashboard/monitoring": Record<string, never>;
 			"/dashboard/monitoring/district": Record<string, never>;
 			"/dashboard/monitoring/school": Record<string, never>;
@@ -53,7 +52,7 @@ declare module "$app/types" {
 			"/verify": { hash?: string };
 			"/verify/[hash]": { hash: string }
 		};
-		Pathname(): "/" | "/api/summarize" | "/auth/login" | "/dashboard" | "/dashboard/admin" | "/dashboard/analytics" | "/dashboard/archive" | "/dashboard/calendar" | "/dashboard/load" | "/dashboard/master-teacher" | "/dashboard/monitoring/district" | "/dashboard/monitoring/school" | "/dashboard/settings" | "/dashboard/upload" | `/verify/${string}` & {};
+		Pathname(): "/" | "/api/summarize" | "/auth/login" | "/dashboard" | "/dashboard/admin" | "/dashboard/analytics" | "/dashboard/archive" | "/dashboard/calendar" | "/dashboard/load" | "/dashboard/monitoring/district" | "/dashboard/monitoring/school" | "/dashboard/settings" | "/dashboard/upload" | `/verify/${string}` & {};
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
 		Asset(): "/apple-touch-icon.png" | "/app_icon.png" | "/favicon.png" | "/icon-192.png" | "/icon-512.png" | "/manifest.json" | "/robots.txt" | string & {};
 	}

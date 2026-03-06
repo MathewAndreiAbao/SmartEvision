@@ -168,8 +168,10 @@
       }).length;
 
       const currentWk = getWeekNumber();
-      const currentCal = calendar.find((c) => c.week_number === currentWk);
-      const stats = calculateCompliance(schoolSubmissions, schoolLoadsCount);
+      const stats = calculateCompliance(
+        schoolSubmissions,
+        schoolLoadsCount * currentWk,
+      );
 
       return {
         ...school,
@@ -198,7 +200,7 @@
 
     const overallStats = calculateCompliance(
       allSubmissions,
-      totalDistrictLoads,
+      totalDistrictLoads * currentWk,
     );
 
     // Prev Week for Trend
@@ -206,7 +208,7 @@
     const prevWeekSubs = allSubmissions.filter(
       (s) => getSubmissionWeek(s) === currentWk - 1,
     );
-    const prevStats = calculateCompliance(prevWeekSubs, totalDistrictLoads);
+    const prevStats = calculateCompliance(prevWeekSubs, totalDistrictLoads); // One week denominator
 
     kpi = {
       totalSchools: schools.length,
@@ -275,7 +277,6 @@
           weekSubs,
           school.loadCount,
           school.loadCount,
-          w.deadline,
         );
         cells.push({
           row: school.name,

@@ -187,13 +187,11 @@
         );
 
         const currentWk = getWeekNumber();
-        const currentCal = calendar.find(
-            (c: any) => c.week_number === currentWk,
-        );
+        const cumulativeExpectedDistrict = totalSchoolLoads * currentWk;
 
         const overallStats = calculateCompliance(
             allSubmissions,
-            totalSchoolLoads,
+            cumulativeExpectedDistrict,
         );
         kpi.totalTeachers = teachers.length;
         kpi.overallRate = overallStats.rate;
@@ -218,7 +216,7 @@
         });
         kpi.previousRate = calculateCompliance(
             prevWeekSubs,
-            totalSchoolLoads,
+            totalSchoolLoads, // Strictly for one week
         ).rate;
 
         // Build heatmap
@@ -288,7 +286,6 @@
                     weekSubs,
                     t.loadCount,
                     t.loadCount,
-                    w.deadline,
                 );
                 cells.push({
                     row: t.full_name,
@@ -309,7 +306,11 @@
             const subs = allSubmissions.filter(
                 (s: Submission) => s.user_id === t.id,
             );
-            const stats = calculateCompliance(subs, t.loadCount);
+            const currentWk = getWeekNumber();
+            const stats = calculateCompliance(
+                subs,
+                (t.loadCount || 0) * currentWk,
+            );
             return { ...t, ...stats };
         });
 
