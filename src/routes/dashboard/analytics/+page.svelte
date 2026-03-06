@@ -15,6 +15,7 @@
     import {
         calculateCompliance,
         getSubmissionWeek,
+        getDynamicSchoolYear,
     } from "$lib/utils/useDashboardData";
     import {
         analyzeComplianceRisk,
@@ -48,11 +49,16 @@
         Chart.register(...registerables);
         ChartClass = Chart;
 
-        const { weeklyData, schoolData } = await fetchData();
-        loading = false;
+        const result = await fetchData();
+        if (result) {
+            const { weeklyData, schoolData } = result;
+            loading = false;
 
-        await tick();
-        renderCharts(weeklyData, schoolData);
+            await tick();
+            renderCharts(weeklyData, schoolData);
+        } else {
+            loading = false;
+        }
         setupRealtime();
     });
 
@@ -69,8 +75,11 @@
                 "postgres_changes",
                 { event: "*", schema: "public", table: "submissions" },
                 async () => {
-                    const { weeklyData, schoolData } = await fetchData();
-                    updateCharts(weeklyData, schoolData);
+                    const result = await fetchData();
+                    if (result) {
+                        const { weeklyData, schoolData } = result;
+                        updateCharts(weeklyData, schoolData);
+                    }
                 },
             )
             .subscribe();
@@ -137,9 +146,9 @@
         }
 
         const { data: subs } = await subsQuery;
-        prediction = analyzeComplianceRisk(subs || []);
-
-        return { weeklyData, schoolData };
+        if (subs) {
+            prediction = analyzeComplianceRisk(subs);
+        }
     }
 
     async function getWeeklyCompliance(
@@ -164,7 +173,6 @@
             supabase
                 .from("academic_calendar")
                 .select("week_number")
-                .eq("school_year", "2025-2026")
                 .order("week_number", { ascending: true }),
         ]);
 

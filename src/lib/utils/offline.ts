@@ -173,7 +173,7 @@ export interface QueueItem {
     filePath: string;
     fileHash: string;
     fileSize: number;
-    pdfBytes: Uint8Array;
+    pdfBytes: Uint8Array | Blob;
     options: {
         userId: string;
         docType?: string;
@@ -182,13 +182,39 @@ export interface QueueItem {
         subject?: string;
         calendarId?: string;
         teachingLoadId?: string;
+        ai_analysis?: any;
     };
     timestamp: number;
 }
 
 export async function enqueue(item: QueueItem): Promise<void> {
-    const key = `${QUEUE_PREFIX}${item.timestamp}_${item.fileHash.slice(0, 8)}`;
-    await set(key, item);
+    // Prevent duplicate hashes in queue (Optimization: check keys instead of reading data)
+    const allKeys = await keys();
+    const shortHash = item.fileHash.slice(0, 8);
+    for (const k of allKeys) {
+        if (typeof k === 'string' && k.startsWith(QUEUE_PREFIX) && k.endsWith(shortHash)) {
+            console.info(`[offline] Duplicate hash detected in queue keys. Skipping: ${item.fileName}`);
+            return;
+        }
+    }
+
+    // Resilience: Workers often return SharedArrayBuffer which CANNOT be stored in IndexedDB.
+    // We MUST copy it to a plain Uint8Array (backed by a real ArrayBuffer) first.
+    let pdfBlobPart: any = item.pdfBytes;
+    if (!(item.pdfBytes instanceof Blob)) {
+        const fresh = new Uint8Array(item.pdfBytes.length);
+        fresh.set(item.pdfBytes);
+        pdfBlobPart = fresh;
+    }
+
+    const storeItem = {
+        ...item,
+        pdfBytes: new Blob([pdfBlobPart], { type: 'application/pdf' }),
+        options: JSON.parse(JSON.stringify(item.options))
+    };
+
+    const key = `${QUEUE_PREFIX}${item.timestamp}_${shortHash}`;
+    await set(key, storeItem);
     await updatePendingCount();
 
     // Auto-sync if online
@@ -337,7 +363,18 @@ export async function processQueue(force = false): Promise<{ success: number; fa
 
                 if (!uploadResponse.ok) {
                     const errBody = await uploadResponse.text().catch(() => 'Unknown error');
-                    throw new Error(`Storage upload failed (${uploadResponse.status}): ${errBody}`);
+
+                    // Handle BOTH 409 status code and 400 status with 409 body (Supabase quirks)
+                    const isDuplicate = uploadResponse.status === 409 ||
+                        (uploadResponse.status === 400 && errBody.includes('"statusCode":"409"')) ||
+                        errBody.toLowerCase().includes('already exists') ||
+                        errBody.toLowerCase().includes('duplicate');
+
+                    if (isDuplicate) {
+                        console.info(`[offline] File already exists in storage: ${item.fileName}. Proceeding to DB check.`);
+                    } else {
+                        throw new Error(`Storage upload failed (${uploadResponse.status}): ${errBody}`);
+                    }
                 }
 
                 // 2. Fetch deadline if possible for compliance calculation
@@ -361,7 +398,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                 // 3. Insert database record
                 const complianceStatus = calculateComplianceStatus(new Date(), deadlineDate);
 
-                const { error: dbError } = await supabase.from('submissions').insert({
+                let { error: dbError } = await supabase.from('submissions').insert({
                     user_id: item.options.userId,
                     file_name: item.fileName,
                     file_path: item.filePath,
@@ -373,12 +410,31 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                     subject: item.options.subject,
                     calendar_id: item.options.calendarId || null,
                     teaching_load_id: item.options.teachingLoadId || null,
-                    compliance_status: complianceStatus
+                    compliance_status: complianceStatus,
+                    ai_analysis: item.options.ai_analysis || null
                 });
 
+                // Resilience: If ai_analysis column is missing (PGRST204), retry without it
+                if (dbError?.code === 'PGRST204') {
+                    console.warn('[pipeline] ai_analysis column missing. Retrying without AI data.');
+                    const { error: retryError } = await supabase.from('submissions').insert({
+                        user_id: item.options.userId,
+                        file_name: item.fileName,
+                        file_path: item.filePath,
+                        file_hash: item.fileHash,
+                        file_size: item.fileSize,
+                        doc_type: item.options.docType || 'Unknown',
+                        week_number: item.options.weekNumber,
+                        school_year: item.options.schoolYear || '2025-2026',
+                        subject: item.options.subject,
+                        calendar_id: item.options.calendarId || null,
+                        teaching_load_id: item.options.teachingLoadId || null,
+                        compliance_status: complianceStatus
+                    });
+                    dbError = retryError;
+                }
+
                 if (dbError) {
-                    // If DB insert fails but file uploaded, we might want to retry DB insert?
-                    // For now, treat as failure to be safe and retry whole thing later (overwriting file is fine or we handle conflict)
                     console.error('[pipeline] DB insert error:', dbError);
                     throw new Error(`DB Insert failed: ${dbError.message}`);
                 }

@@ -1,5 +1,8 @@
 {
 	"/": [],
+	"/api/summarize": [
+		"src/routes/api/summarize/+server.ts"
+	],
 	"/auth/login": [],
 	"/dashboard": [],
 	"/dashboard/admin": [],

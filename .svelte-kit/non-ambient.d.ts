@@ -27,7 +27,7 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/" | "/api" | "/api/convert" | "/auth" | "/auth/login" | "/dashboard" | "/dashboard/admin" | "/dashboard/analytics" | "/dashboard/archive" | "/dashboard/calendar" | "/dashboard/load" | "/dashboard/master-teacher" | "/dashboard/monitoring" | "/dashboard/monitoring/district" | "/dashboard/monitoring/school" | "/dashboard/settings" | "/dashboard/upload" | "/verify" | "/verify/[hash]";
+		RouteId(): "/" | "/api" | "/api/convert" | "/api/summarize" | "/auth" | "/auth/login" | "/dashboard" | "/dashboard/admin" | "/dashboard/analytics" | "/dashboard/archive" | "/dashboard/calendar" | "/dashboard/load" | "/dashboard/master-teacher" | "/dashboard/monitoring" | "/dashboard/monitoring/district" | "/dashboard/monitoring/school" | "/dashboard/settings" | "/dashboard/upload" | "/verify" | "/verify/[hash]";
 		RouteParams(): {
 			"/verify/[hash]": { hash: string }
 		};
@@ -35,6 +35,7 @@ declare module "$app/types" {
 			"/": { hash?: string };
 			"/api": Record<string, never>;
 			"/api/convert": Record<string, never>;
+			"/api/summarize": Record<string, never>;
 			"/auth": Record<string, never>;
 			"/auth/login": Record<string, never>;
 			"/dashboard": Record<string, never>;
@@ -52,8 +53,8 @@ declare module "$app/types" {
 			"/verify": { hash?: string };
 			"/verify/[hash]": { hash: string }
 		};
-		Pathname(): "/" | "/auth/login" | "/dashboard" | "/dashboard/admin" | "/dashboard/analytics" | "/dashboard/archive" | "/dashboard/calendar" | "/dashboard/load" | "/dashboard/master-teacher" | "/dashboard/monitoring/district" | "/dashboard/monitoring/school" | "/dashboard/settings" | "/dashboard/upload" | `/verify/${string}` & {};
+		Pathname(): "/" | "/api/summarize" | "/auth/login" | "/dashboard" | "/dashboard/admin" | "/dashboard/analytics" | "/dashboard/archive" | "/dashboard/calendar" | "/dashboard/load" | "/dashboard/master-teacher" | "/dashboard/monitoring/district" | "/dashboard/monitoring/school" | "/dashboard/settings" | "/dashboard/upload" | `/verify/${string}` & {};
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
-		Asset(): "/apple-touch-icon.png" | "/favicon.png" | "/icon-192.png" | "/icon-512.png" | "/manifest.json" | "/robots.txt" | string & {};
+		Asset(): "/apple-touch-icon.png" | "/app_icon.png" | "/favicon.png" | "/icon-192.png" | "/icon-512.png" | "/manifest.json" | "/robots.txt" | string & {};
 	}
 }

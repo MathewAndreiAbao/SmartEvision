@@ -1,5 +1,6 @@
 <script lang="ts">
     import type { PipelinePhase } from "$lib/utils/pipeline";
+    import { fade } from "svelte/transition";
 
     interface Props {
         currentPhase: PipelinePhase;

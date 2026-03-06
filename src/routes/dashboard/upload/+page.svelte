@@ -1,6 +1,7 @@
 <script lang="ts">
     import FileDropZone from "$lib/components/FileDropZone.svelte";
     import UploadProgress from "$lib/components/UploadProgress.svelte";
+    import CopilotPanel from "$lib/components/CopilotPanel.svelte";
     import {
         runPipeline,
         type PipelinePhase,
@@ -16,7 +17,13 @@
     import { addToast } from "$lib/stores/toast";
     import { supabase } from "$lib/utils/supabase";
     import { onMount, untrack } from "svelte";
+    import { fade } from "svelte/transition";
     import { extractMetadata, type DocMetadata } from "$lib/utils/ocr";
+    import {
+        predictLoad,
+        validateSelection,
+        type CopilotSuggestion,
+    } from "$lib/utils/copilot";
 
     interface TeachingLoad {
         id: string;
@@ -36,6 +43,7 @@
     let message = $state("");
     let processing = $state(false);
     let result = $state<PipelineResult | null>(null);
+    let mismatchAlert = $state<CopilotSuggestion | null>(null);
     let queueCount = $state(0);
     let processLog = $state<{ timestamp: string; message: string }[]>([]);
     let currentDeadline = $state<any>(null);
@@ -44,6 +52,13 @@
     let fileSizeWarning = $state(false);
     let detectingMetadata = $state(false);
     let detectedMetadata = $state<any>(null);
+
+    // Copilot context
+    let submissionHistory = $state<any[]>([]);
+    let copilotCurrentWeek = $state<number | undefined>();
+    let copilotDeadlines = $state<
+        { week_number: number; deadline_date: string }[]
+    >([]);
 
     // Selection Pickers
     let showLoadPicker = $state(false);
@@ -158,31 +173,102 @@
                 addToast("error", "Failed to load teaching loads");
             }
 
-            // Fetch academic weeks for selection
+            // Fetch academic weeks for selection + auto-detect current week
             if ($profile.district_id) {
+                let calendarEntries: any[] = [];
                 const cachedCal = await getCachedMetadata(
                     `calendar_${$profile.district_id}`,
                 );
                 if (cachedCal?.data) {
-                    academicWeeks = (cachedCal.data as any[]).map(
-                        (w) => w.week_number,
-                    );
+                    calendarEntries = cachedCal.data as any[];
+                    academicWeeks = calendarEntries.map((w) => w.week_number);
                 } else if (navigator.onLine) {
                     const { data } = await supabase
                         .from("academic_calendar")
-                        .select("week_number")
+                        .select("week_number, deadline_date")
                         .eq("district_id", $profile.district_id)
                         .order("week_number", { ascending: true });
-                    if (data) academicWeeks = data.map((w) => w.week_number);
+                    if (data) {
+                        calendarEntries = data;
+                        academicWeeks = data.map((w) => w.week_number);
+                    }
                 }
 
                 // If no weeks found, fallback to 1-10
                 if (academicWeeks.length === 0) {
                     academicWeeks = Array.from({ length: 10 }, (_, i) => i + 1);
                 }
+
+                // Auto-detect current week from today's date
+                // Find the earliest upcoming deadline (or closest past if all expired)
+                if (calendarEntries.length > 0 && !weekNumber) {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+
+                    // Sort by deadline ascending
+                    const sorted = [...calendarEntries]
+                        .filter((e) => e.deadline_date)
+                        .sort(
+                            (a, b) =>
+                                new Date(a.deadline_date).getTime() -
+                                new Date(b.deadline_date).getTime(),
+                        );
+
+                    // Find the first week whose deadline hasn't passed yet
+                    const currentEntry = sorted.find((e) => {
+                        const deadline = new Date(e.deadline_date);
+                        deadline.setHours(23, 59, 59, 999);
+                        return deadline >= today;
+                    });
+
+                    if (currentEntry) {
+                        weekNumber = currentEntry.week_number;
+                        console.log(
+                            `[upload] Auto-detected current week: ${weekNumber} (deadline: ${currentEntry.deadline_date})`,
+                        );
+                    } else if (sorted.length > 0) {
+                        // All deadlines passed — use the last one
+                        weekNumber = sorted[sorted.length - 1].week_number;
+                        console.log(
+                            `[upload] All deadlines passed, using latest week: ${weekNumber}`,
+                        );
+                    }
+                }
             }
         }
         loadingTeachingLoads = false;
+
+        // Fetch submission history for Copilot context
+        if ($profile) {
+            try {
+                const { data: subs } = await supabase
+                    .from("submissions")
+                    .select(
+                        "teaching_load_id, week_number, doc_type, compliance_status, created_at",
+                    )
+                    .eq("user_id", $profile.id)
+                    .eq("school_year", "2025-2026")
+                    .order("created_at", { ascending: false })
+                    .limit(100);
+                if (subs) submissionHistory = subs;
+
+                // Set current week for Copilot
+                copilotCurrentWeek = weekNumber;
+
+                // Get deadlines for Copilot
+                if ($profile.district_id) {
+                    const { data: cals } = await supabase
+                        .from("academic_calendar")
+                        .select("week_number, deadline_date")
+                        .eq("district_id", $profile.district_id)
+                        .eq("school_year", "2025-2026")
+                        .order("week_number", { ascending: true });
+                    if (cals) copilotDeadlines = cals;
+                }
+            } catch (err) {
+                console.warn("[upload] Copilot context fetch error:", err);
+            }
+        }
     });
 
     function mapTeachingLoad(metadata: Partial<DocMetadata>): string {
@@ -335,9 +421,20 @@
                 ocrConfidence = metadata.confidence;
             }
 
-            // Auto-map teaching load
-            const mappedId = mapTeachingLoad(metadata);
+            // Auto-map teaching load using Naive Bayes + Fuzzy
+            const mappedId =
+                predictLoad(metadata.rawText, teachingLoads) ||
+                mapTeachingLoad(metadata);
             if (mappedId) teachingLoadId = mappedId;
+
+            // Check for initial mismatch
+            if (teachingLoadId) {
+                mismatchAlert = validateSelection(
+                    teachingLoadId,
+                    metadata.rawText,
+                    teachingLoads,
+                );
+            }
 
             const { speak } = await import("$lib/utils/voiceGuide");
             speak("Smart detection complete. Fields updated.");
@@ -441,6 +538,19 @@
         processing = false;
         queueCount = await getQueueSize();
     }
+
+    // Reactively validate selection mismatch
+    $effect(() => {
+        if (teachingLoadId && detectedMetadata?.rawText) {
+            mismatchAlert = validateSelection(
+                teachingLoadId,
+                detectedMetadata.rawText,
+                teachingLoads,
+            );
+        } else {
+            mismatchAlert = null;
+        }
+    });
 </script>
 
 <svelte:head>
@@ -457,8 +567,8 @@
                 class="text-2xl font-bold text-text-primary flex items-center gap-2"
             >
                 Upload Document <span
-                    class="text-[10px] opacity-20 font-mono font-normal"
-                    >UPLOAD_PAGE_V2</span
+                    class="px-2 py-0.5 rounded-md bg-gov-blue/5 text-gov-blue text-[10px] font-black uppercase tracking-tighter border border-gov-blue/10"
+                    >AI-powered Assistant</span
                 >
             </h1>
             <p class="text-base text-text-secondary mt-1">
@@ -537,9 +647,15 @@
             {#if selectedFile && !processing}
                 <div class="glass-card-static p-6 animate-fade-in">
                     <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-lg font-bold text-text-primary">
-                            Smart Detection Results
-                        </h3>
+                        <div class="flex flex-col">
+                            <h3 class="text-lg font-bold text-text-primary">
+                                Smart Copilot
+                            </h3>
+                            <p class="text-[10px] text-text-muted font-medium">
+                                Cross-referencing document content with archive
+                                slots
+                            </p>
+                        </div>
                         {#if detectingMetadata}
                             <div
                                 class="flex items-center gap-2 text-gov-blue text-xs font-bold animate-pulse"
@@ -590,6 +706,30 @@
                         </div>
                     {:else}
                         <div class="space-y-6 animate-fade-in">
+                            <!-- Mismatch Alert -->
+                            {#if mismatchAlert}
+                                <div
+                                    class="p-4 rounded-2xl bg-gov-red/5 border-2 border-gov-red/20 border-dashed animate-pulse"
+                                    in:fade
+                                >
+                                    <div class="flex items-start gap-3">
+                                        <span class="text-xl">⚠️</span>
+                                        <div>
+                                            <p
+                                                class="text-xs font-black text-gov-red uppercase tracking-widest"
+                                            >
+                                                Mismatch Detected
+                                            </p>
+                                            <p
+                                                class="text-xs text-text-secondary mt-0.5 leading-relaxed"
+                                            >
+                                                {@html mismatchAlert.message}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            {/if}
+
                             <!-- Matched Teaching Load -->
                             <div class="space-y-2">
                                 <span
@@ -892,8 +1032,25 @@
             {/if}
         </div>
 
-        <!-- Sidebar Info -->
+        <!-- Sidebar: Smart Copilot + Info -->
         <div class="space-y-6">
+            <!-- Smart Copilot -->
+            <CopilotPanel
+                {teachingLoads}
+                submissions={submissionHistory}
+                currentWeek={copilotCurrentWeek}
+                selectedWeek={weekNumber}
+                selectedDocType={docType}
+                selectedLoadId={teachingLoadId}
+                calendarDeadlines={copilotDeadlines}
+                onApplySuggestion={(action) => {
+                    if (action?.teachingLoadId)
+                        teachingLoadId = action.teachingLoadId;
+                    if (action?.weekNumber) weekNumber = action.weekNumber;
+                    if (action?.docType) docType = action.docType;
+                }}
+            />
+
             <div class="glass-card-static p-6">
                 <h3 class="text-lg font-bold text-text-primary mb-4">
                     How It Works

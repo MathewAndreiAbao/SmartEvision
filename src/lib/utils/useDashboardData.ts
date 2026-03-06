@@ -39,7 +39,7 @@ export interface AcademicWeek {
  */
 export async function getActualWeeks(
   supabase: any,
-  schoolYear: string = '2025-2026',
+  schoolYear: string = getDynamicSchoolYear(),
   districtId?: string
 ): Promise<AcademicWeek[]> {
   let query = supabase
@@ -63,7 +63,7 @@ export async function getActualWeeks(
  */
 export async function getCurrentWeekFromCalendar(
   supabase: any,
-  schoolYear: string = '2025-2026',
+  schoolYear: string = getDynamicSchoolYear(),
   districtId?: string
 ): Promise<number> {
   const weeks = await getActualWeeks(supabase, schoolYear, districtId);
@@ -145,13 +145,27 @@ export function calculateCompliance(
 }
 
 /**
- * Fallback week number calculation from hardcoded academic year start.
- * Prefer getCurrentWeekFromCalendar() when supabase client is available.
+ * Dynamic Academic Year calculation.
+ * Returns 'YYYY-YYYY' based on current date (Aug 1st transition).
  */
-const ACADEMIC_YEAR_START = new Date('2025-08-01');
+export function getDynamicSchoolYear(date: Date = new Date()): string {
+  const month = date.getMonth(); // 0-indexed
+  const year = date.getFullYear();
+  // Academic year starts in August (7)
+  if (month >= 7) {
+    return `${year}-${year + 1}`;
+  }
+  return `${year - 1}-${year}`;
+}
 
+/**
+ * Fallback week number calculation.
+ * Calculates week number based on August 1st of the current academic year.
+ */
 export function getWeekNumber(date: Date = new Date()): number {
-  const diff = date.getTime() - ACADEMIC_YEAR_START.getTime();
+  const year = date.getMonth() >= 7 ? date.getFullYear() : date.getFullYear() - 1;
+  const start = new Date(year, 7, 1); // August 1st
+  const diff = date.getTime() - start.getTime();
   const week = Math.ceil(diff / (1000 * 60 * 60 * 24 * 7));
   return Math.max(1, week);
 }
@@ -274,7 +288,7 @@ export function getSubmissionWeek(s: { week_number?: number | null, created_at?:
  */
 export async function markMissingSubmissions(
   supabase: any,
-  schoolYear: string = '2025-2026',
+  schoolYear: string = getDynamicSchoolYear(),
   districtId?: string
 ): Promise<number> {
   const now = new Date();

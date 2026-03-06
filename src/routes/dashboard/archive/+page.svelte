@@ -18,6 +18,7 @@
         School,
         User,
         Calendar,
+        Sparkles,
     } from "lucide-svelte";
 
     // ── Types ──
@@ -85,7 +86,17 @@
                 .select("*")
                 .eq("user_id", userProfile.id)
                 .order("created_at", { ascending: false });
-            allSubmissions = (data as Submission[]) || [];
+            allSubmissions = ((data as any[]) || []).map((s) => {
+                let ai = s.ai_analysis;
+                if (typeof ai === "string") {
+                    try {
+                        ai = JSON.parse(ai);
+                    } catch (e) {
+                        ai = null;
+                    }
+                }
+                return { ...s, ai_analysis: ai };
+            });
         } else if (role === "Master Teacher" || role === "School Head") {
             // School-scoped: fetch submissions from teachers at the same school
             if (!userProfile.school_id) return;
@@ -98,10 +109,20 @@
                 .eq("profiles.school_id", userProfile.school_id)
                 .order("created_at", { ascending: false });
 
-            allSubmissions = ((data as any[]) || []).map((s) => ({
-                ...s,
-                uploader: s.uploader,
-            }));
+            allSubmissions = ((data as any[]) || []).map((s) => {
+                let ai = s.ai_analysis;
+                if (typeof ai === "string") {
+                    try {
+                        ai = JSON.parse(ai);
+                    } catch (e) {
+                        ai = null;
+                    }
+                }
+                return {
+                    ...s,
+                    uploader: s.uploader,
+                };
+            });
 
             // Build teachers map
             const tMap: Record<string, string> = {};
@@ -140,12 +161,23 @@
                 .in("profiles.school_id", schoolIds)
                 .order("created_at", { ascending: false });
 
-            allSubmissions = ((data as any[]) || []).map((s) => ({
-                ...s,
-                uploader: s.uploader,
-                school_name:
-                    sMap[s.uploader?.school_id || ""] || "Unknown School",
-            }));
+            allSubmissions = ((data as any[]) || []).map((s) => {
+                let ai = s.ai_analysis;
+                if (typeof ai === "string") {
+                    try {
+                        ai = JSON.parse(ai);
+                    } catch (e) {
+                        ai = null;
+                    }
+                }
+                return {
+                    ...s,
+                    uploader: s.uploader,
+                    ai_analysis: ai,
+                    school_name:
+                        sMap[s.uploader?.school_id || ""] || "Unknown School",
+                };
+            });
 
             // Build teachers map
             const tMap: Record<string, string> = {};
@@ -567,94 +599,106 @@
         </div>
     {:else}
         <!-- File List -->
-        <div class="space-y-2" in:fade={{ duration: 200 }}>
-            <!-- File count header -->
-            <div class="flex items-center justify-between px-2 mb-3">
-                <p
-                    class="text-xs text-text-muted font-semibold uppercase tracking-wider"
-                >
-                    {filteredByPath.length}
-                    {filteredByPath.length === 1 ? "file" : "files"}
-                </p>
-            </div>
-
+        <!-- File Grid -->
+        <div
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+            in:fade={{ duration: 200 }}
+        >
             {#each filteredByPath as sub, i (sub.id)}
                 <div
-                    class="gov-card-static p-4 flex items-center gap-4 hover:bg-white/80 transition-colors group"
+                    class="gov-card p-0 overflow-hidden flex flex-col group h-[220px]"
                     in:fly={{ y: 12, duration: 250, delay: i * 30 }}
                 >
-                    <!-- File Icon -->
+                    <!-- Card Top: Icon & Status -->
                     <div
-                        class="w-10 h-10 rounded-xl bg-gradient-to-br from-gov-blue/10 to-gov-blue/5 flex items-center justify-center flex-shrink-0"
+                        class="p-5 flex-1 flex flex-col items-center text-center relative"
                     >
-                        <FileText size={18} class="text-gov-blue" />
-                    </div>
+                        <!-- Top Floating Status -->
+                        <div class="absolute top-3 right-3">
+                            <StatusBadge
+                                status={normalizeComplianceStatus(
+                                    sub.compliance_status,
+                                )}
+                                size="sm"
+                            />
+                        </div>
 
-                    <!-- File Info -->
-                    <div class="flex-1 min-w-0">
-                        <p
-                            class="text-sm font-semibold text-text-primary truncate"
+                        <!-- Centered Icon -->
+                        <div
+                            class="w-14 h-14 rounded-2xl bg-gradient-to-br from-gov-blue/10 to-gov-blue/5 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-gov-blue/15 transition-all duration-300 shadow-sm"
+                        >
+                            <FileText size={28} class="text-gov-blue" />
+                        </div>
+
+                        <!-- Filename -->
+                        <h4
+                            class="text-sm font-bold text-text-primary line-clamp-2 px-2 leading-tight mb-2"
                             title={sub.file_name}
                         >
                             {sub.file_name}
-                        </p>
+                        </h4>
+
+                        <!-- Metadata Row -->
                         <div
-                            class="flex items-center gap-2 mt-1 text-xs text-text-muted flex-wrap"
+                            class="flex flex-wrap items-center justify-center gap-1.5 mt-auto"
                         >
                             <span
-                                class="px-1.5 py-0.5 bg-gray-100 rounded font-medium text-text-secondary"
+                                class="px-2 py-0.5 bg-gov-blue/5 text-gov-blue text-[10px] font-bold rounded uppercase tracking-wider"
                             >
                                 {sub.doc_type}
                             </span>
                             {#if sub.week_number != null}
-                                <span>Week {sub.week_number}</span>
-                            {/if}
-                            {#if sub.uploader?.full_name && $profile?.role !== "Teacher"}
-                                <span>• {sub.uploader.full_name}</span>
-                            {/if}
-                            <span>• {formatDate(sub.created_at)}</span>
-                            {#if sub.file_size}
-                                <span class="hidden sm:inline"
-                                    >• {formatSize(sub.file_size)}</span
+                                <span
+                                    class="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[10px] font-bold rounded uppercase tracking-wider"
                                 >
+                                    W{sub.week_number}
+                                </span>
                             {/if}
                         </div>
                     </div>
 
-                    <!-- Status Badge -->
-                    <div class="flex-shrink-0 hidden sm:block">
-                        <StatusBadge
-                            status={normalizeComplianceStatus(
-                                sub.compliance_status,
-                            )}
-                            size="sm"
-                        />
-                    </div>
-
-                    <!-- Actions -->
+                    <!-- Card Footer: Metadata & Actions -->
                     <div
-                        class="flex items-center gap-1 flex-shrink-0 opacity-60 group-hover:opacity-100 transition-opacity"
+                        class="px-4 py-3 bg-gray-50/80 border-t border-border-subtle flex items-center justify-between"
                     >
-                        <button
-                            onclick={(e) => {
-                                e.stopPropagation();
-                                handleView(sub);
-                            }}
-                            class="p-2 text-text-muted hover:text-gov-blue hover:bg-gov-blue/10 rounded-lg transition-all"
-                            title="View"
-                        >
-                            <Eye size={16} />
-                        </button>
-                        <button
-                            onclick={(e) => {
-                                e.stopPropagation();
-                                handleDownload(sub);
-                            }}
-                            class="p-2 text-text-muted hover:text-gov-blue hover:bg-gov-blue/10 rounded-lg transition-all"
-                            title="Download"
-                        >
-                            <Download size={16} />
-                        </button>
+                        <div class="flex flex-col">
+                            <span
+                                class="text-[10px] font-semibold text-text-muted uppercase tracking-tight"
+                            >
+                                {formatDate(sub.created_at)}
+                            </span>
+                            {#if sub.file_size}
+                                <span
+                                    class="text-[10px] text-text-muted/70 font-medium"
+                                >
+                                    {formatSize(sub.file_size)}
+                                </span>
+                            {/if}
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex items-center gap-1">
+                            <button
+                                onclick={(e) => {
+                                    e.stopPropagation();
+                                    handleView(sub);
+                                }}
+                                class="p-2 text-text-muted hover:text-gov-blue hover:bg-gov-blue/10 rounded-lg transition-all"
+                                title="View Information"
+                            >
+                                <Eye size={16} />
+                            </button>
+                            <button
+                                onclick={(e) => {
+                                    e.stopPropagation();
+                                    handleDownload(sub);
+                                }}
+                                class="p-2 text-text-muted hover:text-gov-blue hover:bg-gov-blue/10 rounded-lg transition-all"
+                                title="Download File"
+                            >
+                                <Download size={16} />
+                            </button>
+                        </div>
                     </div>
                 </div>
             {/each}

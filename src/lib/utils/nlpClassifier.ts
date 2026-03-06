@@ -1,4 +1,5 @@
 import subjectModel from '../models/subject_classifier_model.json';
+import docTypeModel from '../models/doctype_classifier_model.json';
 
 interface ModelData {
     classes: Record<string, {
@@ -14,11 +15,16 @@ export interface PredictionResult {
     confidence: number;
 }
 
+export interface DocTypePrediction {
+    docType: 'DLL' | 'ISP' | 'ISR' | null;
+    confidence: number;
+}
+
 export class NaiveBayesClassifier {
     private model: ModelData;
 
-    constructor() {
-        this.model = subjectModel as ModelData;
+    constructor(model: ModelData) {
+        this.model = model;
     }
 
     private tokenize(text: string): string[] {
@@ -82,7 +88,26 @@ export class NaiveBayesClassifier {
             confidence: confidenceScore > 40 ? Math.round(confidenceScore) : 0
         };
     }
+
+    /**
+     * Predict document type (DLL, ISP, ISR)
+     * Uses a lower confidence threshold since document type markers are more distinct
+     */
+    public predictDocType(text: string): DocTypePrediction {
+        const result = this.predict(text);
+        const validTypes = ['DLL', 'ISP', 'ISR'];
+
+        if (result.subject && validTypes.includes(result.subject) && result.confidence > 30) {
+            return {
+                docType: result.subject as 'DLL' | 'ISP' | 'ISR',
+                confidence: result.confidence
+            };
+        }
+
+        return { docType: null, confidence: 0 };
+    }
 }
 
-// Export singleton instance
-export const subjectClassifier = new NaiveBayesClassifier();
+// Export singleton instances
+export const subjectClassifier = new NaiveBayesClassifier(subjectModel as ModelData);
+export const docTypeClassifier = new NaiveBayesClassifier(docTypeModel as ModelData);

@@ -84,7 +84,7 @@ export async function* runPipeline(
             };
         } else {
             try {
-                const { extractMetadata, parseMetadata } = await import('./ocr');
+                const { extractMetadata, parseMetadata, resolveWeekFromDates } = await import('./ocr');
                 if (transcodeResult.text) {
                     console.log('[pipeline] Using text from Word doc for metadata extraction');
                     detectedMetadata = parseMetadata(transcodeResult.text);
@@ -93,6 +93,40 @@ export async function* runPipeline(
                 }
 
                 console.log('[pipeline] Metadata Result:', detectedMetadata);
+
+                // ── Calendar-Aware Week Resolution (AI Feature 1) ──
+                // If no week from regex but dates were parsed, resolve via academic calendar
+                if (detectedMetadata?.dateRange && !detectedMetadata.weekNumber && !options.weekNumber) {
+                    try {
+                        const { getCachedMetadata } = await import('./offline');
+                        // Try cached calendar first (offline-compatible)
+                        const cachedCal = await getCachedMetadata('calendar_all');
+                        let calendar = cachedCal?.data || [];
+
+                        // Fallback: fetch live if online and no cache
+                        if (calendar.length === 0 && navigator.onLine) {
+                            const { data } = await (await import('./supabase')).supabase
+                                .from('academic_calendar')
+                                .select('id, week_number, start_date, end_date, deadline_date')
+                                .order('week_number', { ascending: true });
+                            calendar = data || [];
+                        }
+
+                        if (calendar.length > 0) {
+                            const resolved = resolveWeekFromDates(detectedMetadata.dateRange, calendar);
+                            if (resolved) {
+                                detectedMetadata.weekNumber = resolved.weekNumber;
+                                detectedMetadata.weekSource = 'calendar';
+                                if (resolved.calendarId && !options.calendarId) {
+                                    options.calendarId = resolved.calendarId;
+                                }
+                                console.log(`[pipeline] Calendar resolved: Week ${resolved.weekNumber} (calendar ID: ${resolved.calendarId})`);
+                            }
+                        }
+                    } catch (calErr) {
+                        console.warn('[pipeline] Calendar-based week resolution failed:', calErr);
+                    }
+                }
 
                 // ── OCR Enforcement (WBS 19.3) ──
                 if (options.enforceOcr) {
@@ -131,6 +165,12 @@ export async function* runPipeline(
             [pdfBytes.buffer]
         );
         yield { phase: 'hashing', progress: 100, message: `Hash: ${fileHash.slice(0, 12)}...` };
+
+        // Tier 0: Check offline cache (Immediate duplicate detection even if offline)
+        const cached = await (await import('./offline')).lookupOfflineDoc(fileHash);
+        if (cached) {
+            throw new Error('Duplicate file detected. This document has already been archived (Offline Check).');
+        }
 
         // Check for duplicates (ONLY if online)
         if (navigator.onLine) {
@@ -209,7 +249,7 @@ export async function* runPipeline(
                 schoolYear: options.schoolYear,
                 subject: options.subject,
                 calendarId: options.calendarId,
-                teachingLoadId: options.teachingLoadId,
+                teachingLoadId: options.teachingLoadId
             },
             timestamp: Date.now()
         });

@@ -5,6 +5,7 @@
     import StatusBadge from "$lib/components/StatusBadge.svelte";
     import ComplianceTrendChart from "$lib/components/ComplianceTrendChart.svelte";
     import AlertBanner from "$lib/components/AlertBanner.svelte";
+    import ClusterVisualization from "$lib/components/ClusterVisualization.svelte";
     import { onMount, onDestroy } from "svelte";
     import { fly, fade } from "svelte/transition";
     import { goto } from "$app/navigation";
@@ -28,6 +29,14 @@
         detectPatterns,
         type PatternAlert,
     } from "$lib/utils/patternDetection";
+    import {
+        extractFeatures,
+        runKMeansClustering,
+        canCluster,
+        type ClusterResult,
+        type ClusterSummary,
+    } from "$lib/utils/clusterAnalytics";
+    import { cacheMetadata, getCachedMetadata } from "$lib/utils/offline";
     import {
         QrCode,
         LayoutDashboard,
@@ -71,6 +80,8 @@
         nonCompliantCount: 0,
     });
     let alerts = $state<PatternAlert[]>([]);
+    let clusterResults = $state<ClusterResult[]>([]);
+    let clusterSummaries = $state<ClusterSummary[]>([]);
     let loading = $state(true);
     let channel: any;
 
@@ -234,6 +245,35 @@
 
         // Run pattern detection for supervisor alerts
         alerts = detectPatterns(allSubs, calendarArr, teachers);
+
+        // Run K-Means clustering on teacher behavioral data
+        if (canCluster(teachers.length, allSubs.length)) {
+            const teacherList = teachers.map((t: any) => ({
+                id: t.id,
+                full_name: t.full_name,
+                school_name: t.schools?.name || "",
+            }));
+            const totalWeeks = calendarArr.length || 8;
+            const features = extractFeatures(teacherList, allSubs, totalWeeks);
+            const clusterOutput = runKMeansClustering(features);
+            clusterResults = clusterOutput.results;
+            clusterSummaries = clusterOutput.summaries;
+
+            // Cache for offline use
+            cacheMetadata(`clusters_${userProfile.id}`, {
+                results: clusterResults,
+                summaries: clusterSummaries,
+            });
+        } else {
+            // Try offline cache
+            const cached = await getCachedMetadata(
+                `clusters_${userProfile.id}`,
+            );
+            if (cached?.data) {
+                clusterResults = cached.data.results || [];
+                clusterSummaries = cached.data.summaries || [];
+            }
+        }
     }
 
     // Teacher table: filtered & sorted submissions
@@ -798,6 +838,19 @@
                 </button>
             </div>
         </div>
+
+        <!-- Behavioral Clusters (K-Means) -->
+        {#if clusterResults.length > 0}
+            <div
+                class="glass-card-static p-8 mb-10"
+                in:fly={{ y: 20, duration: 600, delay: 500 }}
+            >
+                <ClusterVisualization
+                    results={clusterResults}
+                    summaries={clusterSummaries}
+                />
+            </div>
+        {/if}
 
         <!-- Recent Activity -->
         <div in:fade={{ duration: 600, delay: 600 }}>

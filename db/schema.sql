@@ -94,6 +94,7 @@ CREATE TABLE submissions (
     calendar_id UUID REFERENCES academic_calendar(id),
     teaching_load_id UUID REFERENCES teaching_loads(id) ON DELETE SET NULL,
     compliance_status TEXT DEFAULT 'non-compliant' CHECK (compliance_status IN ('compliant', 'late', 'non-compliant')),
+    ai_analysis JSONB,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
