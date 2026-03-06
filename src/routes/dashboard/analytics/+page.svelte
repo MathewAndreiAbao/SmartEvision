@@ -163,10 +163,7 @@
             .order("week_number", { ascending: true });
 
         if (isSchoolLevel && schoolId) {
-            subsQuery = subsQuery.eq(
-                "uploader:profiles!inner(school_id)",
-                schoolId,
-            );
+            subsQuery = subsQuery.eq("profiles!inner(school_id)", schoolId);
         }
 
         const { data: subs } = await subsQuery;
@@ -194,7 +191,7 @@
                           .select(
                               "user_id, compliance_status, week_number, created_at",
                           )
-                          .eq("uploader:profiles!inner(school_id)", schoolId)
+                          .eq("profiles!inner(school_id)", schoolId)
                     : supabase
                           .from("submissions")
                           .select(
@@ -238,7 +235,7 @@
 
         if (schoolId) {
             uploadsQuery = uploadsQuery.eq(
-                "uploader:profiles!inner(school_id)",
+                "profiles!inner(school_id)",
                 schoolId,
             );
         }
@@ -283,8 +280,8 @@
                     .eq("role", "Teacher"),
                 supabase
                     .from("submissions")
-                    .select("compliance_status, uploader_id"),
-                supabase.from("teaching_loads").select("id, teacher_id"),
+                    .select("compliance_status, user_id"),
+                supabase.from("teaching_loads").select("id, user_id"),
             ]);
 
             const teachers = teachersRes.data || [];
@@ -293,10 +290,10 @@
 
             return teachers.map((teacher) => {
                 const teacherSubmissions = submissions.filter(
-                    (s: any) => s.uploader_id === teacher.id,
+                    (s: any) => s.user_id === teacher.id,
                 );
                 const teacherLoadsCount = loads.filter(
-                    (l: any) => l.teacher_id === teacher.id,
+                    (l: any) => l.user_id === teacher.id,
                 ).length;
                 const stats = calculateCompliance(
                     teacherSubmissions,
