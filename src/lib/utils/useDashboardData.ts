@@ -318,6 +318,8 @@ export async function markNonCompliantSubmissions(
   let marked = 0;
 
   try {
+    console.log('[NC] markNonCompliantSubmissions called with:', { schoolYear, districtId, userId, schoolId });
+
     // 1. Get all weeks from academic calendar (user wants them to appear as soon as set)
     let calQuery = supabase
       .from('academic_calendar')
@@ -330,6 +332,7 @@ export async function markNonCompliantSubmissions(
     }
 
     const { data: pastWeeks, error: calError } = await calQuery;
+    console.log('[NC] Calendar weeks found:', pastWeeks?.length || 0, 'error:', calError?.message || 'none');
     if (calError || !pastWeeks || pastWeeks.length === 0) return 0;
 
     // 2. Get teachers in scope
@@ -344,24 +347,29 @@ export async function markNonCompliantSubmissions(
       teacherQuery = teacherQuery.eq('school_id', schoolId);
     } else if (districtId) {
       const { data: schools } = await supabase.from('schools').select('id').eq('district_id', districtId);
+      console.log('[NC] Schools in district:', schools?.length || 0);
       if (schools && schools.length > 0) {
         teacherQuery = teacherQuery.in('school_id', schools.map((s: any) => s.id));
       }
     }
 
     const { data: teachers, error: teacherError } = await teacherQuery;
+    console.log('[NC] Teachers found:', teachers?.length || 0, 'error:', teacherError?.message || 'none');
     if (teacherError || !teachers || teachers.length === 0) return 0;
 
     const teacherIds = teachers.map((t: any) => t.id);
 
-    // 3. Get teaching loads
+    // 3. Get teaching loads (all loads, not just active — teachers may not have is_active set)
     const { data: teachingLoads } = await supabase
       .from('teaching_loads')
       .select('id, user_id, subject')
-      .in('user_id', teacherIds)
-      .eq('is_active', true);
+      .in('user_id', teacherIds);
 
-    if (!teachingLoads || teachingLoads.length === 0) return 0;
+    console.log('[NC] Teaching loads found:', teachingLoads?.length || 0);
+    if (!teachingLoads || teachingLoads.length === 0) {
+      console.warn('[NC] No teaching loads found for any teachers. Exiting.');
+      return 0;
+    }
 
     // 4. Get existing submissions (all statuses)
     const weekNumbers = pastWeeks.map((w: any) => w.week_number);
@@ -424,6 +432,8 @@ export async function markNonCompliantSubmissions(
     }
 
     // 6. Execute balanced changes
+    console.log('[NC] Rebalance result — to delete:', idsToDelete.length, 'to insert:', ncRecords.length);
+
     if (idsToDelete.length > 0) {
       await supabase.from('submissions').delete().in('id', idsToDelete);
     }
@@ -431,9 +441,10 @@ export async function markNonCompliantSubmissions(
     if (ncRecords.length > 0) {
       const { error } = await supabase.from('submissions').insert(ncRecords);
       if (!error) marked += ncRecords.length;
-      else console.error('[markNonCompliantSubmissions] Insert error:', error);
+      else console.error('[NC] Insert error:', error);
     }
 
+    console.log('[NC] Total marked:', marked);
     return marked;
   } catch (err) {
     console.error('[markNonCompliantSubmissions] Error:', err);
