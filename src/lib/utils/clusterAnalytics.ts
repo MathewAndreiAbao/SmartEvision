@@ -252,16 +252,16 @@ export function runKMeansClustering(
         score: c.reduce((a, b) => a + b, 0)
     }));
     centroidScores.sort((a, b) => b.score - a.score);
-
     const labels: Record<number, { label: string; color: string }> = {};
-    const labelDefs = [
-        { label: 'Highly Consistent', color: '#008751' },
-        { label: 'Moderate', color: '#FCD116' },
-        { label: 'Needs Support', color: '#CE1126' }
-    ];
 
     centroidScores.forEach((cs, rank) => {
-        labels[cs.idx] = labelDefs[Math.min(rank, labelDefs.length - 1)];
+        const defs = [
+            { label: 'Compliance Stalwarts', color: '#008751' },
+            { label: 'Steady Performers', color: '#0038A8' },
+            { label: 'Emerging Risks', color: '#FCD116' },
+            { label: 'Critical Attention', color: '#CE1126' }
+        ];
+        labels[cs.idx] = defs[Math.min(rank, defs.length - 1)];
     });
 
     // Build results

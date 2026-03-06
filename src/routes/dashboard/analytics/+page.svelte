@@ -21,6 +21,14 @@
         analyzeComplianceRisk,
         type PredictionResult,
     } from "$lib/utils/predictiveAnalytics";
+    import {
+        extractFeatures,
+        runKMeansClustering,
+        canCluster,
+        type ClusterResult,
+        type ClusterSummary,
+    } from "$lib/utils/clusterAnalytics";
+    import ClusterVisualization from "$lib/components/ClusterVisualization.svelte";
 
     let trendCanvas = $state<HTMLCanvasElement>();
     let barCanvas = $state<HTMLCanvasElement>();
@@ -36,6 +44,9 @@
         improvement: 0,
         topSchools: 0,
     });
+
+    let clusterResults = $state<ClusterResult[]>([]);
+    let clusterSummaries = $state<ClusterSummary[]>([]);
 
     let prediction = $state<PredictionResult>({
         riskScore: 0,
@@ -148,6 +159,52 @@
         const { data: subs } = await subsQuery;
         if (subs) {
             prediction = analyzeComplianceRisk(subs);
+
+            // 5. Run K-Means Clustering (Teacher Behavioral Segmentation)
+            // For Analytics page, we cluster teachers if in SH view, or Schools if in DS view
+            // But let's stick to Teacher clustering for now as it's more actionable
+            const [teachersRes, allSubsRes] = await Promise.all([
+                isSchoolLevel
+                    ? supabase
+                          .from("profiles")
+                          .select("id, full_name, school_name:schools(name)")
+                          .eq("school_id", schoolId)
+                          .eq("role", "Teacher")
+                    : supabase
+                          .from("profiles")
+                          .select("id, full_name, school_name:schools(name)")
+                          .eq("role", "Teacher")
+                          .limit(50),
+                isSchoolLevel
+                    ? supabase
+                          .from("submissions")
+                          .select(
+                              "user_id, compliance_status, week_number, created_at",
+                          )
+                          .eq("uploader:profiles!inner(school_id)", schoolId)
+                    : supabase
+                          .from("submissions")
+                          .select(
+                              "user_id, compliance_status, week_number, created_at",
+                          )
+                          .limit(500),
+            ]);
+
+            const teachers = (teachersRes.data || []).map((t) => ({
+                id: t.id,
+                full_name: t.full_name,
+                school_name: Array.isArray(t.school_name)
+                    ? t.school_name[0]?.name
+                    : (t.school_name as any)?.name,
+            }));
+            const allSubs = allSubsRes.data || [];
+
+            if (canCluster(teachers.length, allSubs.length)) {
+                const vectors = extractFeatures(teachers, allSubs);
+                const { results, summaries } = runKMeansClustering(vectors);
+                clusterResults = results;
+                clusterSummaries = summaries;
+            }
         }
     }
 
@@ -534,5 +591,29 @@
                 </p>
             </div>
         </div>
+
+        <!-- Behavioral Clustering (K-Means) -->
+        {#if clusterResults.length > 0}
+            <div
+                class="glass-card-static p-8 mt-10"
+                in:fly={{ y: 20, duration: 600, delay: 700 }}
+            >
+                <div class="mb-6">
+                    <h2
+                        class="text-xl font-black text-text-primary tracking-tight"
+                    >
+                        Behavioral Segmentation
+                    </h2>
+                    <p class="text-xs text-text-secondary font-medium">
+                        Unsupervised machine learning analysis of teacher
+                        submission patterns
+                    </p>
+                </div>
+                <ClusterVisualization
+                    results={clusterResults}
+                    summaries={clusterSummaries}
+                />
+            </div>
+        {/if}
     {/if}
 </div>

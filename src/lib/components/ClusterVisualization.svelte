@@ -19,6 +19,19 @@
     let scatterChart: any = null;
     let radarChart: any = null;
     let activeTab = $state<"scatter" | "radar">("scatter");
+    let selectedClusterId = $state<number | null>(null);
+    let showDrillDown = $state(false);
+
+    const selectedCluster = $derived(
+        selectedClusterId !== null
+            ? summaries.find((s) => s.clusterId === selectedClusterId)
+            : null,
+    );
+    const membersInCluster = $derived(
+        selectedClusterId !== null
+            ? results.filter((r) => r.clusterId === selectedClusterId)
+            : [],
+    );
 
     onMount(async () => {
         const { Chart, registerables } = await import("chart.js");
@@ -301,26 +314,37 @@
     </div>
 
     <!-- Cluster Detail Table -->
-    <div class="grid grid-cols-3 gap-3">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {#each summaries as summary (summary.clusterId)}
-            <div
-                class="p-4 rounded-2xl border transition-all hover:shadow-md"
+            <button
+                class="p-4 rounded-2xl border transition-all hover:shadow-md text-left cursor-pointer group/card"
                 style="border-color: {summary.color}20; background: {summary.color}05"
+                onclick={() => {
+                    selectedClusterId = summary.clusterId;
+                    showDrillDown = true;
+                }}
                 in:fly={{
                     y: 15,
                     duration: 400,
                     delay: summary.clusterId * 100,
                 }}
             >
-                <div class="flex items-center gap-2 mb-3">
-                    <div
-                        class="w-3 h-3 rounded-full shadow-sm"
-                        style="background: {summary.color}"
-                    ></div>
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <div
+                            class="w-3 h-3 rounded-full shadow-sm"
+                            style="background: {summary.color}"
+                        ></div>
+                        <span
+                            class="text-[10px] font-black uppercase tracking-widest text-text-primary"
+                            >{summary.label}</span
+                        >
+                    </div>
                     <span
-                        class="text-[10px] font-black uppercase tracking-widest text-text-primary"
-                        >{summary.label}</span
+                        class="text-text-muted opacity-0 group-hover/card:opacity-100 transition-opacity text-[10px]"
                     >
+                        Review →
+                    </span>
                 </div>
                 <p
                     class="text-2xl font-black tracking-tighter"
@@ -359,7 +383,149 @@
                         >
                     </div>
                 </div>
-            </div>
+            </button>
         {/each}
     </div>
 </div>
+
+<!-- Teacher Drill-down Modal -->
+{#if showDrillDown && selectedCluster}
+    <div
+        class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+        transition:fade
+    >
+        <div
+            class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
+            in:fly={{ y: 40, duration: 500 }}
+        >
+            <div
+                class="p-6 border-b border-gray-100 flex items-center justify-between"
+                style="background: {selectedCluster.color}05"
+            >
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg"
+                        style="background: {selectedCluster.color}"
+                    >
+                        <svg
+                            class="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                            />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3
+                            class="text-lg font-black text-text-primary tracking-tight"
+                        >
+                            {selectedCluster.label} Group
+                        </h3>
+                        <p class="text-xs text-text-muted font-medium">
+                            {membersInCluster.length} teachers segmentated by behavior
+                        </p>
+                    </div>
+                </div>
+                <button
+                    onclick={() => (showDrillDown = false)}
+                    class="p-2 hover:bg-black/5 rounded-full transition-colors"
+                >
+                    <svg
+                        class="w-6 h-6 text-text-muted"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"
+                        />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="max-h-[60vh] overflow-y-auto p-4">
+                <div class="space-y-3">
+                    {#each membersInCluster as member}
+                        <div
+                            class="p-4 rounded-2xl bg-surface-muted/30 border border-border-subtle flex items-center justify-between group hover:bg-white hover:shadow-md transition-all"
+                        >
+                            <div>
+                                <p class="text-sm font-bold text-text-primary">
+                                    {member.teacher.teacherName}
+                                </p>
+                                <p
+                                    class="text-[10px] text-text-muted font-medium uppercase tracking-wider"
+                                >
+                                    {member.teacher.schoolName}
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-6">
+                                <div class="text-right">
+                                    <p
+                                        class="text-xs font-black text-text-primary"
+                                    >
+                                        {member.teacher.punctuality}%
+                                    </p>
+                                    <p
+                                        class="text-[9px] text-text-muted font-bold uppercase tracking-tighter"
+                                    >
+                                        Punctuality
+                                    </p>
+                                </div>
+                                <div class="text-right">
+                                    <p
+                                        class="text-xs font-black text-text-primary"
+                                    >
+                                        {member.teacher.completeness}%
+                                    </p>
+                                    <p
+                                        class="text-[9px] text-text-muted font-bold uppercase tracking-tighter"
+                                    >
+                                        Completeness
+                                    </p>
+                                </div>
+                                <button
+                                    class="p-2 bg-gov-blue/10 text-gov-blue rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                    <svg
+                                        class="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M9 5l7 7-7 7"
+                                        />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+            </div>
+
+            <div
+                class="p-6 bg-gray-50 border-t border-gray-100 flex justify-end"
+            >
+                <button
+                    onclick={() => (showDrillDown = false)}
+                    class="px-6 py-2.5 bg-white border border-border-strong rounded-xl text-xs font-bold text-text-primary hover:border-gov-blue transition-all"
+                >
+                    Close Analysis
+                </button>
+            </div>
+        </div>
+    </div>
+{/if}
