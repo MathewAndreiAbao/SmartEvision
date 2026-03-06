@@ -4,16 +4,39 @@
 		"src/routes/api/summarize/+server.ts"
 	],
 	"/auth/login": [],
-	"/dashboard": [],
-	"/dashboard/admin": [],
-	"/dashboard/analytics": [],
-	"/dashboard/archive": [],
-	"/dashboard/calendar": [],
-	"/dashboard/load": [],
-	"/dashboard/master-teacher": [],
-	"/dashboard/monitoring/district": [],
-	"/dashboard/monitoring/school": [],
-	"/dashboard/settings": [],
-	"/dashboard/upload": [],
+	"/dashboard": [
+		"src/routes/dashboard/+layout.ts",
+		"src/routes/dashboard/+layout.ts"
+	],
+	"/dashboard/admin": [
+		"src/routes/dashboard/+layout.ts"
+	],
+	"/dashboard/analytics": [
+		"src/routes/dashboard/+layout.ts"
+	],
+	"/dashboard/archive": [
+		"src/routes/dashboard/+layout.ts"
+	],
+	"/dashboard/calendar": [
+		"src/routes/dashboard/+layout.ts"
+	],
+	"/dashboard/load": [
+		"src/routes/dashboard/+layout.ts"
+	],
+	"/dashboard/master-teacher": [
+		"src/routes/dashboard/+layout.ts"
+	],
+	"/dashboard/monitoring/district": [
+		"src/routes/dashboard/+layout.ts"
+	],
+	"/dashboard/monitoring/school": [
+		"src/routes/dashboard/+layout.ts"
+	],
+	"/dashboard/settings": [
+		"src/routes/dashboard/+layout.ts"
+	],
+	"/dashboard/upload": [
+		"src/routes/dashboard/+layout.ts"
+	],
 	"/verify/[hash]": []
 }

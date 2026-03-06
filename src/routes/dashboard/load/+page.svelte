@@ -34,10 +34,13 @@
     });
 
     async function loadTeachingLoads() {
+        const user = $profile;
+        if (!user?.id) return;
+
         const { data } = await supabase
             .from("teaching_loads")
             .select("*")
-            .eq("user_id", $profile!.id)
+            .eq("user_id", user.id)
             .order("grade_level");
 
         loads = (data as TeachingLoad[]) || [];
@@ -74,8 +77,13 @@
             }
             addToast("success", "Teaching load updated");
         } else {
+            const user = $profile;
+            if (!user?.id) {
+                addToast("error", "User session not found");
+                return;
+            }
             const { error } = await supabase.from("teaching_loads").insert({
-                user_id: $profile!.id,
+                user_id: user.id,
                 grade_level: gradeLevel,
                 subject: subject.trim(),
             });

@@ -44,8 +44,20 @@
 			prefetchOfflineMetadata(user.id, user.district_id || undefined);
 		}
 
-		// Defer service worker registration to prevent interference with auth
-		// Use a longer timeout to ensure auth is fully initialized
+		// Catch "Failed to fetch dynamically imported module" errors (Build Mismatch)
+		const handleModuleError = (e: ErrorEvent) => {
+			if (
+				e.message?.includes(
+					"Failed to fetch dynamically imported module",
+				)
+			) {
+				console.warn("[v0] Build mismatch detected. Reloading...");
+				window.location.reload();
+			}
+		};
+		window.addEventListener("error", handleModuleError);
+
+		// Defer service worker registration
 		setTimeout(() => {
 			if ("serviceWorker" in navigator && import.meta.env.PROD) {
 				try {
@@ -68,6 +80,10 @@
 				}
 			}
 		}, 2000);
+
+		return () => {
+			window.removeEventListener("error", handleModuleError);
+		};
 	});
 </script>
 
