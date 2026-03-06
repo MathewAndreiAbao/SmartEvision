@@ -474,7 +474,7 @@ export function parseDateRange(text: string): DateRange | null {
  */
 export function resolveWeekFromDates(
     dateRange: DateRange,
-    calendar: { id?: string; week_number: number; start_date?: string; end_date?: string; deadline_date?: string }[]
+    calendar: { id?: string; week_number: number; deadline_date?: string }[]
 ): { weekNumber: number; calendarId?: string } | null {
     if (!calendar || calendar.length === 0) return null;
 

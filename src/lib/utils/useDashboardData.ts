@@ -27,8 +27,6 @@ export interface WeeklyData {
 
 export interface AcademicWeek {
   week_number: number;
-  start_date?: string;
-  end_date?: string;
   deadline_date?: string;
   school_year?: string;
 }
@@ -326,6 +324,9 @@ export async function markNonCompliantSubmissions(
 
     const { data: pastWeeks, error: calError } = await calQuery;
     console.log('[NC] Calendar weeks found:', pastWeeks?.length || 0, 'error:', calError?.message || 'none');
+    if (pastWeeks && pastWeeks.length > 0) {
+      console.log('[NC] Sample week columns:', Object.keys(pastWeeks[0]));
+    }
     if (calError || !pastWeeks || pastWeeks.length === 0) return 0;
 
     // 2. Get teachers in scope
@@ -348,17 +349,24 @@ export async function markNonCompliantSubmissions(
 
     const { data: teachers, error: teacherError } = await teacherQuery;
     console.log('[NC] Teachers found:', teachers?.length || 0, 'error:', teacherError?.message || 'none');
+    if (teachers && teachers.length > 0) {
+      console.log('[NC] Teacher IDs/Names:', teachers.map((t: any) => `${t.full_name} (${t.id})`).join(', '));
+    }
     if (teacherError || !teachers || teachers.length === 0) return 0;
 
     const teacherIds = teachers.map((t: any) => t.id);
 
     // 3. Get teaching loads (all loads, not just active — teachers may not have is_active set)
+    // ADD DIAGNOSTIC: Total loads in table
+    const { count: totalLoadsInTable } = await supabase.from('teaching_loads').select('*', { count: 'exact', head: true });
+    console.log('[NC] Total teaching loads in entire table:', totalLoadsInTable);
+
     const { data: teachingLoads } = await supabase
       .from('teaching_loads')
       .select('id, user_id, subject')
       .in('user_id', teacherIds);
 
-    console.log('[NC] Teaching loads found:', teachingLoads?.length || 0);
+    console.log('[NC] Teaching loads found for teachers:', teachingLoads?.length || 0);
     if (!teachingLoads || teachingLoads.length === 0) {
       console.warn('[NC] No teaching loads found for any teachers. Exiting.');
       return 0;
@@ -411,7 +419,7 @@ export async function markNonCompliantSubmissions(
                 file_path: `non-compliant/${teacher.id}/week_${week.week_number}_load_${load.id}`,
                 file_hash: hash,
                 file_size: 0,
-                doc_type: 'Non-Compliant',
+                doc_type: 'DLL',
                 week_number: week.week_number,
                 school_year: schoolYear,
                 calendar_id: week.id,
