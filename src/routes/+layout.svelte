@@ -27,24 +27,7 @@
 		}
 	}
 
-	onMount(async () => {
-		// Initialize auth first
-		try {
-			await initAuth();
-		} catch (err) {
-			console.error("[v0] Failed to initialize auth:", err);
-		}
-
-		// Then initialize offline sync
-		initOfflineSync();
-
-		// Pre-fetch metadata if online (Phase 20.4)
-		const user = get(profile);
-		if (user && user.id) {
-			prefetchOfflineMetadata(user.id, user.district_id || undefined);
-		}
-
-		// Catch "Failed to fetch dynamically imported module" errors (Build Mismatch)
+	onMount(() => {
 		const handleModuleError = (e: ErrorEvent) => {
 			if (
 				e.message?.includes(
@@ -57,29 +40,52 @@
 		};
 		window.addEventListener("error", handleModuleError);
 
-		// Defer service worker registration
-		setTimeout(() => {
-			if ("serviceWorker" in navigator && import.meta.env.PROD) {
-				try {
-					navigator.serviceWorker.register("/service-worker.js").then(
-						(registration) => {
-							console.log(
-								"Service Worker registered:",
-								registration,
-							);
-						},
-						(error) => {
-							console.error(
-								"Service Worker registration failed:",
-								error,
-							);
-						},
-					);
-				} catch (error) {
-					console.error("Service Worker registration error:", error);
-				}
+		(async () => {
+			// Initialize auth first
+			try {
+				await initAuth();
+			} catch (err) {
+				console.error("[v0] Failed to initialize auth:", err);
 			}
-		}, 2000);
+
+			// Then initialize offline sync
+			initOfflineSync();
+
+			// Pre-fetch metadata if online (Phase 20.4)
+			const user = get(profile);
+			if (user && user.id) {
+				prefetchOfflineMetadata(user.id, user.district_id || undefined);
+			}
+
+			// Defer service worker registration
+			setTimeout(() => {
+				if ("serviceWorker" in navigator && import.meta.env.PROD) {
+					try {
+						navigator.serviceWorker
+							.register("/service-worker.js")
+							.then(
+								(registration) => {
+									console.log(
+										"Service Worker registered:",
+										registration,
+									);
+								},
+								(error) => {
+									console.error(
+										"Service Worker registration failed:",
+										error,
+									);
+								},
+							);
+					} catch (error) {
+						console.error(
+							"Service Worker registration error:",
+							error,
+						);
+					}
+				}
+			}, 2000);
+		})();
 
 		return () => {
 			window.removeEventListener("error", handleModuleError);

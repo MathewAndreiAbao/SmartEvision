@@ -32,6 +32,7 @@
 
     let trendCanvas = $state<HTMLCanvasElement>();
     let barCanvas = $state<HTMLCanvasElement>();
+    const OPERATIONAL_TARGET = 80; // WBS 11.2 Standard
     let loading = $state(true);
     let period = $state<"quarter" | "semester" | "year">("quarter");
     let ChartClass: any = null;
@@ -55,21 +56,30 @@
         message: "Calculating predictive model...",
     });
 
-    onMount(async () => {
-        const { Chart, registerables } = await import("chart.js");
-        Chart.register(...registerables);
-        ChartClass = Chart;
+    // Reactive data fetch: Trigger as soon as profile AND ChartClass are available
+    $effect(() => {
+        const user = $profile;
+        if (user && ChartClass && loading) {
+            initAnalytics();
+        }
+    });
 
+    async function initAnalytics() {
         const result = await fetchData();
         if (result) {
             const { weeklyData, schoolData } = result;
             loading = false;
-
             await tick();
             renderCharts(weeklyData, schoolData);
         } else {
             loading = false;
         }
+    }
+
+    onMount(async () => {
+        const { Chart, registerables } = await import("chart.js");
+        Chart.register(...registerables);
+        ChartClass = Chart;
         setupRealtime();
     });
 
@@ -138,10 +148,13 @@
 
         // 3. Update Summary Stats
         stats.currentCompliance = weeklyData[weeklyData.length - 1] || 0;
-        stats.improvement = weeklyData[0]
-            ? stats.currentCompliance - weeklyData[0]
-            : 0;
-        stats.topSchools = schoolData.filter((s: any) => s.rate >= 80).length;
+        stats.improvement =
+            weeklyData.length > 0
+                ? stats.currentCompliance - (weeklyData[0] || 0)
+                : 0;
+        stats.topSchools = schoolData.filter(
+            (s: any) => s.rate >= OPERATIONAL_TARGET,
+        ).length;
 
         // 4. Run Predictive Risk Analysis
         let subsQuery = supabase
@@ -200,12 +213,17 @@
             const allSubs = allSubsRes.data || [];
 
             if (canCluster(teachers.length, allSubs.length)) {
-                const vectors = extractFeatures(teachers, allSubs);
-                const { results, summaries } = runKMeansClustering(vectors);
-                clusterResults = results;
-                clusterSummaries = summaries;
+                try {
+                    const vectors = extractFeatures(teachers, allSubs);
+                    const { results, summaries } = runKMeansClustering(vectors);
+                    clusterResults = results;
+                    clusterSummaries = summaries;
+                } catch (e) {
+                    console.warn("[analytics] Clustering failed:", e);
+                }
             }
         }
+        return { weeklyData, schoolData };
     }
 
     async function getWeeklyCompliance(
@@ -300,12 +318,8 @@
             supabase.from("schools").select("id, name"),
             supabase
                 .from("submissions")
-                .select(
-                    "compliance_status, uploader:profiles!inner(school_id)",
-                ),
-            supabase
-                .from("teaching_loads")
-                .select("id, profiles!inner(school_id)"),
+                .select("compliance_status, profiles(school_id)"),
+            supabase.from("teaching_loads").select("id, profiles(school_id)"),
         ]);
 
         const schools = schoolsRes.data || [];
@@ -314,9 +328,9 @@
 
         return schools.map((school) => {
             const schoolSubmissions = submissions.filter((s: any) => {
-                const uploader = Array.isArray(s.uploader)
-                    ? s.uploader[0]
-                    : s.uploader;
+                const uploader = Array.isArray(s.profiles)
+                    ? s.profiles[0]
+                    : s.profiles;
                 return uploader?.school_id === school.id;
             });
 
@@ -445,9 +459,11 @@
         </div>
         <div class="flex items-center gap-3">
             <button
-                class="p-2.5 rounded-xl bg-surface-muted text-text-secondary hover:text-gov-blue transition-colors border border-border-subtle shadow-sm"
+                onclick={initAnalytics}
+                disabled={loading}
+                class="p-2.5 rounded-xl bg-surface-muted text-text-secondary hover:text-gov-blue transition-colors border border-border-subtle shadow-sm disabled:opacity-50"
             >
-                <RefreshCw size={18} />
+                <RefreshCw size={18} class={loading ? "animate-spin" : ""} />
             </button>
             <button
                 class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gov-blue text-white text-sm font-bold shadow-lg shadow-gov-blue/20 hover:bg-gov-blue-dark transition-all"
@@ -555,7 +571,7 @@
                     <Target size={32} strokeWidth={1.5} />
                 </div>
                 <p class="text-4xl font-black text-gov-green tracking-tighter">
-                    80%
+                    {OPERATIONAL_TARGET}%
                 </p>
                 <p
                     class="text-xs font-bold text-text-muted mt-2 uppercase tracking-widest"
