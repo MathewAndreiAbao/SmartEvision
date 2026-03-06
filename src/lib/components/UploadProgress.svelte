@@ -45,7 +45,7 @@
     }
 </script>
 
-<div class="glass-card-static p-6">
+<div class="gov-card-static p-6">
     <!-- Steps -->
     <div
         class="grid grid-cols-3 sm:flex sm:items-center sm:justify-between gap-y-6 gap-x-2 mb-6 relative"
@@ -69,7 +69,7 @@
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
-                            stroke-width="3"
+                            stroke-width="1.5"
                             stroke-linecap="round"
                             stroke-linejoin="round"
                             ><polyline points="20 6 9 17 4 12"></polyline></svg

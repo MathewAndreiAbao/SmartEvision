@@ -105,13 +105,19 @@
             max: 100,
             ticks: {
               callback: (v: any) => v + "%",
-              font: { family: "Inter", size: 11 },
+              font: { family: "Inter", size: 10, weight: "bold" },
+              color: "#64748b",
             },
-            grid: { color: "rgba(0,0,0,0.04)" },
+            grid: { color: "rgba(0,0,0,0.06)" },
+            border: { display: false },
           },
           x: {
-            ticks: { font: { family: "Inter", size: 11 } },
+            ticks: {
+              font: { family: "Inter", size: 10, weight: "bold" },
+              color: "#64748b",
+            },
             grid: { display: false },
+            border: { display: false },
           },
         },
       },

@@ -67,7 +67,7 @@
         class="fixed bottom-24 lg:bottom-6 left-4 right-4 lg:left-auto lg:right-6 lg:w-96 z-50 animate-slide-up"
     >
         <div
-            class="glass-card p-5 border-l-4 border-gov-blue shadow-elevated"
+            class="gov-card-static p-5 border-l-4 border-gov-blue shadow-sm"
         >
             <div class="flex items-start gap-3">
                 <div

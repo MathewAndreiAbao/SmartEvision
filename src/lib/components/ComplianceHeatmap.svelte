@@ -41,41 +41,43 @@
 <div class="overflow-x-auto">
   <table class="w-full text-xs">
     <thead>
-      <tr>
+      <tr class="border-b border-gray-100 bg-gray-50/30">
         <th
-          class="sticky left-0 z-10 bg-white/90 backdrop-blur px-3 py-2 text-left text-text-muted font-semibold uppercase tracking-wider min-w-[140px]"
+          class="sticky left-0 z-10 bg-white/95 backdrop-blur px-3 py-3 text-left text-[10px] text-text-muted font-bold uppercase tracking-wider min-w-[140px] border-r border-gray-50"
         >
-          Name
+          Institutional Units
         </th>
         {#each weeks as w}
           <th
-            class="px-2 py-2 text-center text-text-muted font-semibold uppercase tracking-wider min-w-[50px]"
+            class="px-1 py-3 text-center text-[10px] text-text-muted font-bold uppercase tracking-wider min-w-[45px]"
           >
             {w.label}
           </th>
         {/each}
       </tr>
     </thead>
-    <tbody class="divide-y divide-gray-50">
+    <tbody class="divide-y divide-gray-50 border-t border-gray-100">
       {#each rows as row}
         <tr class="hover:bg-white/30 transition-colors">
           <td
-            class="sticky left-0 z-10 bg-white/90 backdrop-blur px-3 py-2 font-medium text-text-primary truncate max-w-[160px]"
+            class="sticky left-0 z-10 bg-white/95 backdrop-blur px-3 py-2.5 font-bold text-[10px] text-text-primary truncate max-w-[160px] border-r border-gray-50"
             title={row}
           >
             {row}
           </td>
           {#each weeks as w}
             {@const cell = getCellData(row, w.week)}
-            <td class="px-1 py-1 text-center">
+            <td class="p-0.5 text-center">
               <button
-                class="w-full py-1.5 px-1 rounded-md transition-all hover:scale-110 {getCellBg(
+                class="w-full h-full py-2 px-1 rounded-sm transition-all hover:brightness-95 {getCellBg(
                   cell?.rate || 0,
-                )} {getCellText(cell?.rate || 0)} font-semibold cursor-pointer"
+                )} {getCellText(
+                  cell?.rate || 0,
+                )} text-[10px] font-bold cursor-pointer"
                 title={cell?.tooltip || `${row} — ${w.label}: No data`}
                 onclick={() => onCellClick?.(row, w.week)}
               >
-                {cell ? `${cell.rate}%` : "—"}
+                {cell ? `${cell.rate}%` : "0%"}
               </button>
             </td>
           {/each}
@@ -92,17 +94,19 @@
 {/if}
 
 <!-- Legend -->
-<div class="flex items-center gap-4 mt-3 px-3 text-xs text-text-muted">
-  <span class="flex items-center gap-1.5">
-    <span class="w-3 h-3 rounded-sm bg-gov-green/70"></span> ≥80%
+<div
+  class="flex items-center gap-6 mt-4 px-3 text-[10px] font-bold text-text-muted uppercase tracking-wider"
+>
+  <span class="flex items-center gap-2">
+    <span class="w-2.5 h-2.5 rounded-sm bg-gov-green/70"></span> ≥80%
   </span>
-  <span class="flex items-center gap-1.5">
-    <span class="w-3 h-3 rounded-sm bg-gov-gold/60"></span> 50-79%
+  <span class="flex items-center gap-2">
+    <span class="w-2.5 h-2.5 rounded-sm bg-gov-gold/60"></span> 50-79%
   </span>
-  <span class="flex items-center gap-1.5">
-    <span class="w-3 h-3 rounded-sm bg-gov-red/50"></span> &lt;50%
+  <span class="flex items-center gap-2">
+    <span class="w-2.5 h-2.5 rounded-sm bg-gov-red/50"></span> &lt;50%
   </span>
-  <span class="flex items-center gap-1.5">
-    <span class="w-3 h-3 rounded-sm bg-gray-100"></span> No data
+  <span class="flex items-center gap-2">
+    <span class="w-2.5 h-2.5 rounded-sm bg-gray-100"></span> No data
   </span>
 </div>

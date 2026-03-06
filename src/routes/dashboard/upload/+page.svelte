@@ -567,7 +567,7 @@
                 class="text-2xl font-bold text-text-primary flex items-center gap-2"
             >
                 Upload Document <span
-                    class="px-2 py-0.5 rounded-md bg-gov-blue/5 text-gov-blue text-[10px] font-black uppercase tracking-tighter border border-gov-blue/10"
+                    class="px-2 py-0.5 rounded-md bg-gov-blue/5 text-gov-blue text-[10px] font-semibold uppercase tracking-normal border border-gov-blue/10"
                     >AI-powered Assistant</span
                 >
             </h1>
@@ -635,7 +635,7 @@
 
             {#if $settings.maintenance_mode}
                 <div
-                    class="p-4 bg-gov-red/10 border border-gov-red/20 rounded-2xl text-gov-red text-center font-bold animate-pulse"
+                    class="p-4 bg-gov-red/10 border border-gov-red/20 rounded-md text-gov-red text-center font-bold animate-pulse"
                     role="alert"
                 >
                     🚩 SYSTEM MAINTENANCE ACTIVE: UPLOADS ARE TEMPORARILY
@@ -645,7 +645,7 @@
 
             <!-- Metadata Inputs -->
             {#if selectedFile && !processing}
-                <div class="glass-card-static p-6 animate-fade-in">
+                <div class="gov-card-static p-6 animate-fade-in">
                     <div class="flex items-center justify-between mb-4">
                         <div class="flex flex-col">
                             <h3 class="text-lg font-bold text-text-primary">
@@ -709,14 +709,14 @@
                             <!-- Mismatch Alert -->
                             {#if mismatchAlert}
                                 <div
-                                    class="p-4 rounded-2xl bg-gov-red/5 border-2 border-gov-red/20 border-dashed animate-pulse"
+                                    class="p-4 rounded-md bg-gov-red/5 border-2 border-gov-red/20 border-dashed animate-pulse"
                                     in:fade
                                 >
                                     <div class="flex items-start gap-3">
                                         <span class="text-xl">⚠️</span>
                                         <div>
                                             <p
-                                                class="text-xs font-black text-gov-red uppercase tracking-widest"
+                                                class="text-xs font-semibold text-gov-red uppercase tracking-wide"
                                             >
                                                 Mismatch Detected
                                             </p>
@@ -733,24 +733,24 @@
                             <!-- Matched Teaching Load -->
                             <div class="space-y-2">
                                 <span
-                                    class="text-[10px] font-bold text-text-muted uppercase tracking-widest ml-1"
+                                    class="text-[10px] font-bold text-text-muted uppercase tracking-wide ml-1"
                                     >Teaching Load</span
                                 >
                                 <button
                                     onclick={() => (showLoadPicker = true)}
-                                    class="w-full p-5 rounded-2xl transition-all border-2 text-left flex items-center justify-between group {teachingLoadId
+                                    class="w-full p-5 rounded-md transition-all border-2 text-left flex items-center justify-between group {teachingLoadId
                                         ? 'bg-gov-blue/5 border-gov-blue/20 hover:border-gov-blue/40'
                                         : 'bg-gov-red/5 border-gov-red/20 border-dashed animate-pulse'}"
                                 >
                                     <div>
                                         {#if teachingLoadId}
                                             <p
-                                                class="text-[10px] font-black text-gov-blue uppercase tracking-tighter mb-1"
+                                                class="text-[10px] font-semibold text-gov-blue uppercase tracking-normal mb-1"
                                             >
                                                 Detected Load
                                             </p>
                                             <p
-                                                class="text-xl font-black text-text-primary leading-tight"
+                                                class="text-xl font-semibold text-text-primary leading-tight"
                                             >
                                                 {teachingLoads.find(
                                                     (l) =>
@@ -767,7 +767,7 @@
                                             </p>
                                         {:else}
                                             <p
-                                                class="text-lg font-black text-gov-red"
+                                                class="text-lg font-semibold text-gov-red"
                                             >
                                                 Tap to Select Load
                                             </p>
@@ -802,16 +802,16 @@
                                 <!-- Doc Type -->
                                 <div class="space-y-2">
                                     <span
-                                        class="text-[10px] font-bold text-text-muted uppercase tracking-widest ml-1"
+                                        class="text-[10px] font-bold text-text-muted uppercase tracking-wide ml-1"
                                         >Document Type</span
                                     >
                                     <div
-                                        class="flex p-1.5 bg-surface-muted/50 border border-border-subtle rounded-2xl"
+                                        class="flex p-1.5 bg-surface-muted/50 border border-border-subtle rounded-md"
                                     >
                                         {#each ["DLL", "ISP", "ISR"] as type}
                                             <button
                                                 onclick={() => (docType = type)}
-                                                class="flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all {docType ===
+                                                class="flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all {docType ===
                                                 type
                                                     ? 'bg-white text-gov-blue shadow-sm'
                                                     : 'text-text-muted hover:text-text-primary'}"
@@ -825,35 +825,35 @@
                                 <!-- Week -->
                                 <div class="space-y-2">
                                     <span
-                                        class="text-[10px] font-bold text-text-muted uppercase tracking-widest ml-1"
+                                        class="text-[10px] font-bold text-text-muted uppercase tracking-wide ml-1"
                                         >Target Week</span
                                     >
                                     <button
                                         onclick={() => (showWeekPicker = true)}
-                                        class="w-full p-4 rounded-2xl bg-surface-muted/50 border border-border-subtle transition-all hover:border-gov-blue/30 text-left flex items-center justify-between group"
+                                        class="w-full p-4 rounded-md bg-surface-muted/50 border border-border-subtle transition-all hover:border-gov-blue/30 text-left flex items-center justify-between group"
                                     >
                                         <div>
                                             {#if weekNumber}
                                                 <p
-                                                    class="text-xs font-black text-gov-blue/60 uppercase tracking-tighter mb-0.5"
+                                                    class="text-xs font-semibold text-gov-blue/60 uppercase tracking-normal mb-0.5"
                                                 >
                                                     Selected
                                                 </p>
                                                 <p
-                                                    class="text-lg font-black text-text-primary"
+                                                    class="text-lg font-semibold text-text-primary"
                                                 >
                                                     Week {weekNumber}
                                                 </p>
                                             {:else}
                                                 <p
-                                                    class="text-lg font-black text-text-muted"
+                                                    class="text-lg font-semibold text-text-muted"
                                                 >
                                                     Select Week
                                                 </p>
                                             {/if}
                                         </div>
                                         <div
-                                            class="px-2 py-1 rounded bg-gov-blue/10 text-gov-blue text-[10px] font-black uppercase"
+                                            class="px-2 py-1 rounded bg-gov-blue/10 text-gov-blue text-[10px] font-semibold uppercase"
                                         >
                                             Edit
                                         </div>
@@ -865,7 +865,7 @@
 
                     {#if ocrConfidence !== null && !detectingMetadata}
                         <div
-                            class="mt-6 p-4 rounded-2xl bg-white border border-border-subtle flex items-center justify-between shadow-sm"
+                            class="mt-6 p-4 rounded-md bg-white border border-border-subtle flex items-center justify-between shadow-sm"
                         >
                             <div class="flex items-center gap-3">
                                 <div
@@ -878,7 +878,7 @@
                                 ></div>
                                 <div>
                                     <p
-                                        class="text-[10px] font-black text-text-primary uppercase tracking-tighter"
+                                        class="text-[10px] font-semibold text-text-primary uppercase tracking-normal"
                                     >
                                         AI Extraction Integrity
                                     </p>
@@ -889,7 +889,7 @@
                             </div>
                             <div class="text-right">
                                 <p
-                                    class="text-sm font-black {ocrConfidence >
+                                    class="text-sm font-semibold {ocrConfidence >
                                     80
                                         ? 'text-gov-green'
                                         : ocrConfidence > 50
@@ -928,7 +928,7 @@
                                 disabled={!teachingLoadId ||
                                     !weekNumber ||
                                     processing}
-                                class="mt-6 w-full py-4 bg-gradient-to-r from-gov-blue to-gov-blue-dark text-white text-lg font-extrabold rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:grayscale transition-all duration-300 min-h-[60px] flex items-center justify-center gap-3 uppercase tracking-wide"
+                                class="mt-6 w-full py-4 bg-gradient-to-r from-gov-blue to-gov-blue-dark text-white text-lg font-extrabold rounded-md shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:grayscale transition-all duration-300 min-h-[60px] flex items-center justify-center gap-3 uppercase tracking-wide"
                             >
                                 {#if processing}
                                     <svg
@@ -1000,7 +1000,7 @@
             <!-- Result -->
             {#if result}
                 <div
-                    class="glass-card-static p-6 border-l-4 border-gov-green animate-fade-in"
+                    class="gov-card-static p-6 border-l-4 border-gov-green animate-fade-in"
                 >
                     <div class="flex items-center gap-3 mb-3">
                         <h3 class="text-lg font-bold text-gov-green">
@@ -1051,7 +1051,7 @@
                 }}
             />
 
-            <div class="glass-card-static p-6">
+            <div class="gov-card-static p-6">
                 <h3 class="text-lg font-bold text-text-primary mb-4">
                     How It Works
                 </h3>
@@ -1105,7 +1105,7 @@
                 </ol>
             </div>
 
-            <div class="glass-card-static p-6 border-l-4 border-gov-gold">
+            <div class="gov-card-static p-6 border-l-4 border-gov-gold">
                 <h3 class="text-lg font-bold text-text-primary mb-3">
                     Security & Integrity
                 </h3>
@@ -1135,7 +1135,7 @@
                 </ul>
             </div>
 
-            <div class="glass-card-static p-6">
+            <div class="gov-card-static p-6">
                 <h3 class="text-lg font-bold text-text-primary mb-3">
                     System Status
                 </h3>
@@ -1158,13 +1158,13 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
-            class="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up sm:animate-scale-in"
+            class="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-sm overflow-hidden animate-slide-up sm:animate-scale-in"
             onclick={(e) => e.stopPropagation()}
         >
             <div
                 class="p-6 border-b border-gray-100 flex items-center justify-between"
             >
-                <h3 class="text-xl font-black text-text-primary">
+                <h3 class="text-xl font-semibold text-text-primary">
                     Select Teaching Load
                 </h3>
                 <button
@@ -1192,7 +1192,7 @@
                             teachingLoadId = load.id;
                             showLoadPicker = false;
                         }}
-                        class="w-full p-4 rounded-2xl text-left transition-all flex items-center justify-between group {teachingLoadId ===
+                        class="w-full p-4 rounded-md text-left transition-all flex items-center justify-between group {teachingLoadId ===
                         load.id
                             ? 'bg-gov-blue text-white shadow-lg'
                             : 'bg-surface-muted hover:bg-gov-blue/5 border border-transparent hover:border-gov-blue/20'}"
@@ -1238,13 +1238,13 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
-            class="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up sm:animate-scale-in"
+            class="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl shadow-sm overflow-hidden animate-slide-up sm:animate-scale-in"
             onclick={(e) => e.stopPropagation()}
         >
             <div
                 class="p-6 border-b border-gray-100 flex items-center justify-between"
             >
-                <h3 class="text-xl font-black text-text-primary">
+                <h3 class="text-xl font-semibold text-text-primary">
                     Select Week
                 </h3>
                 <button
@@ -1274,18 +1274,18 @@
                             weekNumber = wk;
                             showWeekPicker = false;
                         }}
-                        class="p-6 rounded-2xl text-center transition-all flex flex-col items-center justify-center gap-1 group {weekNumber ===
+                        class="p-6 rounded-md text-center transition-all flex flex-col items-center justify-center gap-1 group {weekNumber ===
                         wk
                             ? 'bg-gov-blue text-white shadow-lg'
                             : 'bg-surface-muted hover:bg-gov-blue/5 border border-transparent hover:border-gov-blue/20'}"
                     >
                         <span
-                            class="text-[10px] font-black uppercase tracking-widest {weekNumber ===
+                            class="text-[10px] font-semibold uppercase tracking-wide {weekNumber ===
                             wk
                                 ? 'text-white/70'
                                 : 'text-text-muted'}">Week</span
                         >
-                        <span class="text-3xl font-black tracking-tighter"
+                        <span class="text-3xl font-semibold tracking-normal"
                             >{wk}</span
                         >
                     </button>
@@ -1297,7 +1297,7 @@
 
 <style>
     /* Premium glass/card aesthetics */
-    :global(.glass-card-static) {
+    :global(.gov-card-static) {
         background: rgba(255, 255, 255, 0.7);
         backdrop-filter: blur(20px);
     }

@@ -189,21 +189,21 @@
 
 <!-- Mobile Hamburger Toggle -->
 <button
-	class="lg:hidden fixed top-4 left-4 z-50 w-12 h-12 flex items-center justify-center rounded-2xl bg-gov-blue text-white shadow-lg active:scale-95 transition-all"
+	class="lg:hidden fixed top-3 left-3 z-50 w-10 h-10 flex items-center justify-center rounded-md bg-gov-blue text-white shadow-sm active:bg-gov-blue-dark transition-colors"
 	onclick={() => (mobileOpen = !mobileOpen)}
 	aria-label="Toggle menu"
 >
 	{#if mobileOpen}
-		<X size={24} />
+		<X size={20} strokeWidth={1.5} />
 	{:else}
-		<Menu size={24} />
+		<Menu size={20} strokeWidth={1.5} />
 	{/if}
 </button>
 
 <!-- Backdrop -->
 {#if mobileOpen}
 	<div
-		class="lg:hidden fixed inset-0 bg-slate-900/60 backdrop-blur-md z-40 transition-opacity duration-500"
+		class="lg:hidden fixed inset-0 bg-slate-900/50 z-40 transition-opacity duration-300"
 		onclick={() => (mobileOpen = false)}
 		role="presentation"
 	></div>
@@ -211,7 +211,7 @@
 
 <!-- Sidebar -->
 <aside
-	class="fixed top-0 left-0 h-full w-72 z-50 flex flex-col bg-white border-r border-border-subtle shadow-xl transition-transform duration-500 ease-pop
+	class="fixed top-0 left-0 h-full w-60 z-50 flex flex-col bg-white border-r border-border-subtle transition-transform duration-300 ease-smooth
 		{mobileOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0"
 	role="navigation"
 	aria-label="Main Sidebar Navigation"
@@ -219,24 +219,24 @@
 	<!-- Logo Section -->
 	<a
 		href="/dashboard"
-		class="block p-8 mb-4 no-underline group"
+		class="block px-5 py-5 border-b border-border-subtle no-underline"
 		aria-label="Go to Dashboard"
 	>
-		<div class="flex items-center gap-4">
+		<div class="flex items-center gap-3">
 			<img
 				src="/app_icon.png"
 				alt="Smart E-VISION"
-				class="w-12 h-12 rounded-2xl shadow-lg shadow-gov-blue/20 group-hover:scale-105 transition-transform"
+				class="w-9 h-9 rounded-md"
 			/>
 			<div>
 				<h1
 					id="dashboard-title"
-					class="text-lg font-black text-text-primary leading-none tracking-tighter"
+					class="text-sm font-bold text-text-primary leading-tight"
 				>
 					Smart E-VISION
 				</h1>
 				<p
-					class="text-[10px] text-text-muted font-bold uppercase tracking-[0.2em] mt-1"
+					class="text-[10px] text-text-muted font-medium uppercase tracking-wide mt-0.5"
 				>
 					System Hub
 				</p>
@@ -245,17 +245,17 @@
 	</a>
 
 	<!-- Navigation -->
-	<nav class="flex-1 px-4 overflow-y-auto" aria-label="Sidebar Menu">
-		<ul class="space-y-2">
+	<nav class="flex-1 px-3 py-3 overflow-y-auto" aria-label="Sidebar Menu">
+		<ul class="space-y-0.5">
 			{#each filteredItems as item}
 				{@const Icon = item.icon}
 				<li>
 					<a
 						href={item.href}
-						class="flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all duration-200 group
+						class="flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors duration-150
 							{isActive(item.href)
-							? 'bg-gov-blue text-white shadow-lg shadow-gov-blue/10'
-							: 'text-text-secondary hover:bg-surface-muted hover:text-gov-blue'}"
+							? 'bg-gov-blue text-white'
+							: 'text-text-secondary hover:bg-surface-muted hover:text-text-primary'}"
 						aria-current={isActive(item.href) ? "page" : undefined}
 						onclick={(e) => {
 							if (item.onClick) {
@@ -264,16 +264,20 @@
 							mobileOpen = false;
 						}}
 					>
-						<div class="flex items-center gap-3">
+						<div class="flex items-center gap-2.5">
 							<Icon
-								size={20}
-								strokeWidth={isActive(item.href) ? 2.5 : 2}
+								size={18}
+								strokeWidth={isActive(item.href) ? 1.75 : 1.5}
 								aria-hidden="true"
 							/>
 							<span>{item.label}</span>
 						</div>
 						{#if isActive(item.href)}
-							<ChevronRight size={16} aria-hidden="true" />
+							<ChevronRight
+								size={14}
+								strokeWidth={1.5}
+								aria-hidden="true"
+							/>
 						{/if}
 					</a>
 				</li>
@@ -284,23 +288,23 @@
 	<!-- Footer Info -->
 	{#if $profile}
 		<div
-			class="p-6 border-t border-border-subtle bg-surface-muted/30"
+			class="px-4 py-4 border-t border-border-subtle"
 			role="contentinfo"
 			aria-label="User Profile Summary"
 		>
-			<div class="flex items-center gap-4 mb-4">
+			<div class="flex items-center gap-3 mb-3">
 				<div
-					class="w-11 h-11 rounded-2xl bg-gov-blue/10 flex items-center justify-center text-sm font-black text-gov-blue border-2 border-white shadow-sm"
+					class="w-8 h-8 rounded-md bg-gov-blue/10 flex items-center justify-center text-xs font-semibold text-gov-blue"
 					aria-hidden="true"
 				>
 					{$profile.full_name?.charAt(0) || "?"}
 				</div>
 				<div class="flex-1 min-w-0">
-					<p class="text-sm font-black text-text-primary truncate">
+					<p class="text-sm font-semibold text-text-primary truncate">
 						{$profile.full_name}
 					</p>
 					<p
-						class="text-[10px] text-text-muted font-bold uppercase tracking-wider truncate"
+						class="text-[10px] text-text-muted font-medium uppercase tracking-wide truncate"
 					>
 						{$profile.role}
 					</p>
@@ -313,17 +317,17 @@
 
 <!-- Mobile Bottom Nav -->
 <nav
-	class="lg:hidden fixed bottom-6 left-6 right-6 z-40 glass-card-static border border-white/40 shadow-2xl"
+	class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-border-subtle"
 	aria-label="Mobile Navigation Bar"
 >
-	<div class="flex items-center justify-around p-2">
+	<div class="flex items-center justify-around px-1 py-1.5">
 		{#each mobileNavItems as item}
 			{@const MobileIcon = item.icon}
 			<a
 				href={item.href}
-				class="flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-300 min-h-[48px] min-w-[48px]
+				class="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-md transition-colors duration-150 min-h-[44px] min-w-[44px]
 					{isActive(item.href)
-					? 'text-gov-blue bg-gov-blue/10 scale-110'
+					? 'text-gov-blue bg-gov-blue/5'
 					: 'text-text-muted hover:text-gov-blue'}"
 				aria-current={isActive(item.href) ? "page" : undefined}
 				aria-label={item.label}
@@ -335,11 +339,11 @@
 				}}
 			>
 				<MobileIcon
-					size={22}
-					strokeWidth={isActive(item.href) ? 2.5 : 2}
+					size={20}
+					strokeWidth={isActive(item.href) ? 1.75 : 1.5}
 					aria-hidden="true"
 				/>
-				<span class="text-[9px] font-black uppercase tracking-tighter"
+				<span class="text-[9px] font-medium"
 					>{item.label.split(" ")[0]}</span
 				>
 			</a>

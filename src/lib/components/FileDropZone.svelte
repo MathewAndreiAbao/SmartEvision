@@ -61,7 +61,7 @@
 </script>
 
 <div
-    class="relative rounded-2xl border-2 border-dashed transition-all duration-300 cursor-pointer min-h-[200px] flex items-center justify-center
+    class="relative rounded-md border-2 border-dashed transition-all duration-300 cursor-pointer min-h-[200px] flex items-center justify-center
 		{disabled ? 'opacity-50 cursor-not-allowed border-gray-300 bg-gray-50' : ''}
 		{dragOver
         ? 'border-gov-blue bg-gov-blue/5 scale-[1.02] shadow-lg'
@@ -93,7 +93,7 @@
         {#if selectedFile}
             <div class="animate-fade-in">
                 <div
-                    class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-gov-blue to-gov-blue-dark flex items-center justify-center text-xs font-bold text-white shadow-md uppercase"
+                    class="w-16 h-16 mx-auto mb-4 rounded-md bg-gradient-to-br from-gov-blue to-gov-blue-dark flex items-center justify-center text-xs font-bold text-white shadow-md uppercase"
                 >
                     {selectedFile.name.split(".").pop()}
                 </div>
@@ -117,7 +117,7 @@
         {:else}
             <div class="animate-fade-in">
                 <div
-                    class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 flex items-center justify-center text-xs font-bold text-text-muted uppercase"
+                    class="w-16 h-16 mx-auto mb-4 rounded-md bg-gray-100 flex items-center justify-center text-xs font-bold text-text-muted uppercase"
                 >
                     File
                 </div>

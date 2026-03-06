@@ -469,7 +469,7 @@
     <!-- Header -->
     <div class="mb-10 flex items-start justify-between">
         <div>
-            <h1 class="text-3xl font-black text-text-primary tracking-tight">
+            <h1 class="text-3xl font-semibold text-text-primary tracking-tight">
                 Institutional Analytics
             </h1>
             <p class="text-base text-text-secondary mt-1 font-medium">
@@ -483,12 +483,16 @@
                 disabled={loading}
                 class="p-2.5 rounded-xl bg-surface-muted text-text-secondary hover:text-gov-blue transition-colors border border-border-subtle shadow-sm disabled:opacity-50"
             >
-                <RefreshCw size={18} class={loading ? "animate-spin" : ""} />
+                <RefreshCw
+                    size={18}
+                    class={loading ? "animate-spin" : ""}
+                    strokeWidth={1.5}
+                />
             </button>
             <button
                 class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gov-blue text-white text-sm font-bold shadow-lg shadow-gov-blue/20 hover:bg-gov-blue-dark transition-all"
             >
-                <Download size={18} />
+                <Download size={18} strokeWidth={1.5} />
                 Export Data
             </button>
         </div>
@@ -496,25 +500,22 @@
 
     {#if loading}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div class="glass-card-static h-96 animate-pulse"></div>
-            <div class="glass-card-static h-96 animate-pulse"></div>
+            <div class="gov-card-static h-96 animate-pulse"></div>
+            <div class="gov-card-static h-96 animate-pulse"></div>
         </div>
     {:else}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <!-- Trend Line -->
-            <div
-                class="glass-card-static p-8"
-                in:fly={{ y: 20, duration: 600 }}
-            >
+            <div class="gov-card-static p-8" in:fly={{ y: 20, duration: 600 }}>
                 <div class="flex items-center justify-between mb-8">
                     <div class="flex items-center gap-3">
                         <div
                             class="p-2 rounded-lg bg-gov-blue/10 text-gov-blue"
                         >
-                            <TrendingUp size={20} />
+                            <TrendingUp size={20} strokeWidth={1.5} />
                         </div>
                         <h3
-                            class="text-sm font-black text-text-primary uppercase tracking-widest"
+                            class="text-sm font-semibold text-text-primary uppercase tracking-wide"
                         >
                             {$profile?.role === "School Head" ||
                             $profile?.role === "Master Teacher"
@@ -523,7 +524,7 @@
                         </h3>
                     </div>
                     <div
-                        class="px-3 py-1 bg-gov-green/10 text-gov-green rounded-full text-[10px] font-black uppercase tracking-widest"
+                        class="px-3 py-1 bg-gov-green/10 text-gov-green rounded-full text-[10px] font-semibold uppercase tracking-wide"
                     >
                         8-Week Window
                     </div>
@@ -535,7 +536,7 @@
 
             <!-- Bar Comparison -->
             <div
-                class="glass-card-static p-8"
+                class="gov-card-static p-8"
                 in:fly={{ y: 20, duration: 600, delay: 200 }}
             >
                 <div class="flex items-center justify-between mb-8">
@@ -543,10 +544,10 @@
                         <div
                             class="p-2 rounded-lg bg-gov-blue/10 text-gov-blue"
                         >
-                            <BarChart3 size={20} />
+                            <BarChart3 size={20} strokeWidth={1.5} />
                         </div>
                         <h3
-                            class="text-sm font-black text-text-primary uppercase tracking-widest"
+                            class="text-sm font-semibold text-text-primary uppercase tracking-wide"
                         >
                             {$profile?.role === "School Head" ||
                             $profile?.role === "Master Teacher"
@@ -564,53 +565,55 @@
         <!-- Summary Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-10">
             <div
-                class="glass-card-static p-8 text-center group"
+                class="gov-card-static p-8 text-center group"
                 in:fly={{ y: 20, duration: 600, delay: 400 }}
             >
                 <div
-                    class="w-16 h-16 rounded-2xl bg-gov-blue/5 text-gov-blue flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-500"
+                    class="w-16 h-16 rounded-md bg-gov-blue/5 text-gov-blue flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-500"
                 >
                     <Activity size={32} strokeWidth={1.5} />
                 </div>
-                <p class="text-4xl font-black text-gov-blue tracking-tighter">
+                <p class="text-4xl font-semibold text-gov-blue tracking-normal">
                     +{stats.improvement}%
                 </p>
                 <p
-                    class="text-xs font-bold text-text-muted mt-2 uppercase tracking-widest"
+                    class="text-xs font-bold text-text-muted mt-2 uppercase tracking-wide"
                 >
                     Growth Since Week 1
                 </p>
             </div>
             <div
-                class="glass-card-static p-8 text-center group"
+                class="gov-card-static p-8 text-center group"
                 in:fly={{ y: 20, duration: 600, delay: 500 }}
             >
                 <div
-                    class="w-16 h-16 rounded-2xl bg-gov-green/5 text-gov-green flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-500"
+                    class="w-16 h-16 rounded-md bg-gov-green/5 text-gov-green flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-500"
                 >
                     <Target size={32} strokeWidth={1.5} />
                 </div>
-                <p class="text-4xl font-black text-gov-green tracking-tighter">
+                <p
+                    class="text-4xl font-semibold text-gov-green tracking-normal"
+                >
                     {OPERATIONAL_TARGET}%
                 </p>
                 <p
-                    class="text-xs font-bold text-text-muted mt-2 uppercase tracking-widest"
+                    class="text-xs font-bold text-text-muted mt-2 uppercase tracking-wide"
                 >
                     Operational Target
                 </p>
             </div>
             <div
-                class="glass-card-static p-8 text-center group"
+                class="gov-card-static p-8 text-center group"
                 in:fly={{ y: 20, duration: 600, delay: 600 }}
             >
                 <div
-                    class="w-16 h-16 rounded-2xl bg-gov-gold/5 text-gov-gold flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-500"
+                    class="w-16 h-16 rounded-md bg-gov-gold/5 text-gov-gold flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-500"
                 >
                     <Zap size={32} strokeWidth={1.5} />
                 </div>
                 <div class="flex items-center justify-center gap-2 mb-1">
                     <p
-                        class="text-4xl font-black tracking-tighter {prediction.label ===
+                        class="text-4xl font-semibold tracking-normal {prediction.label ===
                         'Critical'
                             ? 'text-gov-red'
                             : prediction.label === 'At-Risk'
@@ -621,7 +624,7 @@
                     </p>
                 </div>
                 <p
-                    class="text-[10px] font-black uppercase tracking-widest text-text-muted opacity-50"
+                    class="text-[10px] font-semibold uppercase tracking-wide text-text-muted opacity-50"
                 >
                     Predictive Compliance Forecast
                 </p>
@@ -631,12 +634,12 @@
         <!-- Behavioral Clustering (K-Means) -->
         {#if clusterResults.length > 0}
             <div
-                class="glass-card-static p-8 mt-10"
+                class="gov-card-static p-8 mt-10"
                 in:fly={{ y: 20, duration: 600, delay: 700 }}
             >
                 <div class="mb-6">
                     <h2
-                        class="text-xl font-black text-text-primary tracking-tight"
+                        class="text-xl font-semibold text-text-primary tracking-tight"
                     >
                         Behavioral Segmentation
                     </h2>

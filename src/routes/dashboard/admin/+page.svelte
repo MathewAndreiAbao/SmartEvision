@@ -268,7 +268,7 @@
 
     <!-- Tab Navigation -->
     <div
-        class="flex gap-1 p-1 bg-gray-100 rounded-2xl mb-8 max-w-md"
+        class="flex gap-1 p-1 bg-gray-100 rounded-md mb-8 max-w-md"
         role="tablist"
         aria-label="Admin sections"
     >
@@ -311,14 +311,14 @@
             {#if loading}
                 <div class="space-y-4">
                     {#each Array(3) as _}
-                        <div class="h-32 glass-card-static animate-pulse"></div>
+                        <div class="h-32 gov-card-static animate-pulse"></div>
                     {/each}
                 </div>
             {:else}
                 <div class="grid gap-6">
                     {#each settings as s}
                         <div
-                            class="glass-card p-6 flex flex-col md:flex-row md:items-center justify-between gap-6"
+                            class="gov-card-static p-6 flex flex-col md:flex-row md:items-center justify-between gap-6"
                             in:fly={{ y: 20, duration: 400 }}
                         >
                             <div class="max-w-md">
@@ -440,14 +440,14 @@
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 {#each ROLES as role, i}
                     <div
-                        class="glass-card-static p-4 text-center"
+                        class="gov-card-static p-4 text-center"
                         in:fly={{ y: 10, delay: i * 50 }}
                     >
-                        <p class="text-2xl font-black text-text-primary">
+                        <p class="text-2xl font-semibold text-text-primary">
                             {users.filter((u) => u.role === role).length}
                         </p>
                         <p
-                            class="text-[10px] text-text-muted font-bold uppercase tracking-widest mt-1"
+                            class="text-[10px] text-text-muted font-bold uppercase tracking-wide mt-1"
                         >
                             {role === "District Supervisor"
                                 ? "Supervisors"
@@ -461,11 +461,11 @@
             {#if loadingUsers}
                 <div class="space-y-3">
                     {#each Array(5) as _}
-                        <div class="h-16 glass-card-static animate-pulse"></div>
+                        <div class="h-16 gov-card-static animate-pulse"></div>
                     {/each}
                 </div>
             {:else}
-                <div class="glass-card-static overflow-hidden">
+                <div class="gov-card-static overflow-hidden">
                     <div class="overflow-x-auto">
                         <table
                             class="w-full text-sm"
@@ -530,7 +530,7 @@
                                         </td>
                                         <td class="px-4 py-3.5 text-center">
                                             <span
-                                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider {getRoleBadgeClass(
+                                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider {getRoleBadgeClass(
                                                     user.role,
                                                 )}"
                                             >
@@ -609,7 +609,7 @@
     <!-- Toast Message -->
     {#if message.text}
         <div
-            class="fixed bottom-24 right-8 px-6 py-4 rounded-2xl shadow-elevated border-l-4 {message.type ===
+            class="fixed bottom-24 right-8 px-6 py-4 rounded-md shadow-sm border-l-4 {message.type ===
             'success'
                 ? 'bg-green-50 border-green-500 text-green-800'
                 : 'bg-red-50 border-red-500 text-red-800'} flex items-center gap-3 font-bold text-sm z-50"
@@ -637,7 +637,7 @@
         aria-label="Change user role"
     >
         <div
-            class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+            class="bg-white rounded-3xl shadow-sm w-full max-w-md overflow-hidden"
             in:fly={{ y: 30, duration: 300 }}
         >
             <div class="p-6 border-b border-gray-100">
@@ -655,7 +655,7 @@
                 <div>
                     <label
                         for="role-select"
-                        class="block text-xs font-bold text-text-muted uppercase tracking-widest mb-2"
+                        class="block text-xs font-bold text-text-muted uppercase tracking-wide mb-2"
                         >Current: {roleChangeModal.user?.role}</label
                     >
                     <select

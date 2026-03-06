@@ -37,7 +37,6 @@
             addToast("error", result.error);
         } else {
             addToast("success", "Welcome back!");
-            // Redirect is handled by the $effect above when profile loads
         }
 
         loading = false;
@@ -48,37 +47,29 @@
     <title>Sign In — Smart E-VISION</title>
 </svelte:head>
 
-<div class="min-h-screen gradient-mesh flex items-center justify-center p-6">
-    <!-- Decorative blurs -->
-    <div
-        class="fixed top-20 left-20 w-72 h-72 bg-gov-blue/10 rounded-full blur-3xl pointer-events-none"
-    ></div>
-    <div
-        class="fixed bottom-20 right-20 w-96 h-96 bg-gov-gold/10 rounded-full blur-3xl pointer-events-none"
-    ></div>
-
-    <div class="w-full max-w-md animate-slide-up">
+<div class="min-h-screen bg-surface flex items-center justify-center p-6">
+    <div class="w-full max-w-sm">
         <!-- Logo -->
-        <div class="text-center mb-10">
+        <div class="text-center mb-8">
             <img
                 src="/app_icon.png"
                 alt="Smart E-VISION"
-                class="w-16 h-16 mx-auto rounded-2xl shadow-elevated mb-4"
+                class="w-12 h-12 mx-auto rounded-md shadow-sm mb-3"
             />
-            <h1 class="text-2xl font-bold text-text-primary">Welcome Back</h1>
-            <p class="text-base text-text-secondary mt-1">
+            <h1 class="text-xl font-bold text-text-primary">Welcome Back</h1>
+            <p class="text-sm text-text-secondary mt-1">
                 Sign in to Smart E-VISION
             </p>
         </div>
 
         <!-- Login Card -->
-        <div class="glass-card-static p-8">
+        <div class="gov-card-static p-6">
             <form onsubmit={handleSubmit}>
                 <!-- Email -->
-                <div class="mb-5">
+                <div class="mb-4">
                     <label
                         for="email"
-                        class="block text-sm font-semibold text-text-primary mb-2"
+                        class="block text-sm font-medium text-text-primary mb-1.5"
                     >
                         Email Address
                     </label>
@@ -87,17 +78,17 @@
                         type="email"
                         bind:value={email}
                         placeholder="your.email@deped.gov.ph"
-                        class="w-full px-5 py-3.5 text-base bg-white/60 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-blue/30 focus:border-gov-blue outline-none transition-all min-h-[48px]"
+                        class="gov-input"
                         autocomplete="email"
                         required
                     />
                 </div>
 
                 <!-- Password -->
-                <div class="mb-6">
+                <div class="mb-5">
                     <label
                         for="password"
-                        class="block text-sm font-semibold text-text-primary mb-2"
+                        class="block text-sm font-medium text-text-primary mb-1.5"
                     >
                         Password
                     </label>
@@ -106,7 +97,7 @@
                         type="password"
                         bind:value={password}
                         placeholder="Enter your password"
-                        class="w-full px-5 py-3.5 text-base bg-white/60 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-blue/30 focus:border-gov-blue outline-none transition-all min-h-[48px]"
+                        class="gov-input"
                         autocomplete="current-password"
                         required
                     />
@@ -115,7 +106,7 @@
                 <!-- Error -->
                 {#if errorMsg}
                     <div
-                        class="mb-5 px-4 py-3 rounded-xl bg-gov-red/10 text-gov-red text-sm font-medium flex items-center gap-2"
+                        class="mb-4 px-3 py-2 rounded-md bg-gov-red/10 text-gov-red text-sm font-medium flex items-center gap-2"
                     >
                         <span>Warning:</span>
                         {errorMsg}
@@ -126,11 +117,11 @@
                 <button
                     type="submit"
                     disabled={loading}
-                    class="w-full py-4 bg-gradient-to-r from-gov-blue to-gov-blue-dark text-white text-lg font-bold rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 min-h-[56px] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                    class="gov-btn-primary w-full py-3 text-base"
                 >
                     {#if loading}
                         <span
-                            class="inline-block w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
+                            class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
                             style="animation: spin 0.8s linear infinite;"
                         ></span>
                         Signing in...
@@ -141,8 +132,8 @@
             </form>
         </div>
 
-        <!-- Back to dashboard -->
-        <div class="text-center mt-6">
+        <!-- Back link -->
+        <div class="text-center mt-4">
             <a
                 href="/dashboard"
                 class="text-sm text-text-muted hover:text-gov-blue transition-colors"

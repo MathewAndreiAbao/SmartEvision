@@ -57,10 +57,10 @@
     <div
         class="fixed top-4 left-4 right-4 lg:left-auto lg:right-6 lg:w-96 z-[60] animate-slide-up"
     >
-        <div class="glass-card p-4 border-l-4 border-gov-green shadow-elevated">
+        <div class="gov-card-static p-4 border-l-4 border-gov-green shadow-sm">
             <div class="flex items-center gap-3">
                 <div
-                    class="w-10 h-10 rounded-xl bg-gov-green flex items-center justify-center text-white text-[10px] font-black shrink-0"
+                    class="w-10 h-10 rounded-xl bg-gov-green flex items-center justify-center text-white text-[10px] font-semibold shrink-0"
                 >
                     NEW
                 </div>

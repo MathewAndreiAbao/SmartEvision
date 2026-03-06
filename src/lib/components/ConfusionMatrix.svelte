@@ -33,7 +33,7 @@
     }
 </script>
 
-<div class="glass-card-static p-6 space-y-6" in:fly={{ y: 20, duration: 600 }}>
+<div class="gov-card-static p-6 space-y-6" in:fly={{ y: 20, duration: 600 }}>
     <div class="flex items-center justify-between">
         <div>
             <h3
@@ -47,10 +47,10 @@
         </div>
         <div class="flex gap-4">
             <div class="text-right">
-                <p class="text-[10px] font-black text-gov-blue uppercase">
+                <p class="text-[10px] font-semibold text-gov-blue uppercase">
                     Accuracy
                 </p>
-                <p class="text-2xl font-black text-gov-blue">
+                <p class="text-2xl font-semibold text-gov-blue">
                     {(data.accuracy * 100).toFixed(1)}%
                 </p>
             </div>
@@ -78,7 +78,7 @@
                 {#each data.matrix as row, i}
                     <tr>
                         <td
-                            class="p-2 text-xs font-black text-text-secondary border-r border-border-subtle"
+                            class="p-2 text-xs font-semibold text-text-secondary border-r border-border-subtle"
                             >{data.labels[i]}</td
                         >
                         {#each row as cell, j}
@@ -103,7 +103,7 @@
     >
         <div class="space-y-1">
             <p
-                class="text-[9px] font-black text-text-muted uppercase tracking-widest"
+                class="text-[9px] font-semibold text-text-muted uppercase tracking-wide"
             >
                 Precision
             </p>
@@ -113,7 +113,7 @@
         </div>
         <div class="space-y-1">
             <p
-                class="text-[9px] font-black text-text-muted uppercase tracking-widest"
+                class="text-[9px] font-semibold text-text-muted uppercase tracking-wide"
             >
                 Recall
             </p>
@@ -123,7 +123,7 @@
         </div>
         <div class="space-y-1">
             <p
-                class="text-[9px] font-black text-text-muted uppercase tracking-widest"
+                class="text-[9px] font-semibold text-text-muted uppercase tracking-wide"
             >
                 F1-Score
             </p>
@@ -137,7 +137,7 @@
         </div>
         <div class="space-y-1">
             <p
-                class="text-[9px] font-black text-text-muted uppercase tracking-widest"
+                class="text-[9px] font-semibold text-text-muted uppercase tracking-wide"
             >
                 Samples
             </p>

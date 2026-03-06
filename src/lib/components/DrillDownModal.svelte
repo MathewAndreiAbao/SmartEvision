@@ -31,7 +31,7 @@
     tabindex="-1"
   >
     <div
-      class="glass-card-static w-full max-w-2xl animate-slide-up max-h-[80vh] flex flex-col"
+      class="gov-card-static w-full max-w-2xl animate-slide-up max-h-[80vh] flex flex-col"
       onclick={(e) => e.stopPropagation()}
       onkeydown={() => {}}
       role="document"

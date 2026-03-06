@@ -19,67 +19,61 @@
     }: Props = $props();
 
     const IconComponent = $derived(icon ? (Lucide[icon] as any) : null);
+
+    function getBorderColor(c: string): string {
+        if (c.includes("green")) return "border-l-gov-green";
+        if (c.includes("gold")) return "border-l-gov-gold";
+        if (c.includes("red")) return "border-l-gov-red";
+        return "border-l-gov-blue";
+    }
 </script>
 
-<div
-    class="gov-card p-6 relative group border-l-4 overflow-hidden {color.includes(
-        'green',
-    )
-        ? 'border-l-gov-green'
-        : color.includes('gold')
-          ? 'border-l-gov-gold'
-          : color.includes('red')
-            ? 'border-l-gov-red'
-            : 'border-l-gov-blue'}"
->
-    <!-- Background Icon Decoration -->
-    {#if IconComponent}
-        <div
-            class="absolute -right-2 -bottom-2 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity duration-500"
-        >
-            <IconComponent size={80} strokeWidth={1} />
-        </div>
-    {/if}
-
-    <div class="flex items-start justify-between relative z-10">
+<div class="gov-card-static p-4 border-l-4 {getBorderColor(color)}">
+    <div class="flex items-start justify-between">
         <div class="flex-1">
-            <div class="flex items-center gap-2 mb-2">
+            <div class="flex items-center gap-2 mb-1.5">
                 {#if IconComponent}
                     <div
-                        class="p-1.5 rounded-lg bg-surface-muted text-text-secondary"
+                        class="p-1 rounded-md transition-colors {color.includes(
+                            'green',
+                        )
+                            ? 'bg-gov-green/10 text-gov-green'
+                            : color.includes('gold')
+                              ? 'bg-gov-gold/10 text-gov-gold-dark'
+                              : color.includes('red')
+                                ? 'bg-gov-red/10 text-gov-red'
+                                : 'bg-gov-blue/10 text-gov-blue'}"
                     >
-                        <IconComponent size={14} />
+                        <IconComponent size={14} strokeWidth={2} />
                     </div>
                 {/if}
                 <p
-                    class="text-text-muted text-[10px] font-bold uppercase tracking-wider"
+                    class="text-text-muted text-xs font-medium uppercase tracking-wide"
                 >
                     {label}
                 </p>
             </div>
 
-            <p class="text-3xl font-black text-text-primary tracking-tight">
+            <p class="text-2xl font-bold text-text-primary">
                 {value}
             </p>
 
             {#if trend}
-                <div class="flex items-center gap-1.5 mt-4">
+                <div class="flex items-center gap-1.5 mt-2">
                     <div
-                        class="flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-bold {trend.direction ===
+                        class="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium {trend.direction ===
                         'up'
                             ? 'bg-gov-green/10 text-gov-green'
                             : 'bg-gov-red/10 text-gov-red'}"
                     >
                         {#if trend.direction === "up"}
-                            <TrendingUp size={12} />
+                            <TrendingUp size={12} strokeWidth={1.5} />
                         {:else}
-                            <TrendingDown size={12} />
+                            <TrendingDown size={12} strokeWidth={1.5} />
                         {/if}
                         {Math.abs(trend.value)}%
                     </div>
-                    <span class="text-[10px] text-text-muted font-medium"
-                        >vs last week</span
-                    >
+                    <span class="text-xs text-text-muted">vs last week</span>
                 </div>
             {/if}
         </div>

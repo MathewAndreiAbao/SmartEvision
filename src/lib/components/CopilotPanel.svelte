@@ -63,7 +63,7 @@
 </script>
 
 <div
-    class="glass-card-static overflow-hidden transition-all duration-500"
+    class="gov-card-static overflow-hidden transition-all duration-500"
     in:fly={{ x: 20, duration: 500 }}
 >
     <!-- Header -->
@@ -81,7 +81,7 @@
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
-                        stroke-width="2"
+                        stroke-width="1.5"
                     >
                         <path
                             stroke-linecap="round"
@@ -98,7 +98,7 @@
             </div>
             <div class="text-left">
                 <h3
-                    class="text-sm font-black text-text-primary uppercase tracking-widest"
+                    class="text-sm font-semibold text-text-primary uppercase tracking-wide"
                 >
                     Smart Copilot
                 </h3>
@@ -110,7 +110,7 @@
         <div class="flex items-center gap-2">
             {#if suggestions.length > 0 && !analyzing}
                 <span
-                    class="px-2 py-0.5 bg-gov-blue/10 text-gov-blue text-[9px] font-black rounded-full"
+                    class="px-2 py-0.5 bg-gov-blue/10 text-gov-blue text-[9px] font-semibold rounded-full"
                 >
                     {suggestions.length}
                 </span>
@@ -122,11 +122,11 @@
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                stroke-width="1.5"
             >
                 <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
-                    stroke-width="2"
                     d="M19 9l-7 7-7-7"
                 />
             </svg>
@@ -139,7 +139,7 @@
             {#if analyzing}
                 <!-- Thinking Animation -->
                 <div
-                    class="flex items-center gap-3 p-4 rounded-2xl bg-gov-blue/3 border border-gov-blue/10"
+                    class="flex items-center gap-3 p-4 rounded-md bg-gov-blue/3 border border-gov-blue/10"
                 >
                     <div class="flex gap-1">
                         <div
@@ -162,11 +162,13 @@
             {:else if suggestions.length === 0}
                 <!-- All Clear -->
                 <div
-                    class="p-6 text-center rounded-2xl bg-gov-green/3 border border-gov-green/10"
+                    class="p-6 text-center rounded-md bg-gov-green/3 border border-gov-green/10"
                     in:fade={{ duration: 300 }}
                 >
                     <div class="text-3xl mb-2">✅</div>
-                    <p class="text-sm font-black text-gov-green">All Clear!</p>
+                    <p class="text-sm font-semibold text-gov-green">
+                        All Clear!
+                    </p>
                     <p class="text-[10px] text-text-muted mt-1">
                         No pending actions detected
                     </p>
@@ -176,7 +178,7 @@
                 {#each suggestions as suggestion, i (suggestion.id)}
                     {@const colors = getSuggestionColor(suggestion.type)}
                     <button
-                        class="w-full text-left p-4 rounded-2xl border transition-all duration-200 hover:shadow-md hover:scale-[1.01] active:scale-[0.99] group {colors.bg} {colors.border}"
+                        class="w-full text-left p-4 rounded-md border transition-all duration-200 hover:shadow-md hover:scale-[1.01] active:scale-[0.99] group {colors.bg} {colors.border}"
                         onclick={() => handleApply(suggestion)}
                         in:fly={{ x: 15, duration: 300, delay: i * 80 }}
                     >
@@ -187,13 +189,13 @@
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-2 mb-1">
                                     <span
-                                        class="text-[9px] font-black uppercase tracking-widest {colors.text}"
+                                        class="text-[9px] font-semibold uppercase tracking-wide {colors.text}"
                                     >
                                         {suggestion.title}
                                     </span>
                                     {#if suggestion.priority === "high"}
                                         <span
-                                            class="px-1.5 py-0.5 bg-gov-red/10 text-gov-red text-[8px] font-black rounded-full uppercase"
+                                            class="px-1.5 py-0.5 bg-gov-red/10 text-gov-red text-[8px] font-semibold rounded-full uppercase"
                                         >
                                             Urgent
                                         </span>
@@ -213,16 +215,16 @@
                                             fill="none"
                                             stroke="currentColor"
                                             viewBox="0 0 24 24"
+                                            stroke-width="1.5"
                                         >
                                             <path
                                                 stroke-linecap="round"
                                                 stroke-linejoin="round"
-                                                stroke-width="2"
                                                 d="M13 7l5 5m0 0l-5 5m5-5H6"
                                             />
                                         </svg>
                                         <span
-                                            class="text-[9px] font-black text-gov-blue uppercase tracking-widest"
+                                            class="text-[9px] font-semibold text-gov-blue uppercase tracking-wide"
                                             >Tap to auto-fill</span
                                         >
                                     </div>
@@ -239,7 +241,7 @@
                     class="w-1.5 h-1.5 rounded-full bg-gov-green animate-pulse"
                 ></div>
                 <span
-                    class="text-[8px] font-bold text-text-muted uppercase tracking-widest"
+                    class="text-[8px] font-bold text-text-muted uppercase tracking-wide"
                 >
                     Offline-Ready · Rule Engine v1.0
                 </span>

@@ -123,31 +123,27 @@ export function countSubmissionsByStatus(
   return { compliant, late, nonCompliant, total: compliant + late + nonCompliant };
 }
 
-/**
- * Calculate compliance stats from an array of submissions.
- * 
- * Rate = Compliant / Expected
- * Non-compliant records are now explicitly inserted into the DB by
- * markNonCompliantSubmissions, so we simply count what exists.
- */
 export function calculateCompliance(
   submissions: { compliance_status?: string; created_at?: string }[],
-  teachingLoadsCount: number = 0,
-  expectedOverride?: number
+  expectedTotal: number = 0
 ): ComplianceStats {
   const counts = countSubmissionsByStatus(submissions);
-  const expected = expectedOverride !== undefined ? expectedOverride : teachingLoadsCount;
 
-  // Rate = Compliant / Expected (Strict Load-Based)
-  const denominator = expected > 0 ? expected : counts.total;
-  const rate = denominator > 0 ? Math.min(100, Math.round((counts.compliant / denominator) * 100)) : 0;
+  // Instead of counting DB records for non-compliant, we deduce it:
+  // Expected Total = (Setted Weeks) * (Teaching Loads)
+  // Actual Uploads = Compliant + Late
+  const actualUploads = counts.compliant + counts.late;
+  const nonCompliant = Math.max(0, expectedTotal - actualUploads);
+
+  // Rate = Actual Uploads / Expected Total
+  const rate = expectedTotal > 0 ? Math.min(100, Math.round((actualUploads / expectedTotal) * 100)) : 0;
 
   return {
     Compliant: counts.compliant,
     Late: counts.late,
-    NonCompliant: counts.nonCompliant,
+    NonCompliant: nonCompliant,
     totalUploaded: counts.total,
-    expected,
+    expected: expectedTotal,
     rate
   };
 }
@@ -216,7 +212,7 @@ export function normalizeComplianceStatus(status: string | null | undefined): st
   const s = status.toLowerCase().trim();
   if (s === 'compliant' || s === 'on-time') return 'compliant';
   if (s === 'late') return 'late';
-  if (s === 'non-compliant' || s === 'missing' || s === 'non compliant') return 'non-compliant';
+  if (s === 'non-compliant' || s === 'missing' || s === 'non-compliant') return 'non-compliant';
   return s;
 }
 
@@ -286,18 +282,11 @@ export function getSubmissionWeek(s: { week_number?: number | null, created_at?:
 }
 
 /**
- * WBS 14.5 — Active Non-Compliant Submission Detection (Per Teaching Load)
+ * WBS 14.5 - Active Non-Compliant Submission Detection (Per Teaching Load)
  * 
  * Scans past-deadline calendar weeks and, for each teacher, checks how many
  * teaching loads they have. For each (teacher, load, week) tuple with no
  * matching submission, inserts a 'non-compliant' placeholder record.
- * 
- * Example: Teacher has 4 loads, Weeks 1 & 2 are past-deadline.
- *   - Week 1: 1 submission uploaded → 3 non-compliant records inserted
- *   - Week 2: 2 submissions uploaded → 2 non-compliant records inserted
- *   Total auto-inserted: 5 non-compliant records
- * 
- * Returns the number of newly inserted non-compliant records.
  */
 export async function markNonCompliantSubmissions(
   supabase: any,
@@ -311,7 +300,7 @@ export async function markNonCompliantSubmissions(
   try {
     console.log('[NC] markNonCompliantSubmissions called with:', { schoolYear, districtId, userId, schoolId });
 
-    // 1. Get all weeks from academic calendar (user wants them to appear as soon as set)
+    // 1. Get all weeks from academic calendar
     let calQuery = supabase
       .from('academic_calendar')
       .select('id, week_number')
@@ -323,10 +312,6 @@ export async function markNonCompliantSubmissions(
     }
 
     const { data: pastWeeks, error: calError } = await calQuery;
-    console.log('[NC] Calendar weeks found:', pastWeeks?.length || 0, 'error:', calError?.message || 'none');
-    if (pastWeeks && pastWeeks.length > 0) {
-      console.log('[NC] Sample week columns:', Object.keys(pastWeeks[0]));
-    }
     if (calError || !pastWeeks || pastWeeks.length === 0) return 0;
 
     // 2. Get teachers in scope
@@ -341,38 +326,25 @@ export async function markNonCompliantSubmissions(
       teacherQuery = teacherQuery.eq('school_id', schoolId);
     } else if (districtId) {
       const { data: schools } = await supabase.from('schools').select('id').eq('district_id', districtId);
-      console.log('[NC] Schools in district:', schools?.length || 0);
       if (schools && schools.length > 0) {
         teacherQuery = teacherQuery.in('school_id', schools.map((s: any) => s.id));
       }
     }
 
     const { data: teachers, error: teacherError } = await teacherQuery;
-    console.log('[NC] Teachers found:', teachers?.length || 0, 'error:', teacherError?.message || 'none');
-    if (teachers && teachers.length > 0) {
-      console.log('[NC] Teacher IDs/Names:', teachers.map((t: any) => `${t.full_name} (${t.id})`).join(', '));
-    }
     if (teacherError || !teachers || teachers.length === 0) return 0;
 
     const teacherIds = teachers.map((t: any) => t.id);
 
-    // 3. Get teaching loads (all loads, not just active — teachers may not have is_active set)
-    // ADD DIAGNOSTIC: Total loads in table
-    const { count: totalLoadsInTable } = await supabase.from('teaching_loads').select('*', { count: 'exact', head: true });
-    console.log('[NC] Total teaching loads in entire table:', totalLoadsInTable);
-
+    // 3. Get teaching loads
     const { data: teachingLoads } = await supabase
       .from('teaching_loads')
       .select('id, user_id, subject')
       .in('user_id', teacherIds);
 
-    console.log('[NC] Teaching loads found for teachers:', teachingLoads?.length || 0);
-    if (!teachingLoads || teachingLoads.length === 0) {
-      console.warn('[NC] No teaching loads found for any teachers. Exiting.');
-      return 0;
-    }
+    if (!teachingLoads || teachingLoads.length === 0) return 0;
 
-    // 4. Get existing submissions (all statuses)
+    // 4. Get existing submissions
     const weekNumbers = pastWeeks.map((w: any) => w.week_number);
     const { data: existingSubs } = await supabase
       .from('submissions')
@@ -387,10 +359,7 @@ export async function markNonCompliantSubmissions(
 
     for (const teacher of teachers) {
       const myLoads = teachingLoads.filter((l: any) => l.user_id === teacher.id);
-      if (myLoads.length === 0) {
-        console.warn(`[NC] Teacher ${teacher.full_name} has NO teaching loads assigned.`);
-        continue;
-      }
+      if (myLoads.length === 0) continue;
 
       for (const week of pastWeeks) {
         const mySubsForWeek = (existingSubs || []).filter(
@@ -403,14 +372,11 @@ export async function markNonCompliantSubmissions(
           const ncSubs = loadSubs.filter((s: any) => s.compliance_status === 'non-compliant');
 
           if (hasRealSub) {
-            // If we have a real submission, we don't need ANY non-compliant placeholders for this load
             if (ncSubs.length > 0) {
               idsToDelete.push(...ncSubs.map((s: any) => s.id));
             }
           } else {
-            // No real submission. We need EXACTLY ONE non-compliant placeholder.
             if (ncSubs.length === 0) {
-              // Create one
               const hash = `nc_${teacher.id}_${week.week_number}_${load.id}_${schoolYear}`;
               ncRecords.push({
                 user_id: teacher.id,
@@ -419,14 +385,13 @@ export async function markNonCompliantSubmissions(
                 file_path: `non-compliant/${teacher.id}/week_${week.week_number}_load_${load.id}`,
                 file_hash: hash,
                 file_size: 0,
-                doc_type: 'DLL',
+                doc_type: 'Non-Compliant',
                 week_number: week.week_number,
                 school_year: schoolYear,
                 calendar_id: week.id,
                 compliance_status: 'non-compliant'
               });
             } else if (ncSubs.length > 1) {
-              // Too many placeholders? Remove extras (keep 1)
               idsToDelete.push(...ncSubs.slice(1).map((s: any) => s.id));
             }
           }
@@ -435,8 +400,6 @@ export async function markNonCompliantSubmissions(
     }
 
     // 6. Execute balanced changes
-    console.log('[NC] Rebalance result — to delete:', idsToDelete.length, 'to insert:', ncRecords.length);
-
     if (idsToDelete.length > 0) {
       await supabase.from('submissions').delete().in('id', idsToDelete);
     }
@@ -444,14 +407,11 @@ export async function markNonCompliantSubmissions(
     if (ncRecords.length > 0) {
       const { error } = await supabase.from('submissions').insert(ncRecords);
       if (!error) marked += ncRecords.length;
-      else console.error('[NC] Insert error:', error);
     }
 
-    console.log('[NC] Total marked:', marked);
     return marked;
   } catch (err) {
     console.error('[markNonCompliantSubmissions] Error:', err);
     return 0;
   }
 }
-

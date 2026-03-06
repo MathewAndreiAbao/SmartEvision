@@ -42,26 +42,26 @@
 <!-- WBS 21.2 — Accessibility: Skip to Content Link -->
 <a
     href="#main-content"
-    class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-6 focus:py-3 focus:bg-gov-blue focus:text-white focus:font-bold focus:rounded-xl focus:shadow-2xl"
+    class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-gov-blue focus:text-white focus:font-semibold focus:rounded-md focus:shadow-sm"
 >
     Skip to Content
 </a>
 
 {#if $authLoading}
-    <!-- Loading skeleton -->
+    <!-- Loading state -->
     <div
-        class="min-h-screen gradient-mesh flex items-center justify-center"
+        class="min-h-screen bg-surface flex items-center justify-center"
         role="status"
         aria-label="Loading Dashboard"
     >
-        <div class="text-center animate-fade-in">
+        <div class="text-center">
             <img
                 src="/app_icon.png"
                 alt="Smart E-VISION"
-                class="w-20 h-20 mx-auto rounded-2xl shadow-elevated mb-6 animate-pulse-glow"
+                class="w-14 h-14 mx-auto rounded-md shadow-sm mb-4 animate-pulse"
             />
             <p
-                class="text-sm font-bold text-text-secondary uppercase tracking-[0.25em]"
+                class="text-sm font-medium text-text-muted uppercase tracking-wide"
             >
                 Loading...
             </p>
@@ -71,16 +71,13 @@
     <div class="min-h-screen bg-surface">
         <Sidebar />
 
-        <!-- Main content area — pushed right on desktop, bottom-padded on mobile -->
-        <!-- WBS 21.2 — Proper main role and id for skip-link -->
+        <!-- Main content area -->
         <main
             id="main-content"
-            class="lg:ml-72 min-h-screen"
+            class="lg:ml-60 min-h-screen"
             aria-labelledby="dashboard-title"
         >
-            <div
-                class="p-4 pt-16 lg:pt-8 lg:p-8 pb-24 lg:pb-8 max-w-7xl mx-auto"
-            >
+            <div class="p-4 pt-14 lg:pt-6 lg:p-6 pb-20 lg:pb-6">
                 {@render children()}
             </div>
         </main>

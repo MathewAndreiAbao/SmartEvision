@@ -18,7 +18,6 @@
         formatComplianceRate,
         getWeekNumber,
         getDefinedWeeksCount,
-        markNonCompliantSubmissions,
     } from "$lib/utils/useDashboardData";
 
     // Data
@@ -129,15 +128,6 @@
     async function loadSchoolData() {
         const userProfile = $profile;
         if (!userProfile?.school_id) return;
-
-        // Trigger auto-generation of NC records for this school
-        markNonCompliantSubmissions(
-            supabase,
-            "2025-2026",
-            undefined,
-            undefined,
-            userProfile.school_id,
-        );
 
         // Batch fetch: teachers + all submissions + all teaching loads + academic calendar
         const [teachersRes, subsRes, loadsRes, calendarRes] = await Promise.all(
@@ -295,11 +285,7 @@
                 const weekSubs = teacherSubs.filter(
                     (s: Submission) => s.week_number === w.week,
                 );
-                const stats = calculateCompliance(
-                    weekSubs,
-                    t.loadCount,
-                    t.loadCount,
-                );
+                const stats = calculateCompliance(weekSubs, t.loadCount);
                 cells.push({
                     row: t.full_name,
                     week: w.week,
@@ -394,7 +380,7 @@
     {#if loading}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {#each Array(4) as _}
-                <div class="glass-card-static p-6 animate-pulse">
+                <div class="gov-card-static p-6 animate-pulse">
                     <div class="h-4 bg-gray-200 rounded w-24 mb-3"></div>
                     <div class="h-8 bg-gray-200 rounded w-16"></div>
                 </div>
@@ -440,7 +426,7 @@
         <!-- Alerts -->
         {#if alertTeachers().length > 0}
             <div
-                class="glass-card-static p-5 mb-8 border-l-4 border-gov-gold"
+                class="gov-card-static p-5 mb-8 border-l-4 border-gov-gold"
                 in:fade={{ duration: 500, delay: 400 }}
             >
                 <h3 class="text-sm font-bold text-gov-gold-dark mb-2">
@@ -465,7 +451,7 @@
         <!-- Heatmap + Trend Chart -->
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
             <div
-                class="glass-card-static p-6"
+                class="gov-card-static p-6"
                 in:fly={{ y: 20, duration: 500, delay: 500 }}
             >
                 <h3 class="text-lg font-bold text-text-primary mb-4">
@@ -485,7 +471,7 @@
             </div>
 
             <div
-                class="glass-card-static p-6"
+                class="gov-card-static p-6"
                 in:fly={{ y: 20, duration: 500, delay: 600 }}
             >
                 <h3 class="text-lg font-bold text-text-primary mb-4">
@@ -509,7 +495,7 @@
 
         <!-- Teacher Table -->
         <div
-            class="glass-card-static overflow-hidden"
+            class="gov-card-static overflow-hidden"
             in:fade={{ duration: 500, delay: 700 }}
         >
             <div

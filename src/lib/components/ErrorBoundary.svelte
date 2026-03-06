@@ -18,7 +18,7 @@
 
 {#if error}
   <div
-    class="glass-card-static p-8 my-6 border-l-4 border-gov-red"
+    class="gov-card-static p-8 my-6 border-l-4 border-gov-red"
     in:fade={{ duration: 300 }}
   >
     <div class="flex items-start gap-4">

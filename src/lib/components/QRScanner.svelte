@@ -148,7 +148,7 @@
 >
     <!-- Scanner Overlay -->
     <div
-        class="relative w-full max-w-sm aspect-square rounded-3xl overflow-hidden border-2 border-white/20 shadow-2xl"
+        class="relative w-full max-w-sm aspect-square rounded-3xl overflow-hidden border-2 border-white/20 shadow-sm"
     >
         <!-- Camera Feed -->
         <!-- svelte-ignore a11y_media_has_caption -->
@@ -160,7 +160,7 @@
         <!-- Scanning Animation -->
         <div class="absolute inset-0 border-[40px] border-black/40"></div>
         <div
-            class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-gov-blue rounded-2xl"
+            class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-gov-blue rounded-md"
         >
             <div
                 class="absolute top-0 left-0 w-full h-1 bg-gov-blue/50 shadow-[0_0_15px_rgba(0,103,172,0.8)] animate-scan"
@@ -202,7 +202,7 @@
             stopScanning();
             onClose?.();
         }}
-        class="mt-16 py-3 px-8 rounded-full bg-white/10 border border-white/20 text-white text-xs font-black uppercase tracking-widest hover:bg-white/20 active:scale-95 transition-all cursor-pointer"
+        class="mt-16 py-3 px-8 rounded-full bg-white/10 border border-white/20 text-white text-xs font-semibold uppercase tracking-wide hover:bg-white/20 active:scale-95 transition-all cursor-pointer"
     >
         CLOSE
     </button>

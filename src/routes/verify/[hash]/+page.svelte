@@ -144,7 +144,7 @@
         <!-- Logo -->
         <div class="text-center mb-8">
             <div
-                class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-gov-blue to-gov-blue-dark flex items-center justify-center text-white text-2xl font-bold shadow-elevated mb-3"
+                class="w-14 h-14 mx-auto rounded-md bg-gradient-to-br from-gov-blue to-gov-blue-dark flex items-center justify-center text-white text-2xl font-bold shadow-sm mb-3"
             >
                 E
             </div>
@@ -154,7 +154,7 @@
 
         {#if loading}
             <div
-                class="glass-card-static p-12 text-center"
+                class="gov-card-static p-12 text-center"
                 role="status"
                 aria-label="Loading verification"
             >
@@ -162,19 +162,19 @@
                     class="w-12 h-12 border-4 border-gov-blue/20 border-t-gov-blue rounded-full animate-spin mx-auto mb-4"
                 ></div>
                 <p
-                    class="text-text-muted font-bold uppercase tracking-widest text-xs"
+                    class="text-text-muted font-bold uppercase tracking-wide text-xs"
                 >
                     Authenticating Hash...
                 </p>
             </div>
         {:else if notFound}
             <div
-                class="glass-card-static p-10 text-center border-l-4 border-gov-red animate-shake"
+                class="gov-card-static p-10 text-center border-l-4 border-gov-red animate-shake"
                 role="alert"
             >
                 <AlertCircle size={48} class="text-gov-red mx-auto mb-4" />
                 <h2
-                    class="text-xl font-black text-gov-red mb-2 uppercase tracking-tight"
+                    class="text-xl font-semibold text-gov-red mb-2 uppercase tracking-tight"
                 >
                     Invalid Document
                 </h2>
@@ -192,7 +192,7 @@
             </div>
         {:else if result}
             <div
-                class="glass-card-static overflow-hidden border-t-4 border-gov-green shadow-elevated"
+                class="gov-card-static overflow-hidden border-t-4 border-gov-green shadow-sm"
                 role="region"
                 aria-label="Verification result"
             >
@@ -206,14 +206,14 @@
                         <CheckCircle2 size={32} />
                     </div>
                     <h2
-                        class="text-2xl font-black text-gov-green tracking-tight uppercase"
+                        class="text-2xl font-semibold text-gov-green tracking-tight uppercase"
                     >
                         Verified
                     </h2>
                     <div class="flex items-center justify-center gap-2 mt-2">
                         <ShieldCheck size={14} class="text-gov-green" />
                         <p
-                            class="text-xs text-text-muted font-bold uppercase tracking-widest"
+                            class="text-xs text-text-muted font-bold uppercase tracking-wide"
                         >
                             Official Smart E-VISION Record
                         </p>
@@ -221,7 +221,7 @@
 
                     {#if isOfflineData}
                         <div
-                            class="inline-flex items-center gap-1.5 px-3 py-1 bg-gov-gold/10 text-gov-gold rounded-full text-[10px] font-black uppercase tracking-widest mt-4 border border-gov-gold/20"
+                            class="inline-flex items-center gap-1.5 px-3 py-1 bg-gov-gold/10 text-gov-gold rounded-full text-[10px] font-semibold uppercase tracking-wide mt-4 border border-gov-gold/20"
                         >
                             <WifiOff size={10} />
                             Offline Mode Verification
@@ -240,7 +240,7 @@
                             </div>
                             <div class="flex-1 min-w-0">
                                 <p
-                                    class="text-[10px] text-text-muted font-black uppercase tracking-widest mb-1"
+                                    class="text-[10px] text-text-muted font-semibold uppercase tracking-wide mb-1"
                                 >
                                     Document Name
                                 </p>
@@ -261,7 +261,7 @@
                                 </div>
                                 <div>
                                     <p
-                                        class="text-[10px] text-text-muted font-black uppercase tracking-widest mb-1"
+                                        class="text-[10px] text-text-muted font-semibold uppercase tracking-wide mb-1"
                                     >
                                         Status
                                     </p>
@@ -286,7 +286,7 @@
                                 </div>
                                 <div>
                                     <p
-                                        class="text-[10px] text-text-muted font-black uppercase tracking-widest mb-1"
+                                        class="text-[10px] text-text-muted font-semibold uppercase tracking-wide mb-1"
                                     >
                                         Upload Time
                                     </p>
@@ -305,7 +305,7 @@
                                     class="flex justify-between items-center text-sm"
                                 >
                                     <span
-                                        class="text-text-muted font-bold uppercase tracking-widest text-[10px]"
+                                        class="text-text-muted font-bold uppercase tracking-wide text-[10px]"
                                         >Submitted By</span
                                     >
                                     <span class="text-text-primary font-black"
@@ -318,7 +318,7 @@
                                     class="flex justify-between items-center text-sm"
                                 >
                                     <span
-                                        class="text-text-muted font-bold uppercase tracking-widest text-[10px]"
+                                        class="text-text-muted font-bold uppercase tracking-wide text-[10px]"
                                         >Origination</span
                                     >
                                     <span class="text-text-primary font-black"
@@ -331,7 +331,7 @@
                                     class="flex justify-between items-center text-sm"
                                 >
                                     <span
-                                        class="text-text-muted font-bold uppercase tracking-widest text-[10px]"
+                                        class="text-text-muted font-bold uppercase tracking-wide text-[10px]"
                                         >Category</span
                                     >
                                     <span
@@ -343,10 +343,10 @@
                         </div>
 
                         <div
-                            class="p-4 bg-surface-muted/50 rounded-2xl border border-gray-100"
+                            class="p-4 bg-surface-muted/50 rounded-md border border-gray-100"
                         >
                             <p
-                                class="text-[10px] text-text-muted font-black uppercase tracking-widest mb-2"
+                                class="text-[10px] text-text-muted font-black uppercase tracking-wide mb-2"
                             >
                                 Registry Hash (SHA-256)
                             </p>
@@ -365,7 +365,7 @@
             <!-- Scan Another Document Button (WBS 13.4 — Continuous Mobile QR) -->
             <button
                 onclick={openScanner}
-                class="w-full flex items-center justify-center gap-2 py-3.5 px-6 bg-gradient-to-r from-gov-blue to-gov-blue-dark text-white font-bold text-sm uppercase tracking-widest rounded-2xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all min-h-[48px]"
+                class="w-full flex items-center justify-center gap-2 py-3.5 px-6 bg-gradient-to-r from-gov-blue to-gov-blue-dark text-white font-bold text-sm uppercase tracking-wide rounded-md shadow-lg hover:shadow-xl active:scale-[0.98] transition-all min-h-[48px]"
                 aria-label="Scan another QR code to verify a different document"
             >
                 <ScanLine size={18} />

@@ -24,23 +24,22 @@
 <div
     class="min-h-screen bg-white flex flex-col font-sans selection:bg-gov-blue/10 selection:text-gov-blue"
 >
-    <!-- Simple Navbar -->
+    <!-- Navbar -->
     <nav
-        class="w-full px-8 py-6 border-b border-gray-100 flex items-center justify-between"
+        class="w-full px-6 py-4 border-b border-border-subtle flex items-center justify-between bg-white"
     >
         <div class="flex items-center gap-2">
             <img
                 src="/app_icon.png"
                 alt="Smart E-VISION"
-                class="w-10 h-10 rounded-xl shadow-lg shadow-gov-blue/20"
+                class="w-8 h-8 rounded-md"
             />
             <div class="flex flex-col">
-                <span
-                    class="text-lg font-black tracking-tight text-text-primary"
+                <span class="text-sm font-bold text-text-primary"
                     >Smart E-VISION</span
                 >
                 <span
-                    class="text-[10px] uppercase tracking-[0.2em] font-bold text-gov-blue"
+                    class="text-[10px] uppercase tracking-wide font-medium text-gov-blue"
                     >Document Hub</span
                 >
             </div>
@@ -51,21 +50,21 @@
                 {#if $profile}
                     <button
                         onclick={() => goto("/dashboard")}
-                        class="text-sm font-bold text-gov-blue hover:underline"
+                        class="text-sm font-medium text-gov-blue hover:text-gov-blue-dark transition-colors"
                     >
                         Go to Dashboard
                     </button>
                 {:else}
-                    <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-3">
                         <button
                             onclick={() => goto("/auth/login")}
-                            class="text-sm font-bold text-text-primary hover:text-gov-blue transition-colors px-6 py-2"
+                            class="text-sm font-medium text-text-secondary hover:text-gov-blue transition-colors px-4 py-2"
                         >
                             Sign In
                         </button>
                         <button
                             onclick={() => goto("/auth/login")}
-                            class="px-6 py-2 rounded-full bg-gov-blue text-white text-sm font-bold shadow-lg shadow-gov-blue/20 hover:bg-gov-blue-dark transition-all"
+                            class="gov-btn-primary"
                         >
                             Get Started
                         </button>
@@ -75,26 +74,26 @@
         </div>
     </nav>
 
-    <!-- Simple Hero -->
+    <!-- Hero -->
     <main
         class="flex-grow flex flex-col items-center justify-center px-6 text-center"
     >
-        <div in:fly={{ y: 20, duration: 800 }} class="max-w-3xl">
+        <div in:fly={{ y: 15, duration: 500 }} class="max-w-2xl">
             <div
-                class="inline-block px-3 py-1 rounded-full bg-gov-blue/5 text-gov-blue text-[10px] font-black uppercase tracking-[0.2em] mb-6"
+                class="inline-block px-2.5 py-1 rounded-md bg-gov-blue/5 text-gov-blue text-xs font-medium uppercase tracking-wide mb-5"
             >
                 DepEd Calapan City
             </div>
 
             <h1
-                class="text-5xl md:text-6xl font-black text-text-primary tracking-tight leading-tight mb-8"
+                class="text-3xl md:text-4xl font-bold text-text-primary leading-tight mb-6"
             >
-                Official Document <br />
-                <span class="text-gov-blue">Transparency</span> Portal.
+                Official Document
+                <span class="text-gov-blue">Transparency</span> Portal
             </h1>
 
             <p
-                class="text-xl text-text-secondary mb-12 max-w-xl mx-auto leading-relaxed font-medium"
+                class="text-base text-text-secondary mb-8 max-w-lg mx-auto leading-relaxed"
             >
                 A unified hub for teachers, school heads, and district
                 supervisors for secure document management and compliance
@@ -102,17 +101,17 @@
             </p>
 
             <div
-                class="flex flex-col sm:flex-row items-center justify-center gap-6"
+                class="flex flex-col sm:flex-row items-center justify-center gap-4"
             >
                 <button
                     onclick={() => goto("/auth/login")}
-                    class="w-full sm:w-auto px-10 py-4 rounded-full bg-gov-blue text-white text-lg font-black shadow-xl shadow-gov-blue/30 hover:bg-gov-blue-dark transition-all flex items-center justify-center gap-2"
+                    class="gov-btn-primary text-base px-8 py-3"
                 >
                     Access Portal
-                    <ArrowRight size={20} />
+                    <ArrowRight size={18} />
                 </button>
                 <div
-                    class="text-text-muted text-xs font-black uppercase tracking-widest"
+                    class="text-text-muted text-xs font-medium uppercase tracking-wide"
                 >
                     Restricted Access Hub
                 </div>
@@ -120,30 +119,21 @@
         </div>
     </main>
 
-    <!-- Simple Footer -->
+    <!-- Footer -->
     <footer
-        class="w-full px-8 py-10 border-t border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4"
+        class="w-full px-6 py-6 border-t border-border-subtle flex flex-col md:flex-row items-center justify-between gap-3"
     >
-        <p
-            class="text-[10px] text-text-muted font-black uppercase tracking-[0.2em]"
-        >
+        <p class="text-xs text-text-muted font-medium">
             © 2026 Smart E-VISION Hub
         </p>
-        <div class="flex items-center gap-6">
-            <span
-                class="text-[10px] text-text-muted font-black uppercase tracking-widest"
+        <div class="flex items-center gap-4">
+            <span class="text-xs text-text-muted font-medium"
                 >Public Portal</span
             >
             <span
-                class="text-[10px] text-text-muted font-black uppercase tracking-widest px-2 py-0.5 border border-gray-200 rounded"
+                class="text-xs text-text-muted font-medium px-2 py-0.5 border border-border-subtle rounded-md"
                 >v1.2 Pilot</span
             >
         </div>
     </footer>
 </div>
-
-<style>
-    :global(html) {
-        scroll-behavior: smooth;
-    }
-</style>

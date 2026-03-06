@@ -25,7 +25,6 @@
         getWeekNumber,
         getCurrentWeekFromCalendar,
         getDefinedWeeksCount,
-        markNonCompliantSubmissions,
     } from "$lib/utils/useDashboardData";
     import {
         analyzeComplianceRisk,
@@ -128,13 +127,6 @@
         const role = userProfile.role;
 
         if (role === "Teacher") {
-            // Trigger auto-generation of NC records for this teacher
-            markNonCompliantSubmissions(
-                supabase,
-                "2025-2026",
-                undefined,
-                userProfile.id,
-            );
             await loadTeacherDashboard(userProfile);
         } else {
             await loadSupervisorDashboard(userProfile, role);
@@ -248,6 +240,18 @@
         const teachers = teachersResult.data || [];
         const allSubs = subsResult.data || [];
 
+        const { data: loadsData } = await supabase
+            .from("teaching_loads")
+            .select("id, profiles!inner(school_id, district_id)")
+            .in(
+                "profiles.id",
+                teachers.map((t) => t.id),
+            );
+
+        const totalLoads = loadsData ? loadsData.length : 0;
+        const definedWeeks = calendarArr.length || 1;
+        const totalExpected = totalLoads * definedWeeks;
+
         stats.totalTeachers = teachers.length;
         stats.totalUploads = subsResult.count || 0;
         stats.compliantCount = allSubs.filter(
@@ -258,9 +262,15 @@
         stats.lateCount = allSubs.filter(
             (s) => s.compliance_status === "late",
         ).length;
-        stats.nonCompliantCount = allSubs.filter(
-            (s) => s.compliance_status === "non-compliant",
-        ).length;
+
+        stats.nonCompliantCount = Math.max(
+            0,
+            totalExpected - (stats.compliantCount + stats.lateCount),
+        );
+
+        // Use the new standard calculateCompliance for the overall rate to keep display consistent with expected defaults
+        const overallStats = calculateCompliance(allSubs, totalExpected);
+        stats.compliantRate = overallStats.rate;
 
         recentActivity = allSubs.slice(0, 5);
 
@@ -362,13 +372,13 @@
 </script>
 
 <svelte:head>
-    <title>Dashboard — Smart E-VISION</title>
+    <title>Dashboard â€” Smart E-VISION</title>
 </svelte:head>
 
 <div>
     <!-- Header -->
-    <div class="mb-10">
-        <h1 class="text-3xl font-black text-text-primary tracking-tight">
+    <div class="mb-6">
+        <h1 class="text-3xl font-semibold text-text-primary tracking-tight">
             {$profile?.role === "Teacher"
                 ? "Overview"
                 : "Supervision Dashboard"}
@@ -383,7 +393,7 @@
     {#if loading}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {#each Array(4) as _}
-                <div class="glass-card-static p-8 animate-pulse">
+                <div class="gov-card-static p-5 animate-pulse">
                     <div class="h-4 bg-gray-200 rounded w-24 mb-4"></div>
                     <div class="h-10 bg-gray-200 rounded w-16"></div>
                 </div>
@@ -392,106 +402,8 @@
     {:else if $profile?.role === "Teacher"}
         <!-- ========== TEACHER DASHBOARD ========== -->
 
-        <!-- Quick Actions -->
-        <div class="mb-10" in:fade={{ duration: 600, delay: 0 }}>
-            <div class="flex items-center gap-3 mb-6">
-                <div class="p-2 rounded-xl bg-gov-blue/10 text-gov-blue">
-                    <Zap size={20} fill="currentColor" />
-                </div>
-                <h2 class="text-xl font-black text-text-primary tracking-tight">
-                    Quick Actions
-                </h2>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <a
-                    href="/dashboard/upload"
-                    class="gov-card p-6 flex flex-col gap-4 no-underline group"
-                >
-                    <div
-                        class="w-12 h-12 rounded-xl bg-gov-blue/5 text-gov-blue flex items-center justify-center group-hover:bg-gov-blue group-hover:text-white transition-all duration-300"
-                    >
-                        <CloudUpload size={24} />
-                    </div>
-                    <div>
-                        <p
-                            class="font-bold text-text-primary group-hover:text-gov-blue transition-colors"
-                        >
-                            Upload Document
-                        </p>
-                        <p class="text-xs text-text-muted mt-1 leading-relaxed">
-                            Submit DLL, ISP, or ISR reports to the central
-                            archive.
-                        </p>
-                    </div>
-                </a>
-                <a
-                    href="/dashboard/archive"
-                    class="gov-card p-6 flex flex-col gap-4 no-underline group"
-                >
-                    <div
-                        class="w-12 h-12 rounded-xl bg-gov-blue/5 text-gov-blue flex items-center justify-center group-hover:bg-gov-blue group-hover:text-white transition-all duration-300"
-                    >
-                        <Archive size={24} />
-                    </div>
-                    <div>
-                        <p
-                            class="font-bold text-text-primary group-hover:text-gov-blue transition-colors"
-                        >
-                            Access Archive
-                        </p>
-                        <p class="text-xs text-text-muted mt-1 leading-relaxed">
-                            Browse and retrieve your previously submitted
-                            documents.
-                        </p>
-                    </div>
-                </a>
-                <a
-                    href="/dashboard/load"
-                    class="gov-card p-6 flex flex-col gap-4 no-underline group"
-                >
-                    <div
-                        class="w-12 h-12 rounded-xl bg-gov-blue/5 text-gov-blue flex items-center justify-center group-hover:bg-gov-blue group-hover:text-white transition-all duration-300"
-                    >
-                        <Briefcase size={24} />
-                    </div>
-                    <div>
-                        <p
-                            class="font-bold text-text-primary group-hover:text-gov-blue transition-colors"
-                        >
-                            Teaching Load
-                        </p>
-                        <p class="text-xs text-text-muted mt-1 leading-relaxed">
-                            Manage subjects, grade levels, and assigned
-                            schedules.
-                        </p>
-                    </div>
-                </a>
-                <button
-                    onclick={() => showQRScanner.set(true)}
-                    class="gov-card p-6 flex flex-col gap-4 no-underline group text-left w-full cursor-pointer"
-                >
-                    <div
-                        class="w-12 h-12 rounded-xl bg-gov-blue/5 text-gov-blue flex items-center justify-center group-hover:bg-gov-blue group-hover:text-white transition-all duration-300"
-                    >
-                        <QrCode size={24} />
-                    </div>
-                    <div>
-                        <p
-                            class="font-bold text-text-primary group-hover:text-gov-blue transition-colors"
-                        >
-                            Scan Document
-                        </p>
-                        <p class="text-xs text-text-muted mt-1 leading-relaxed">
-                            Verify document authenticity using the built-in QR
-                            scanner.
-                        </p>
-                    </div>
-                </button>
-            </div>
-        </div>
-
         <!-- Stats Row -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             <div in:fly={{ y: 20, duration: 400, delay: 0 }}>
                 <StatCard
                     icon="CloudUpload"
@@ -533,7 +445,7 @@
                     <div>
                         <div class="flex items-center justify-between mb-4">
                             <h3
-                                class="text-[10px] font-black text-text-muted uppercase tracking-widest"
+                                class="text-[10px] font-semibold text-text-muted uppercase tracking-wide"
                             >
                                 AI Forecast
                             </h3>
@@ -552,7 +464,7 @@
                         </div>
                         {#if riskPrediction}
                             <p
-                                class="text-2xl font-black text-text-primary tracking-tight"
+                                class="text-2xl font-semibold text-text-primary tracking-tight"
                             >
                                 {riskPrediction.label}
                             </p>
@@ -571,15 +483,119 @@
             </div>
         </div>
 
+        <!-- Quick Actions -->
+        <div class="mb-10" in:fade={{ duration: 600, delay: 500 }}>
+            <div class="flex items-center gap-3 mb-6">
+                <div class="p-2 rounded-md bg-gov-blue/10 text-gov-blue">
+                    <Zap size={20} fill="currentColor" strokeWidth={1.5} />
+                </div>
+                <h2
+                    class="text-xl font-semibold text-text-primary tracking-tight"
+                >
+                    Quick Actions
+                </h2>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-5">
+                <a
+                    href="/dashboard/upload"
+                    class="gov-card p-5 flex flex-col gap-4 no-underline group"
+                >
+                    <div
+                        class="w-10 h-10 rounded-md bg-gov-blue/5 text-gov-blue flex items-center justify-center group-hover:bg-gov-blue group-hover:text-white transition-all duration-300"
+                    >
+                        <CloudUpload size={20} strokeWidth={1.5} />
+                    </div>
+                    <div>
+                        <p
+                            class="font-bold text-sm text-text-primary group-hover:text-gov-blue transition-colors"
+                        >
+                            Upload
+                        </p>
+                        <p
+                            class="text-[10px] text-text-muted mt-1 leading-relaxed"
+                        >
+                            Submit DLL, ISP, or ISR reports.
+                        </p>
+                    </div>
+                </a>
+                <a
+                    href="/dashboard/archive"
+                    class="gov-card p-5 flex flex-col gap-4 no-underline group"
+                >
+                    <div
+                        class="w-10 h-10 rounded-md bg-gov-blue/5 text-gov-blue flex items-center justify-center group-hover:bg-gov-blue group-hover:text-white transition-all duration-300"
+                    >
+                        <Archive size={20} strokeWidth={1.5} />
+                    </div>
+                    <div>
+                        <p
+                            class="font-bold text-sm text-text-primary group-hover:text-gov-blue transition-colors"
+                        >
+                            Archive
+                        </p>
+                        <p
+                            class="text-[10px] text-text-muted mt-1 leading-relaxed"
+                        >
+                            Retrieve submitted documents.
+                        </p>
+                    </div>
+                </a>
+                <a
+                    href="/dashboard/load"
+                    class="gov-card p-5 flex flex-col gap-4 no-underline group"
+                >
+                    <div
+                        class="w-10 h-10 rounded-md bg-gov-blue/5 text-gov-blue flex items-center justify-center group-hover:bg-gov-blue group-hover:text-white transition-all duration-300"
+                    >
+                        <Briefcase size={20} strokeWidth={1.5} />
+                    </div>
+                    <div>
+                        <p
+                            class="font-bold text-sm text-text-primary group-hover:text-gov-blue transition-colors"
+                        >
+                            Load
+                        </p>
+                        <p
+                            class="text-[10px] text-text-muted mt-1 leading-relaxed"
+                        >
+                            Manage subjects and schedules.
+                        </p>
+                    </div>
+                </a>
+                <button
+                    onclick={() => showQRScanner.set(true)}
+                    class="gov-card p-5 flex flex-col gap-4 no-underline group text-left w-full cursor-pointer"
+                >
+                    <div
+                        class="w-10 h-10 rounded-md bg-gov-blue/5 text-gov-blue flex items-center justify-center group-hover:bg-gov-blue group-hover:text-white transition-all duration-300"
+                    >
+                        <QrCode size={20} strokeWidth={1.5} />
+                    </div>
+                    <div>
+                        <p
+                            class="font-bold text-sm text-text-primary group-hover:text-gov-blue transition-colors"
+                        >
+                            Scan
+                        </p>
+                        <p
+                            class="text-[10px] text-text-muted mt-1 leading-relaxed"
+                        >
+                            Verify document authenticity.
+                        </p>
+                    </div>
+                </button>
+            </div>
+        </div>
+
         <!-- Weekly Compliance Widget + Trend Chart -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
             <!-- Weekly Badges -->
             <div
-                class="gov-card-static p-8"
+                class="gov-card-static p-5"
                 in:fly={{ y: 20, duration: 500, delay: 400 }}
             >
                 <h3
-                    class="text-sm font-black text-text-primary uppercase tracking-widest mb-6 flex items-center gap-2"
+                    class="text-sm font-semibold text-text-primary uppercase tracking-wide mb-6 flex items-center gap-2"
                 >
                     <span class="w-1.5 h-6 bg-gov-blue rounded-full"></span>
                     Weekly Progress
@@ -590,12 +606,12 @@
                             class="text-center p-3 rounded-lg border border-border-subtle bg-surface-muted/30 transition-all hover:border-gov-blue/30 hover:bg-gov-blue/5"
                         >
                             <p
-                                class="text-[10px] text-text-muted font-black uppercase tracking-tighter mb-1"
+                                class="text-[10px] text-text-muted font-semibold uppercase tracking-normal mb-1"
                             >
                                 {w.label}
                             </p>
                             <p
-                                class="text-xl font-black {getComplianceClass(
+                                class="text-xl font-semibold {getComplianceClass(
                                     w.rate,
                                 ).replace('gov-', 'gov-')}"
                             >
@@ -611,7 +627,7 @@
                         </p>
                         <a
                             href="/dashboard/upload"
-                            class="inline-flex items-center px-4 py-2 rounded bg-gov-blue/10 text-gov-blue text-xs font-black uppercase tracking-widest hover:bg-gov-blue/20 transition-colors"
+                            class="inline-flex items-center px-4 py-2 rounded bg-gov-blue/10 text-gov-blue text-xs font-semibold uppercase tracking-wide hover:bg-gov-blue/20 transition-colors"
                         >
                             UPLOAD
                         </a>
@@ -621,11 +637,11 @@
 
             <!-- Trend Chart -->
             <div
-                class="gov-card-static p-8"
+                class="gov-card-static p-5"
                 in:fly={{ y: 20, duration: 500, delay: 500 }}
             >
                 <h3
-                    class="text-sm font-black text-text-primary uppercase tracking-widest mb-6 flex items-center gap-2"
+                    class="text-sm font-semibold text-text-primary uppercase tracking-wide mb-6 flex items-center gap-2"
                 >
                     <span class="w-1.5 h-6 bg-gov-green rounded-full"></span>
                     Performance Trend
@@ -654,14 +670,14 @@
 
         <!-- Submission History Table -->
         <div
-            class="gov-card-static overflow-hidden mb-10"
+            class="gov-card-static overflow-hidden mb-6"
             in:fade={{ duration: 500, delay: 600 }}
         >
             <div
-                class="px-8 py-5 border-b border-border-subtle bg-surface-muted/30 flex items-center justify-between flex-wrap gap-4"
+                class="px-5 py-5 border-b border-border-subtle bg-surface-muted/30 flex items-center justify-between flex-wrap gap-4"
             >
                 <h3
-                    class="text-sm font-black text-text-primary uppercase tracking-widest"
+                    class="text-sm font-semibold text-text-primary uppercase tracking-wide"
                 >
                     Data Archive
                 </h3>
@@ -678,13 +694,13 @@
             {#if displaySubmissions().length === 0}
                 <div class="p-12 text-center">
                     <p
-                        class="text-text-muted font-bold uppercase tracking-widest text-xs mb-4"
+                        class="text-text-muted font-bold uppercase tracking-wide text-xs mb-4"
                     >
                         Archive Empty
                     </p>
                     <a
                         href="/dashboard/upload"
-                        class="inline-flex items-center px-6 py-3 rounded bg-gov-blue text-white text-xs font-black uppercase tracking-widest hover:bg-gov-blue-dark transition-all shadow-md"
+                        class="inline-flex items-center px-6 py-3 rounded bg-gov-blue text-white text-xs font-semibold uppercase tracking-wide hover:bg-gov-blue-dark transition-all shadow-md"
                     >
                         SUBMIT FIRST RECORD
                     </a>
@@ -694,9 +710,9 @@
                 <div class="hidden sm:block overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
-                            <tr class="border-b border-gray-100 bg-white/30">
+                            <tr class="border-b border-gray-100 bg-white/80">
                                 <th
-                                    class="px-6 py-4 text-left text-xs font-bold text-text-muted uppercase tracking-wider sticky left-0 bg-white/30 backdrop-blur-md z-10"
+                                    class="px-6 py-4 text-left text-xs font-bold text-text-muted uppercase tracking-wider sticky left-0 bg-white/80 backdrop-blur-md z-10"
                                 >
                                     <button
                                         class="hover:text-text-primary flex items-center gap-1"
@@ -704,8 +720,8 @@
                                     >
                                         Document {sortField === "file_name"
                                             ? sortDir === "asc"
-                                                ? "↑"
-                                                : "↓"
+                                                ? "â†‘"
+                                                : "â†“"
                                             : ""}
                                     </button>
                                 </th>
@@ -728,8 +744,8 @@
                                         Status {sortField ===
                                         "compliance_status"
                                             ? sortDir === "asc"
-                                                ? "↑"
-                                                : "↓"
+                                                ? "â†‘"
+                                                : "â†“"
                                             : ""}
                                     </button>
                                 </th>
@@ -742,8 +758,8 @@
                                     >
                                         Date {sortField === "created_at"
                                             ? sortDir === "asc"
-                                                ? "↑"
-                                                : "↓"
+                                                ? "â†‘"
+                                                : "â†“"
                                             : ""}
                                     </button>
                                 </th>
@@ -772,7 +788,7 @@
                                     >
                                         {tl
                                             ? `${tl.subject} - Gr. ${tl.grade_level}`
-                                            : "—"}
+                                            : "â€”"}
                                     </td>
                                     <td class="px-4 py-5 text-center">
                                         <StatusBadge
@@ -781,7 +797,7 @@
                                         />
                                     </td>
                                     <td
-                                        class="px-6 py-5 text-right text-text-muted text-[11px] font-bold uppercase tracking-tighter"
+                                        class="px-6 py-5 text-right text-text-muted text-[11px] font-bold uppercase tracking-normal"
                                         >{formatDate(sub.created_at)}</td
                                     >
                                 </tr>
@@ -820,7 +836,7 @@
                                     >
                                     <span
                                         >{tl
-                                            ? `${tl.subject} • G${tl.grade_level}`
+                                            ? `${tl.subject} â€¢ G${tl.grade_level}`
                                             : "No Teaching Load"}</span
                                     >
                                 </div>
@@ -842,7 +858,7 @@
         {/if}
 
         <!-- Stats Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6 mb-12">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6 mb-6">
             <div in:fly={{ y: 20, duration: 400, delay: 0 }}>
                 <StatCard
                     icon="Users"
@@ -897,14 +913,14 @@
         </div>
 
         <!-- Export & Reports -->
-        <div class="mb-10" in:fade={{ duration: 600, delay: 350 }}>
+        <div class="mb-6" in:fade={{ duration: 600, delay: 350 }}>
             <h2
-                class="text-sm font-black text-text-muted uppercase tracking-[0.2em] mb-6"
+                class="text-sm font-semibold text-text-muted uppercase tracking-wide mb-6"
             >
                 Official Reports & Export
             </h2>
             <div
-                class="gov-card p-8 flex flex-wrap items-center gap-6 bg-surface-muted/30"
+                class="gov-card p-5 flex flex-wrap items-center gap-6 bg-surface-muted/30"
             >
                 <button
                     onclick={() =>
@@ -912,7 +928,7 @@
                             recentActivity,
                             `Data_${new Date().toISOString().split("T")[0]}`,
                         )}
-                    class="py-3 px-8 bg-white border border-border-strong rounded-md text-xs font-black uppercase tracking-widest text-text-primary hover:border-gov-blue hover:text-gov-blue transition-all flex items-center gap-2 shadow-sm cursor-pointer"
+                    class="py-3 px-5 bg-white border border-border-strong rounded-md text-xs font-semibold uppercase tracking-wide text-text-primary hover:border-gov-blue hover:text-gov-blue transition-all flex items-center gap-2 shadow-sm cursor-pointer"
                 >
                     CSV
                 </button>
@@ -922,7 +938,7 @@
                             stats,
                             `${$profile?.role} Summary`,
                         )}
-                    class="py-3 px-8 bg-gov-blue border border-gov-blue rounded-md text-xs font-black uppercase tracking-widest text-white hover:bg-gov-blue-dark transition-all flex items-center gap-2 shadow-md cursor-pointer"
+                    class="py-3 px-5 bg-gov-blue border border-gov-blue rounded-md text-xs font-semibold uppercase tracking-wide text-white hover:bg-gov-blue-dark transition-all flex items-center gap-2 shadow-md cursor-pointer"
                 >
                     PDF
                 </button>
@@ -932,7 +948,7 @@
         <!-- Behavioral Clusters (K-Means) -->
         {#if clusterResults.length > 0}
             <div
-                class="glass-card-static p-8 mb-10"
+                class="gov-card-static p-5 mb-6"
                 in:fly={{ y: 20, duration: 600, delay: 500 }}
             >
                 <ClusterVisualization
@@ -947,7 +963,7 @@
             <h2 class="text-xl font-bold text-text-primary mb-4">
                 Recent Activity
             </h2>
-            <div class="glass-card-static overflow-hidden">
+            <div class="gov-card-static overflow-hidden">
                 {#if recentActivity.length === 0}
                     <div class="p-10 text-center">
                         <p class="text-text-muted font-medium">

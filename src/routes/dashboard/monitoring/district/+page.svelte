@@ -17,7 +17,6 @@
     getTrendIcon,
     getWeekNumber,
     getSubmissionWeek,
-    markNonCompliantSubmissions,
     getDefinedWeeksCount,
   } from "$lib/utils/useDashboardData";
 
@@ -87,18 +86,6 @@
 
   onMount(async () => {
     await loadDistrictData();
-
-    // WBS 14.5 — Actively mark non-compliant submissions for past deadlines
-    if ($profile?.district_id) {
-      markNonCompliantSubmissions(
-        supabase,
-        "2025-2026",
-        $profile.district_id,
-      ).then((count) => {
-        if (count > 0) loadDistrictData(); // Refresh if new records added
-      });
-    }
-
     loading = false;
 
     realtimeChannel = supabase
@@ -278,11 +265,7 @@
         const weekSubs = schoolSubs.filter(
           (s) => getSubmissionWeek(s) === w.week,
         );
-        const stats = calculateCompliance(
-          weekSubs,
-          school.loadCount,
-          school.loadCount,
-        );
+        const stats = calculateCompliance(weekSubs, school.loadCount);
         cells.push({
           row: school.name,
           week: w.week,
@@ -329,7 +312,7 @@
   <!-- Header -->
   <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
     <div>
-      <h1 class="text-3xl font-black text-text-primary tracking-tight">
+      <h1 class="text-3xl font-semibold text-text-primary tracking-tight">
         District Oversight
       </h1>
       <p class="text-base text-text-secondary mt-1 font-medium">
@@ -343,7 +326,7 @@
   {#if loading}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {#each Array(4) as _}
-        <div class="glass-card-static p-8 animate-pulse text-center">
+        <div class="gov-card-static p-8 animate-pulse text-center">
           <div class="h-4 bg-gray-200 rounded w-24 mx-auto mb-4"></div>
           <div class="h-10 bg-gray-200 rounded w-16 mx-auto"></div>
         </div>
@@ -391,7 +374,7 @@
     <!-- Charts -->
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
       <div
-        class="glass-card-static p-6"
+        class="gov-card-static p-6"
         in:fly={{ y: 20, duration: 500, delay: 400 }}
       >
         <h3 class="text-lg font-bold text-text-primary mb-4">
@@ -409,7 +392,7 @@
       </div>
 
       <div
-        class="glass-card-static p-6"
+        class="gov-card-static p-6"
         in:fly={{ y: 20, duration: 500, delay: 500 }}
       >
         <h3 class="text-lg font-bold text-text-primary mb-4">
@@ -427,25 +410,52 @@
 
     <!-- School Table -->
     <div
-      class="glass-card-static overflow-hidden"
+      class="gov-card-static overflow-hidden"
       in:fade={{ duration: 500, delay: 600 }}
     >
       <div
-        class="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-4"
+        class="px-6 py-5 border-b border-gray-100 flex items-center justify-between flex-wrap gap-4 bg-gray-50/20"
       >
-        <h3 class="text-lg font-bold text-text-primary">School Rankings</h3>
-        <input
-          type="text"
-          bind:value={searchQuery}
-          placeholder="Search school..."
-          class="px-4 py-2 text-sm bg-white/60 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-gov-blue/30 w-64"
-        />
+        <div class="flex items-center gap-3">
+          <div class="h-6 w-1 bg-gov-blue rounded-full"></div>
+          <h3
+            class="text-sm font-bold text-text-primary uppercase tracking-wider"
+          >
+            Institutional Performance Rankings
+          </h3>
+        </div>
+        <div class="relative group">
+          <div
+            class="absolute inset-y-0 left-3 flex items-center pointer-events-none text-text-muted group-focus-within:text-gov-blue transition-colors"
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              ><path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2.5"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              ></path></svg
+            >
+          </div>
+          <input
+            type="text"
+            bind:value={searchQuery}
+            placeholder="Search school records..."
+            class="pl-10 pr-4 py-2 text-[11px] font-bold bg-white border border-border-subtle rounded-md outline-none focus:ring-2 focus:ring-gov-blue/20 w-72 transition-all placeholder:text-text-muted/60 uppercase tracking-tight"
+          />
+        </div>
       </div>
 
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
-            <tr class="bg-gray-50/50 text-left border-b border-gray-100">
+            <tr
+              class="bg-gray-100/80 text-left border-b border-gray-200 backdrop-blur-sm"
+            >
               <th
                 class="px-6 py-3 font-semibold text-text-muted cursor-pointer hover:text-text-primary"
                 onclick={() => {
@@ -504,7 +514,7 @@
                 </td>
                 <td class="px-6 py-4 text-right">
                   <button
-                    class="text-gov-blue hover:underline font-semibold text-xs"
+                    class="px-3 py-1.5 bg-gov-blue/5 text-gov-blue hover:bg-gov-blue hover:text-white rounded-md transition-all font-bold text-[10px] uppercase tracking-wider border border-gov-blue/20"
                     >Details</button
                   >
                 </td>

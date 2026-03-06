@@ -12,7 +12,6 @@
         Info,
         CalendarDays,
     } from "lucide-svelte";
-    import { markNonCompliantSubmissions } from "$lib/utils/useDashboardData";
 
     interface Deadline {
         id?: string;
@@ -167,15 +166,6 @@
             if (data && data[0]) {
                 weekData.id = data[0].id;
             }
-
-            // Trigger automatic non-compliant record generation for this district
-            if (resolvedDistrictId) {
-                markNonCompliantSubmissions(
-                    supabase,
-                    schoolYear,
-                    resolvedDistrictId,
-                );
-            }
         }
     }
 
@@ -219,7 +209,7 @@
         class="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6"
     >
         <div>
-            <h1 class="text-3xl font-black text-text-primary tracking-tight">
+            <h1 class="text-3xl font-semibold text-text-primary tracking-tight">
                 Academic Calendar
             </h1>
             <p class="text-base text-text-secondary mt-1 font-medium max-w-lg">
@@ -229,7 +219,7 @@
         </div>
 
         <div
-            class="flex items-center gap-3 p-1.5 bg-surface-muted rounded-2xl border border-border-subtle shadow-sm"
+            class="flex items-center gap-3 p-1.5 bg-surface-muted rounded-md border border-border-subtle shadow-sm"
         >
             <select
                 bind:value={schoolYear}
@@ -254,26 +244,26 @@
     {#if loading}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             {#each Array(6) as _}
-                <div class="glass-card-static p-8 h-36 animate-pulse"></div>
+                <div class="gov-card-static p-8 h-36 animate-pulse"></div>
             {/each}
         </div>
     {:else}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8" in:fade>
             {#each deadlines as d, i (d.week_number)}
                 <div
-                    class="glass-card-static p-8 group relative overflow-hidden"
+                    class="gov-card-static p-8 group relative overflow-hidden"
                     in:fly={{ y: 20, delay: i * 50 }}
                 >
                     <div class="flex items-center justify-between mb-8">
                         <div class="flex items-center gap-4">
                             <div
-                                class="w-14 h-14 rounded-2xl bg-gov-blue text-white flex items-center justify-center font-black text-xl shadow-lg shadow-gov-blue/20"
+                                class="w-14 h-14 rounded-md bg-gov-blue text-white flex items-center justify-center font-semibold text-xl shadow-lg shadow-gov-blue/20"
                             >
                                 {d.week_number}
                             </div>
                             <div>
                                 <h3
-                                    class="font-black text-text-primary text-lg"
+                                    class="font-semibold text-text-primary text-lg"
                                 >
                                     Week {d.week_number}
                                 </h3>
@@ -281,21 +271,21 @@
                                     {#if !canEdit && d.deadline_date}
                                         {#if isPast(d.deadline_date)}
                                             <div
-                                                class="flex items-center gap-1 text-[10px] font-black uppercase text-gov-red"
+                                                class="flex items-center gap-1 text-[10px] font-semibold uppercase text-gov-red"
                                             >
                                                 <AlertCircle size={10} />
                                                 Expired
                                             </div>
                                         {:else if isUpcoming(d.deadline_date)}
                                             <div
-                                                class="flex items-center gap-1 text-[10px] font-black uppercase text-gov-gold-dark"
+                                                class="flex items-center gap-1 text-[10px] font-semibold uppercase text-gov-gold-dark"
                                             >
                                                 <Clock size={10} />
                                                 Upcoming
                                             </div>
                                         {:else}
                                             <div
-                                                class="flex items-center gap-1 text-[10px] font-black uppercase text-gov-green"
+                                                class="flex items-center gap-1 text-[10px] font-semibold uppercase text-gov-green"
                                             >
                                                 <CheckCircle2 size={10} />
                                                 Active
@@ -303,7 +293,7 @@
                                         {/if}
                                     {:else}
                                         <div
-                                            class="flex items-center gap-1 text-[10px] font-black uppercase text-text-muted"
+                                            class="flex items-center gap-1 text-[10px] font-semibold uppercase text-text-muted"
                                         >
                                             <Info size={10} />
                                             Admin View
@@ -327,7 +317,7 @@
                     <div class="space-y-4">
                         <div class="relative">
                             <label
-                                class="absolute -top-2 left-3 px-1 bg-white text-[10px] font-bold text-gov-blue uppercase tracking-widest z-10"
+                                class="absolute -top-2 left-3 px-1 bg-white text-[10px] font-bold text-gov-blue uppercase tracking-wide z-10"
                                 for="date-{i}"
                             >
                                 Due Date
@@ -337,11 +327,11 @@
                                     id="date-{i}"
                                     type="date"
                                     bind:value={d.deadline_date}
-                                    class="w-full px-4 py-3.5 bg-white/50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none text-sm font-semibold transition-all"
+                                    class="w-full px-4 py-3.5 bg-white/50 border border-gray-100 rounded-md focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none text-sm font-semibold transition-all"
                                 />
                             {:else}
                                 <p
-                                    class="w-full px-4 py-3.5 bg-white/30 border border-gray-100 rounded-2xl text-sm font-semibold text-text-primary"
+                                    class="w-full px-4 py-3.5 bg-white/30 border border-gray-100 rounded-md text-sm font-semibold text-text-primary"
                                 >
                                     {d.deadline_date
                                         ? new Date(
@@ -359,7 +349,7 @@
 
                         <div class="relative">
                             <label
-                                class="absolute -top-2 left-3 px-1 bg-white text-[10px] font-bold text-text-muted uppercase tracking-widest z-10"
+                                class="absolute -top-2 left-3 px-1 bg-white text-[10px] font-bold text-text-muted uppercase tracking-wide z-10"
                                 for="desc-{i}"
                             >
                                 Notes / Purpose
@@ -370,11 +360,11 @@
                                     type="text"
                                     bind:value={d.description}
                                     placeholder="e.g. DLL Submission..."
-                                    class="w-full px-4 py-3.5 bg-white/50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none text-sm font-medium placeholder:text-gray-300 transition-all"
+                                    class="w-full px-4 py-3.5 bg-white/50 border border-gray-100 rounded-md focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none text-sm font-medium placeholder:text-gray-300 transition-all"
                                 />
                             {:else}
                                 <p
-                                    class="w-full px-4 py-3.5 bg-white/30 border border-gray-100 rounded-2xl text-sm font-medium text-text-secondary"
+                                    class="w-full px-4 py-3.5 bg-white/30 border border-gray-100 rounded-md text-sm font-medium text-text-secondary"
                                 >
                                     {d.description || "—"}
                                 </p>
@@ -443,7 +433,7 @@
 
 <style>
     /* Premium glass/card aesthetics */
-    :global(.glass-card-static) {
+    :global(.gov-card-static) {
         background: rgba(255, 255, 255, 0.7);
         backdrop-filter: blur(20px);
     }

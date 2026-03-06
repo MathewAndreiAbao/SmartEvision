@@ -95,7 +95,7 @@
 
     <div class="space-y-8">
         <!-- Profile Section -->
-        <div class="glass-card-static p-6">
+        <div class="gov-card-static p-6">
             <h2 class="text-lg font-bold text-text-primary mb-5">Profile</h2>
 
             <div class="space-y-4">
@@ -148,7 +148,7 @@
         </div>
 
         <!-- Password Section -->
-        <div class="glass-card-static p-6">
+        <div class="gov-card-static p-6">
             <h2 class="text-lg font-bold text-text-primary mb-5">
                 Change Password
             </h2>
@@ -195,7 +195,7 @@
         </div>
 
         <!-- System Status & Preferences -->
-        <div class="glass-card-static p-6">
+        <div class="gov-card-static p-6">
             <h2 class="text-lg font-bold text-text-primary mb-5">
                 Preferences & Status
             </h2>

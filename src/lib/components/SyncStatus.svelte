@@ -29,7 +29,7 @@
         in:fly={{ y: 20, duration: 400 }}
         out:fade
     >
-        <div class="glass-card-static p-4 space-y-3">
+        <div class="gov-card-static p-4 space-y-3">
             <div class="flex items-center justify-between">
                 <span
                     class="text-[14px] font-medium text-text-primary flex items-center gap-2"

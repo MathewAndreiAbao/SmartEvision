@@ -47,7 +47,7 @@
             icon: AlertCircle,
         },
         pending: {
-            bg: "bg-slate-100",
+            bg: "bg-slate-50",
             text: "text-slate-600",
             border: "border-slate-200",
             label: "Pending",
@@ -78,13 +78,13 @@
     const c = $derived(config[normalizedStatus()] || config.pending);
     const IconComponent = $derived(c.icon);
     const sizeClass = $derived(
-        size === "sm" ? "text-[10px] px-2 py-0.5" : "text-xs px-3 py-1",
+        size === "sm" ? "text-[10px] px-1.5 py-0.5" : "text-xs px-2 py-0.5",
     );
 </script>
 
 <span
-    class="inline-flex items-center gap-1.5 rounded-full border font-bold uppercase tracking-tight {c.bg} {c.text} {c.border} {sizeClass} transition-all duration-300"
+    class="inline-flex items-center gap-1 rounded border font-medium {c.bg} {c.text} {c.border} {sizeClass}"
 >
-    <IconComponent size={size === "sm" ? 12 : 14} />
+    <IconComponent size={size === "sm" ? 11 : 13} />
     {c.label}
 </span>

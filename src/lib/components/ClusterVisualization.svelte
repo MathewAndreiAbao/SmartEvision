@@ -244,7 +244,7 @@
             </div>
             <div>
                 <h3
-                    class="text-sm font-black text-text-primary uppercase tracking-widest"
+                    class="text-sm font-semibold text-text-primary uppercase tracking-wide"
                 >
                     Behavioral Clusters
                 </h3>
@@ -258,7 +258,7 @@
         >
             <button
                 onclick={() => (activeTab = "scatter")}
-                class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all {activeTab ===
+                class="px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wide transition-all {activeTab ===
                 'scatter'
                     ? 'bg-white text-gov-blue shadow-sm'
                     : 'text-text-muted hover:text-text-primary'}"
@@ -267,7 +267,7 @@
             </button>
             <button
                 onclick={() => (activeTab = "radar")}
-                class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all {activeTab ===
+                class="px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wide transition-all {activeTab ===
                 'radar'
                     ? 'bg-white text-gov-blue shadow-sm'
                     : 'text-text-muted hover:text-text-primary'}"
@@ -317,7 +317,7 @@
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {#each summaries as summary (summary.clusterId)}
             <button
-                class="p-4 rounded-2xl border transition-all hover:shadow-md text-left cursor-pointer group/card"
+                class="p-4 rounded-md border transition-all hover:shadow-md text-left cursor-pointer group/card"
                 style="border-color: {summary.color}20; background: {summary.color}05"
                 onclick={() => {
                     selectedClusterId = summary.clusterId;
@@ -336,7 +336,7 @@
                             style="background: {summary.color}"
                         ></div>
                         <span
-                            class="text-[10px] font-black uppercase tracking-widest text-text-primary"
+                            class="text-[10px] font-semibold uppercase tracking-wide text-text-primary"
                             >{summary.label}</span
                         >
                     </div>
@@ -347,7 +347,7 @@
                     </span>
                 </div>
                 <p
-                    class="text-2xl font-black tracking-tighter"
+                    class="text-2xl font-semibold tracking-normal"
                     style="color: {summary.color}"
                 >
                     {summary.count}
@@ -362,7 +362,7 @@
                         <span class="text-text-muted font-bold"
                             >Punctuality</span
                         >
-                        <span class="font-black text-text-primary"
+                        <span class="font-semibold text-text-primary"
                             >{summary.avgPunctuality}%</span
                         >
                     </div>
@@ -370,7 +370,7 @@
                         <span class="text-text-muted font-bold"
                             >Consistency</span
                         >
-                        <span class="font-black text-text-primary"
+                        <span class="font-semibold text-text-primary"
                             >{summary.avgConsistency}%</span
                         >
                     </div>
@@ -378,7 +378,7 @@
                         <span class="text-text-muted font-bold"
                             >Completeness</span
                         >
-                        <span class="font-black text-text-primary"
+                        <span class="font-semibold text-text-primary"
                             >{summary.avgCompleteness}%</span
                         >
                     </div>
@@ -395,7 +395,7 @@
         transition:fade
     >
         <div
-            class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
+            class="bg-white rounded-3xl shadow-sm w-full max-w-2xl overflow-hidden"
             in:fly={{ y: 40, duration: 500 }}
         >
             <div
@@ -423,7 +423,7 @@
                     </div>
                     <div>
                         <h3
-                            class="text-lg font-black text-text-primary tracking-tight"
+                            class="text-lg font-semibold text-text-primary tracking-tight"
                         >
                             {selectedCluster.label} Group
                         </h3>
@@ -456,7 +456,7 @@
                 <div class="space-y-3">
                     {#each membersInCluster as member}
                         <div
-                            class="p-4 rounded-2xl bg-surface-muted/30 border border-border-subtle flex items-center justify-between group hover:bg-white hover:shadow-md transition-all"
+                            class="p-4 rounded-md bg-surface-muted/30 border border-border-subtle flex items-center justify-between group hover:bg-white hover:shadow-md transition-all"
                         >
                             <div>
                                 <p class="text-sm font-bold text-text-primary">
@@ -471,24 +471,24 @@
                             <div class="flex items-center gap-6">
                                 <div class="text-right">
                                     <p
-                                        class="text-xs font-black text-text-primary"
+                                        class="text-xs font-semibold text-text-primary"
                                     >
                                         {member.teacher.punctuality}%
                                     </p>
                                     <p
-                                        class="text-[9px] text-text-muted font-bold uppercase tracking-tighter"
+                                        class="text-[9px] text-text-muted font-bold uppercase tracking-normal"
                                     >
                                         Punctuality
                                     </p>
                                 </div>
                                 <div class="text-right">
                                     <p
-                                        class="text-xs font-black text-text-primary"
+                                        class="text-xs font-semibold text-text-primary"
                                     >
                                         {member.teacher.completeness}%
                                     </p>
                                     <p
-                                        class="text-[9px] text-text-muted font-bold uppercase tracking-tighter"
+                                        class="text-[9px] text-text-muted font-bold uppercase tracking-normal"
                                     >
                                         Completeness
                                     </p>

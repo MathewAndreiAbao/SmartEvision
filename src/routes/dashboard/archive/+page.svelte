@@ -471,7 +471,7 @@
 
     <!-- Breadcrumb + Search Bar -->
     <div
-        class="glass-card-static p-4 mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-4"
+        class="gov-card-static p-4 mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-4"
     >
         <!-- Breadcrumb -->
         <div class="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto">
@@ -531,7 +531,7 @@
             class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
         >
             {#each Array(10) as _}
-                <div class="glass-card-static p-6 animate-pulse">
+                <div class="gov-card-static p-6 animate-pulse">
                     <div
                         class="w-12 h-12 bg-gray-200 rounded-xl mx-auto mb-3"
                     ></div>
@@ -584,7 +584,7 @@
         <!-- Empty State -->
         <div class="text-center py-20" in:fade={{ duration: 300 }}>
             <div
-                class="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4"
+                class="w-16 h-16 rounded-md bg-gray-100 flex items-center justify-center mx-auto mb-4"
             >
                 <FolderOpen size={28} class="text-text-muted" />
             </div>
@@ -625,7 +625,7 @@
 
                         <!-- Centered Icon -->
                         <div
-                            class="w-14 h-14 rounded-2xl bg-gradient-to-br from-gov-blue/10 to-gov-blue/5 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-gov-blue/15 transition-all duration-300 shadow-sm"
+                            class="w-14 h-14 rounded-md bg-gradient-to-br from-gov-blue/10 to-gov-blue/5 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-gov-blue/15 transition-all duration-300 shadow-sm"
                         >
                             <FileText size={28} class="text-gov-blue" />
                         </div>

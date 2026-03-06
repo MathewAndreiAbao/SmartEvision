@@ -139,7 +139,7 @@
     {#if loading}
         <div class="space-y-3">
             {#each Array(3) as _}
-                <div class="glass-card-static p-5 animate-pulse">
+                <div class="gov-card-static p-5 animate-pulse">
                     <div class="h-4 bg-gray-200 rounded w-1/3"></div>
                 </div>
             {/each}
@@ -160,7 +160,7 @@
             </button>
         </div>
     {:else}
-        <div class="glass-card-static overflow-hidden">
+        <div class="gov-card-static overflow-hidden">
             <table class="w-full">
                 <thead>
                     <tr class="border-b border-gray-100">
@@ -239,7 +239,7 @@
     >
         <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
         <div
-            class="glass-card-static p-8 w-full max-w-md animate-slide-up"
+            class="gov-card-static p-8 w-full max-w-md animate-slide-up"
             onclick={(e) => e.stopPropagation()}
             onkeydown={() => {}}
             role="document"
