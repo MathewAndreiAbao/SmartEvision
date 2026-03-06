@@ -18,7 +18,17 @@ const ASSETS = [
 self.addEventListener('install', (event) => {
     async function addFilesToCache() {
         const cache = await caches.open(CACHE);
-        await cache.addAll(ASSETS);
+
+        // Robust caching: Try each asset individually so one 404 doesn't kill the whole SW
+        const promises = ASSETS.map(async (url) => {
+            try {
+                await cache.add(url);
+            } catch (err) {
+                console.error(`[SW] Failed to cache asset: ${url}`, err);
+            }
+        });
+
+        await Promise.all(promises);
 
         // Cache an offline fallback HTML page
         try {
