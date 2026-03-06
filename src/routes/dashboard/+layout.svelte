@@ -1,7 +1,9 @@
 <script lang="ts">
     import Sidebar from "$lib/components/Sidebar.svelte";
+    import TopBar from "$lib/components/TopBar.svelte";
     import InstallPrompt from "$lib/components/InstallPrompt.svelte";
     import UpdatePrompt from "$lib/components/UpdatePrompt.svelte";
+    import { notifications } from "$lib/stores/notifications";
     import { authLoading, profile, user } from "$lib/utils/auth";
     import {
         preloadVerificationHashes,
@@ -30,6 +32,7 @@
                     $profile.id,
                     $profile.district_id || undefined,
                 ),
+                notifications.init($user.id),
             ]);
         }
     });
@@ -74,10 +77,12 @@
         <!-- Main content area -->
         <main
             id="main-content"
-            class="lg:ml-60 min-h-screen"
+            class="lg:ml-60 min-h-screen flex flex-col"
             aria-labelledby="dashboard-title"
         >
-            <div class="p-4 pt-14 lg:pt-6 lg:p-6 pb-20 lg:pb-6">
+            <TopBar />
+
+            <div class="p-4 lg:p-6 pb-20 lg:pb-6 flex-1">
                 {@render children()}
             </div>
         </main>

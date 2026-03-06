@@ -60,6 +60,7 @@
         Users,
         FileText,
         ShieldX,
+        ChevronDown,
     } from "lucide-svelte";
     import { showQRScanner } from "$lib/stores/ui";
 
@@ -372,7 +373,7 @@
 </script>
 
 <svelte:head>
-    <title>Dashboard â€” Smart E-VISION</title>
+    <title>Dashboard — Smart E-VISION</title>
 </svelte:head>
 
 <div>
@@ -673,26 +674,44 @@
             class="gov-card-static overflow-hidden mb-6"
             in:fade={{ duration: 500, delay: 600 }}
         >
+            <!-- Archive Header Card -->
             <div
-                class="px-5 py-5 border-b border-border-subtle bg-surface-muted/30 flex items-center justify-between flex-wrap gap-4"
+                class="px-6 py-5 bg-white border-b border-border-subtle flex items-center justify-between flex-wrap gap-4 shadow-[0_4px_12px_-4px_rgba(0,0,0,0.05)]"
             >
-                <h3
-                    class="text-sm font-semibold text-text-primary uppercase tracking-wide"
-                >
-                    Data Archive
-                </h3>
-                <select
-                    bind:value={filterStatus}
-                    class="px-4 py-2 text-xs font-bold uppercase tracking-wider bg-white border border-border-strong rounded shadow-sm focus:ring-2 focus:ring-gov-blue/20 outline-none transition-all"
-                >
-                    <option value="all">Display All Records</option>
-                    <option value="Compliant">Filter: Compliant</option>
-                    <option value="Late">Filter: Late</option>
-                    <option value="Non-Compliant">Filter: Non-compliant</option>
-                </select>
+                <div class="flex items-center gap-3">
+                    <div class="w-1.5 h-6 bg-gov-blue rounded-full"></div>
+                    <h3
+                        class="text-xs font-bold text-text-muted uppercase tracking-widest"
+                    >
+                        Digital Institutional Archive
+                    </h3>
+                </div>
+                <div class="relative">
+                    <select
+                        bind:value={filterStatus}
+                        class="pl-4 pr-10 py-2.5 bg-surface-muted/50 border border-border-subtle rounded-xl text-xs font-bold text-text-primary appearance-none focus:ring-2 focus:ring-gov-blue/20 outline-none transition-all cursor-pointer uppercase tracking-tight"
+                    >
+                        <option value="all">Filter: All Records</option>
+                        <option value="Compliant">Filter: Compliant Only</option
+                        >
+                        <option value="Late">Filter: Late Submissions</option>
+                        <option value="Non-Compliant"
+                            >Filter: Non-compliant</option
+                        >
+                    </select>
+                    <div
+                        class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted"
+                    >
+                        <ChevronDown size={14} />
+                    </div>
+                </div>
             </div>
+
+            <!-- Grid of Cards instead of Long Table -->
             {#if displaySubmissions().length === 0}
-                <div class="p-12 text-center">
+                <div
+                    class="p-12 text-center bg-white/50 backdrop-blur-md rounded-b-2xl"
+                >
                     <p
                         class="text-text-muted font-bold uppercase tracking-wide text-xs mb-4"
                     >
@@ -706,146 +725,72 @@
                     </a>
                 </div>
             {:else}
-                <!-- Desktop/Tablet Table -->
-                <div class="hidden sm:block overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="border-b border-gray-100 bg-white/80">
-                                <th
-                                    class="px-6 py-4 text-left text-xs font-bold text-text-muted uppercase tracking-wider sticky left-0 bg-white/80 backdrop-blur-md z-10"
-                                >
-                                    <button
-                                        class="hover:text-text-primary flex items-center gap-1"
-                                        onclick={() => toggleSort("file_name")}
+                <div class="p-5">
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                    >
+                        {#each displaySubmissions() as sub}
+                            {@const tl = Array.isArray(sub.teaching_loads)
+                                ? sub.teaching_loads[0]
+                                : sub.teaching_loads}
+                            <div
+                                class="bg-white border border-border-subtle rounded-xl p-5 shadow-sm hover:shadow-md hover:border-gov-blue/20 transition-all group relative overflow-hidden flex flex-col h-full"
+                                in:fly={{ y: 20, duration: 400 }}
+                            >
+                                <div class="absolute top-0 right-0 p-3">
+                                    <StatusBadge
+                                        status={getStatusBadgeType(sub)}
+                                        size="sm"
+                                    />
+                                </div>
+
+                                <div class="mb-4">
+                                    <div
+                                        class="w-10 h-10 rounded-lg bg-gov-blue/5 text-gov-blue flex items-center justify-center mb-3"
                                     >
-                                        Document {sortField === "file_name"
-                                            ? sortDir === "asc"
-                                                ? "â†‘"
-                                                : "â†“"
-                                            : ""}
-                                    </button>
-                                </th>
-                                <th
-                                    class="px-4 py-4 text-left text-xs font-bold text-text-muted uppercase tracking-wider"
-                                    >Type</th
-                                >
-                                <th
-                                    class="px-4 py-4 text-center text-xs font-bold text-text-muted uppercase tracking-wider"
-                                    >Load</th
-                                >
-                                <th
-                                    class="px-4 py-4 text-center text-xs font-bold text-text-muted uppercase tracking-wider"
-                                >
-                                    <button
-                                        class="hover:text-text-primary flex items-center gap-1 mx-auto"
-                                        onclick={() =>
-                                            toggleSort("compliance_status")}
-                                    >
-                                        Status {sortField ===
-                                        "compliance_status"
-                                            ? sortDir === "asc"
-                                                ? "â†‘"
-                                                : "â†“"
-                                            : ""}
-                                    </button>
-                                </th>
-                                <th
-                                    class="px-6 py-4 text-right text-xs font-bold text-text-muted uppercase tracking-wider"
-                                >
-                                    <button
-                                        class="hover:text-text-primary flex items-center gap-1 ml-auto"
-                                        onclick={() => toggleSort("created_at")}
-                                    >
-                                        Date {sortField === "created_at"
-                                            ? sortDir === "asc"
-                                                ? "â†‘"
-                                                : "â†“"
-                                            : ""}
-                                    </button>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-50/50">
-                            {#each displaySubmissions() as sub}
-                                {@const tl = Array.isArray(sub.teaching_loads)
-                                    ? sub.teaching_loads[0]
-                                    : sub.teaching_loads}
-                                <tr
-                                    class="hover:bg-surface-muted/50 transition-colors"
-                                >
-                                    <td
-                                        class="px-6 py-5 font-bold text-text-primary truncate max-w-[240px] sticky left-0 bg-white/5 z-0 leading-relaxed"
+                                        <FileText size={20} strokeWidth={1.5} />
+                                    </div>
+                                    <h4
+                                        class="font-bold text-sm text-text-primary line-clamp-2 leading-snug group-hover:text-gov-blue transition-colors"
                                         title={sub.file_name}
                                     >
                                         {sub.file_name}
-                                    </td>
-                                    <td
-                                        class="px-4 py-5 text-text-secondary font-medium"
-                                        >{sub.doc_type}</td
-                                    >
-                                    <td
-                                        class="px-4 py-5 text-center text-text-secondary text-xs font-semibold"
-                                    >
-                                        {tl
-                                            ? `${tl.subject} - Gr. ${tl.grade_level}`
-                                            : "â€”"}
-                                    </td>
-                                    <td class="px-4 py-5 text-center">
-                                        <StatusBadge
-                                            status={getStatusBadgeType(sub)}
-                                            size="sm"
-                                        />
-                                    </td>
-                                    <td
-                                        class="px-6 py-5 text-right text-text-muted text-[11px] font-bold uppercase tracking-normal"
-                                        >{formatDate(sub.created_at)}</td
-                                    >
-                                </tr>
-                            {/each}
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Mobile Card-based List -->
-                <div class="sm:hidden divide-y divide-gray-100">
-                    {#each displaySubmissions() as sub}
-                        {@const tl = Array.isArray(sub.teaching_loads)
-                            ? sub.teaching_loads[0]
-                            : sub.teaching_loads}
-                        <div
-                            class="p-4 space-y-3 active:bg-gray-50 transition-colors"
-                        >
-                            <div class="flex justify-between items-start gap-3">
-                                <p
-                                    class="font-bold text-text-primary line-clamp-2 leading-tight flex-1"
-                                >
-                                    {sub.file_name}
-                                </p>
-                                <StatusBadge
-                                    status={getStatusBadgeType(sub)}
-                                    size="sm"
-                                />
-                            </div>
-                            <div
-                                class="flex items-center justify-between text-[11px] text-text-muted"
-                            >
-                                <div class="flex items-center gap-2">
-                                    <span
-                                        class="px-1.5 py-0.5 bg-gray-100 rounded text-text-secondary font-bold"
-                                        >{sub.doc_type}</span
-                                    >
-                                    <span
-                                        >{tl
-                                            ? `${tl.subject} â€¢ G${tl.grade_level}`
-                                            : "No Teaching Load"}</span
-                                    >
+                                    </h4>
                                 </div>
-                                <span class="font-medium"
-                                    >{formatDate(sub.created_at)}</span
-                                >
+
+                                <div class="mt-auto space-y-3">
+                                    <div class="flex flex-wrap gap-2">
+                                        <span
+                                            class="px-2 py-0.5 bg-surface-muted rounded text-[10px] font-bold text-text-secondary uppercase tracking-tight"
+                                        >
+                                            {sub.doc_type}
+                                        </span>
+                                        {#if tl}
+                                            <span
+                                                class="px-2 py-0.5 bg-gov-blue/5 rounded text-[10px] font-bold text-gov-blue uppercase tracking-tight"
+                                            >
+                                                {tl.subject}
+                                            </span>
+                                        {/if}
+                                    </div>
+
+                                    <div
+                                        class="pt-3 border-t border-gray-50 flex items-center justify-between text-[10px] font-bold text-text-muted uppercase tracking-tighter"
+                                    >
+                                        <div class="flex items-center gap-1.5">
+                                            <Calendar
+                                                size={12}
+                                                strokeWidth={2}
+                                            />
+                                            <span>Week {sub.week_number}</span>
+                                        </div>
+                                        <span>{formatDate(sub.created_at)}</span
+                                        >
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    {/each}
+                        {/each}
+                    </div>
                 </div>
             {/if}
         </div>
@@ -912,103 +857,167 @@
             </div>
         </div>
 
-        <!-- Export & Reports -->
-        <div class="mb-6" in:fade={{ duration: 600, delay: 350 }}>
-            <h2
-                class="text-sm font-semibold text-text-muted uppercase tracking-wide mb-6"
-            >
-                Official Reports & Export
-            </h2>
-            <div
-                class="gov-card p-5 flex flex-wrap items-center gap-6 bg-surface-muted/30"
-            >
-                <button
-                    onclick={() =>
-                        exportToCSV(
-                            recentActivity,
-                            `Data_${new Date().toISOString().split("T")[0]}`,
-                        )}
-                    class="py-3 px-5 bg-white border border-border-strong rounded-md text-xs font-semibold uppercase tracking-wide text-text-primary hover:border-gov-blue hover:text-gov-blue transition-all flex items-center gap-2 shadow-sm cursor-pointer"
-                >
-                    CSV
-                </button>
-                <button
-                    onclick={() =>
-                        generateCompliancePDF(
-                            stats,
-                            `${$profile?.role} Summary`,
-                        )}
-                    class="py-3 px-5 bg-gov-blue border border-gov-blue rounded-md text-xs font-semibold uppercase tracking-wide text-white hover:bg-gov-blue-dark transition-all flex items-center gap-2 shadow-md cursor-pointer"
-                >
-                    PDF
-                </button>
-            </div>
-        </div>
-
         <!-- Behavioral Clusters (K-Means) -->
         {#if clusterResults.length > 0}
-            <div
-                class="gov-card-static p-5 mb-6"
-                in:fly={{ y: 20, duration: 600, delay: 500 }}
-            >
-                <ClusterVisualization
-                    results={clusterResults}
-                    summaries={clusterSummaries}
-                />
+            <div class="mb-10" in:fly={{ y: 20, duration: 600, delay: 500 }}>
+                <h2
+                    class="text-sm font-bold text-text-muted uppercase tracking-widest mb-6 flex items-center gap-2"
+                >
+                    <div class="h-1 w-4 bg-purple-500"></div>
+                    AI Behavioral Analysis
+                </h2>
+                <div
+                    class="bg-white border border-border-subtle rounded-xl p-6 shadow-sm"
+                >
+                    <ClusterVisualization
+                        results={clusterResults}
+                        summaries={clusterSummaries}
+                    />
+                </div>
             </div>
         {/if}
 
-        <!-- Recent Activity -->
-        <div in:fade={{ duration: 600, delay: 600 }}>
-            <h2 class="text-xl font-bold text-text-primary mb-4">
-                Recent Activity
+        <!-- Export & Reports as Cards -->
+        <div class="mb-10" in:fade={{ duration: 600, delay: 350 }}>
+            <h2
+                class="text-sm font-bold text-text-muted uppercase tracking-widest mb-6 flex items-center gap-2"
+            >
+                <div class="h-1 w-4 bg-gov-blue"></div>
+                Institutional Reports
             </h2>
-            <div class="gov-card-static overflow-hidden">
-                {#if recentActivity.length === 0}
-                    <div class="p-10 text-center">
-                        <p class="text-text-muted font-medium">
-                            No recent activity yet
-                        </p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- CSV Card -->
+                <div
+                    class="bg-white border border-border-subtle rounded-xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col group"
+                >
+                    <div
+                        class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 transition-colors group-hover:bg-emerald-600 group-hover:text-white"
+                    >
+                        <FileText size={20} strokeWidth={1.5} />
                     </div>
-                {:else}
-                    <div class="divide-y divide-gray-100">
-                        {#each recentActivity as item, i}
-                            <div
-                                class="flex items-center justify-between px-6 py-4 hover:bg-white/40 transition-colors"
-                                in:fly={{
-                                    x: -20,
-                                    duration: 400,
-                                    delay: 700 + i * 50,
-                                }}
-                            >
-                                <div class="flex items-center gap-3 min-w-0">
-                                    <span
-                                        class="text-sm font-medium text-text-primary truncate"
-                                        >{item.file_name}</span
-                                    >
-                                </div>
-                                <div
-                                    class="flex items-center gap-4 flex-shrink-0"
+                    <h4 class="font-bold text-sm text-text-primary mb-1">
+                        Spreadsheet Export
+                    </h4>
+                    <p
+                        class="text-[10px] text-text-muted mb-4 uppercase tracking-tight"
+                    >
+                        CSV format • Detailed raw data
+                    </p>
+                    <button
+                        onclick={() =>
+                            exportToCSV(
+                                recentActivity,
+                                `Data_${new Date().toISOString().split("T")[0]}`,
+                            )}
+                        class="mt-auto w-full py-2 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100"
+                    >
+                        Generate CSV
+                    </button>
+                </div>
+
+                <!-- PDF Card -->
+                <div
+                    class="bg-white border border-border-subtle rounded-xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col group"
+                >
+                    <div
+                        class="w-10 h-10 rounded-lg bg-gov-blue/5 text-gov-blue flex items-center justify-center mb-4 transition-colors group-hover:bg-gov-blue group-hover:text-white"
+                    >
+                        <ShieldCheck size={20} strokeWidth={1.5} />
+                    </div>
+                    <h4 class="font-bold text-sm text-text-primary mb-1">
+                        Compliance Report
+                    </h4>
+                    <p
+                        class="text-[10px] text-text-muted mb-4 uppercase tracking-tight"
+                    >
+                        Verified PDF • Executive Summary
+                    </p>
+                    <button
+                        onclick={() =>
+                            generateCompliancePDF(
+                                stats,
+                                `${$profile?.role} Summary`,
+                            )}
+                        class="mt-auto w-full py-2 bg-gov-blue text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-gov-blue-dark transition-all shadow-md"
+                    >
+                        Download PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity as Cards -->
+        <div in:fade={{ duration: 600, delay: 600 }}>
+            <h2
+                class="text-sm font-bold text-text-muted uppercase tracking-widest mb-6 flex items-center gap-2"
+            >
+                <div class="h-1 w-4 bg-gov-gold"></div>
+                Recent District Activity
+            </h2>
+
+            {#if recentActivity.length === 0}
+                <div class="gov-card-static p-12 text-center rounded-2xl">
+                    <p
+                        class="text-text-muted font-bold text-xs uppercase tracking-widest"
+                    >
+                        No recent submissions detected
+                    </p>
+                </div>
+            {:else}
+                <div
+                    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+                >
+                    {#each recentActivity as item, i}
+                        <div
+                            class="bg-white border border-border-subtle rounded-xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col group relative"
+                            in:fly={{
+                                x: -20,
+                                duration: 400,
+                                delay: 700 + i * 50,
+                            }}
+                        >
+                            <div class="absolute top-4 right-4">
+                                <StatusBadge
+                                    status={item.compliance_status ===
+                                        "on-time" ||
+                                    item.compliance_status === "compliant"
+                                        ? "compliant"
+                                        : item.compliance_status === "late"
+                                          ? "late"
+                                          : "non-compliant"}
+                                    size="sm"
+                                />
+                            </div>
+
+                            <div class="mb-4">
+                                <h4
+                                    class="font-bold text-sm text-text-primary group-hover:text-gov-blue transition-colors leading-snug line-clamp-2 pr-12"
                                 >
-                                    <StatusBadge
-                                        status={item.compliance_status ===
-                                            "on-time" ||
-                                        item.compliance_status === "compliant"
-                                            ? "compliant"
-                                            : item.compliance_status === "late"
-                                              ? "late"
-                                              : "non-compliant"}
-                                        size="sm"
-                                    />
-                                    <span class="text-xs text-text-muted"
+                                    {item.file_name}
+                                </h4>
+                            </div>
+
+                            <div
+                                class="mt-auto pt-3 border-t border-gray-50 flex items-center justify-between"
+                            >
+                                <div
+                                    class="flex items-center gap-2 text-text-muted"
+                                >
+                                    <Clock size={12} strokeWidth={2} />
+                                    <span
+                                        class="text-[10px] font-bold uppercase tracking-tighter"
                                         >{formatDate(item.created_at)}</span
                                     >
                                 </div>
+                                <span
+                                    class="text-[9px] font-bold text-gov-blue/60 uppercase tracking-widest"
+                                    >Archived</span
+                                >
                             </div>
-                        {/each}
-                    </div>
-                {/if}
-            </div>
+                        </div>
+                    {/each}
+                </div>
+            {/if}
         </div>
     {/if}
 </div>

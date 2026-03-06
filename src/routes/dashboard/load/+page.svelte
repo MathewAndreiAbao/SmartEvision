@@ -3,6 +3,8 @@
     import { profile } from "$lib/utils/auth";
     import { addToast } from "$lib/stores/toast";
     import { onMount } from "svelte";
+    import { Edit, Trash2, Plus, BookOpen, Layers } from "lucide-svelte";
+    import { fly } from "svelte/transition";
 
     interface TeachingLoad {
         id: string;
@@ -119,110 +121,137 @@
     <title>Teaching Load — Smart E-VISION</title>
 </svelte:head>
 
-<div>
+<div class="space-y-8">
     <!-- Header -->
-    <div class="mb-8 flex items-start justify-between">
+    <div
+        class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+    >
         <div>
-            <h1 class="text-2xl font-bold text-text-primary">Teaching Load</h1>
-            <p class="text-base text-text-secondary mt-1">
-                Manage your subjects and grade levels
+            <h1 class="text-3xl font-bold text-text-primary tracking-tight">
+                Teaching Load
+            </h1>
+            <p class="text-base text-text-secondary mt-1 font-medium">
+                Manage your academic assignments and grade levels
             </p>
         </div>
         <button
             onclick={openAdd}
-            class="px-6 py-3 bg-gradient-to-r from-gov-blue to-gov-blue-dark text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 min-h-[48px] flex items-center gap-2"
+            class="px-6 py-3 bg-gov-blue text-white text-xs font-bold uppercase tracking-widest rounded-xl shadow-lg hover:shadow-gov-blue/20 transition-all flex items-center gap-2 group"
         >
-            + Add Load
+            <Plus
+                size={16}
+                class="group-hover:rotate-90 transition-transform"
+            />
+            Add New Load
         </button>
     </div>
 
     {#if loading}
-        <div class="space-y-3">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {#each Array(3) as _}
-                <div class="gov-card-static p-5 animate-pulse">
-                    <div class="h-4 bg-gray-200 rounded w-1/3"></div>
+                <div class="gov-card-static p-8 animate-pulse">
+                    <div class="h-6 bg-gray-100 rounded-full w-24 mb-6"></div>
+                    <div class="h-8 bg-gray-100 rounded w-3/4 mb-4"></div>
                 </div>
             {/each}
         </div>
     {:else if loads.length === 0}
-        <div class="text-center py-20">
-            <p class="text-xl font-semibold text-text-primary">
-                No teaching loads yet
+        <div
+            class="bg-white/50 backdrop-blur-md border border-dashed border-border-strong rounded-3xl p-20 text-center"
+        >
+            <div
+                class="w-16 h-16 bg-gov-blue/10 text-gov-blue rounded-2xl flex items-center justify-center mx-auto mb-6"
+            >
+                <BookOpen size={32} strokeWidth={1.5} />
+            </div>
+            <p class="text-xl font-bold text-text-primary">
+                No teaching loads configured
             </p>
-            <p class="text-base text-text-muted mt-2">
-                Add your grade levels and subjects to start
+            <p
+                class="text-xs font-bold text-text-muted mt-2 uppercase tracking-widest"
+            >
+                ARCHIVE YOUR FIRST GRADE LEVEL & SUBJECT TO BEGIN
             </p>
             <button
                 onclick={openAdd}
-                class="mt-6 px-6 py-3 bg-gradient-to-r from-gov-blue to-gov-blue-dark text-white font-semibold rounded-xl shadow-md min-h-[48px]"
+                class="mt-8 px-8 py-3 bg-gov-blue text-white text-xs font-bold uppercase tracking-widest rounded-xl shadow-md hover:bg-gov-blue-dark transition-all"
             >
-                + Add Your First Load
+                Setup Initial Load
             </button>
         </div>
     {:else}
-        <div class="gov-card-static overflow-hidden">
-            <table class="w-full">
-                <thead>
-                    <tr class="border-b border-gray-100">
-                        <th
-                            class="px-6 py-4 text-left text-xs font-semibold text-text-muted uppercase"
-                            >Grade Level</th
+        <div
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+        >
+            {#each loads as load}
+                <div
+                    class="bg-white border border-border-subtle rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-gov-blue/20 transition-all group relative flex flex-col h-full"
+                    in:fly={{ y: 20, duration: 400 }}
+                >
+                    <!-- Status Badge -->
+                    <div class="absolute top-6 right-6">
+                        <button
+                            onclick={() => toggleActive(load)}
+                            class="w-10 h-5.5 rounded-full relative transition-all shadow-inner {load.is_active
+                                ? 'bg-gov-green'
+                                : 'bg-gray-200'}"
+                            aria-label="Toggle active status"
+                            title={load.is_active ? "Active" : "Inactive"}
                         >
-                        <th
-                            class="px-6 py-4 text-left text-xs font-semibold text-text-muted uppercase"
-                            >Subject</th
-                        >
-                        <th
-                            class="px-6 py-4 text-center text-xs font-semibold text-text-muted uppercase"
-                            >Active</th
-                        >
-                        <th
-                            class="px-6 py-4 text-right text-xs font-semibold text-text-muted uppercase"
-                            >Actions</th
-                        >
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
-                    {#each loads as load}
-                        <tr class="hover:bg-white/40 transition-colors">
-                            <td
-                                class="px-6 py-4 text-sm font-medium text-text-primary"
-                                >{load.grade_level}</td
+                            <span
+                                class="absolute top-0.5 transition-all w-4.5 h-4.5 rounded-full bg-white shadow-sm {load.is_active
+                                    ? 'translate-x-5'
+                                    : 'translate-x-0.5'}"
+                            ></span>
+                        </button>
+                    </div>
+
+                    <div class="mb-6">
+                        <div class="flex items-center gap-2 mb-3">
+                            <Layers size={14} class="text-gov-blue" />
+                            <span
+                                class="px-2.5 py-1 bg-gov-blue/5 text-gov-blue text-[10px] font-bold uppercase tracking-widest rounded-full"
                             >
-                            <td class="px-6 py-4 text-sm text-text-secondary"
-                                >{load.subject}</td
+                                {load.grade_level}
+                            </span>
+                        </div>
+                        <h4
+                            class="text-lg font-bold text-text-primary leading-tight group-hover:text-gov-blue transition-colors"
+                        >
+                            {load.subject}
+                        </h4>
+                    </div>
+
+                    <div
+                        class="mt-auto pt-6 border-t border-gray-100 flex items-center justify-between"
+                    >
+                        <div class="flex items-center gap-2">
+                            <span
+                                class="text-[10px] font-bold text-text-muted uppercase tracking-tighter"
+                                >Modified Recently</span
                             >
-                            <td class="px-6 py-4 text-center">
-                                <button
-                                    onclick={() => toggleActive(load)}
-                                    class="w-12 h-7 rounded-full relative transition-colors {load.is_active
-                                        ? 'bg-gov-green'
-                                        : 'bg-gray-300'}"
-                                    aria-label="Toggle active"
-                                >
-                                    <span
-                                        class="absolute top-0.5 transition-transform w-6 h-6 rounded-full bg-white shadow {load.is_active
-                                            ? 'translate-x-5'
-                                            : 'translate-x-0.5'}"
-                                    ></span>
-                                </button>
-                            </td>
-                            <td class="px-6 py-4 text-right">
-                                <button
-                                    onclick={() => openEdit(load)}
-                                    class="text-gov-blue hover:text-gov-blue-dark text-sm font-medium mr-3 min-h-[48px]"
-                                    >Edit</button
-                                >
-                                <button
-                                    onclick={() => handleDelete(load.id)}
-                                    class="text-gov-red hover:text-red-700 text-sm font-medium min-h-[48px]"
-                                    >Delete</button
-                                >
-                            </td>
-                        </tr>
-                    {/each}
-                </tbody>
-            </table>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <button
+                                onclick={() => openEdit(load)}
+                                class="p-2 text-text-muted hover:text-gov-blue hover:bg-gov-blue/5 rounded-lg transition-all"
+                                aria-label="Edit Load"
+                                title="Edit Load"
+                            >
+                                <Edit size={16} strokeWidth={2} />
+                            </button>
+                            <button
+                                onclick={() => handleDelete(load.id)}
+                                class="p-2 text-text-muted hover:text-gov-red hover:bg-gov-red/5 rounded-lg transition-all"
+                                aria-label="Delete Load"
+                                title="Delete Load"
+                            >
+                                <Trash2 size={16} strokeWidth={2} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            {/each}
         </div>
     {/if}
 </div>

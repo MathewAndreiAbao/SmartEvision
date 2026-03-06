@@ -172,6 +172,22 @@ export async function* runPipeline(
             throw new Error('Duplicate file detected. This document has already been archived (Offline Check).');
         }
 
+        // Tier 0.5: Metadata Uniqueness Check (One upload per load/week)
+        if (navigator.onLine && options.teachingLoadId && options.weekNumber) {
+            yield { phase: 'uploading', progress: 0, message: 'Checking metadata integrity...' };
+            const { data: metaMatch } = await supabase
+                .from('submissions')
+                .select('id')
+                .eq('teaching_load_id', options.teachingLoadId)
+                .eq('week_number', options.weekNumber)
+                .eq('school_year', options.schoolYear || '2025-2026')
+                .maybeSingle();
+
+            if (metaMatch) {
+                throw new Error(`Archival failed: A document has already been submitted for this teaching load in Week ${options.weekNumber}.`);
+            }
+        }
+
         // Check for duplicates (ONLY if online)
         if (navigator.onLine) {
             yield { phase: 'hashing', progress: 100, message: 'Verifying uniqueness with server...' };

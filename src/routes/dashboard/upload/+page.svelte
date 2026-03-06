@@ -77,11 +77,10 @@
     async function checkExistingSubmission() {
         const { data, error } = await supabase
             .from("submissions")
-            .select("id")
+            .select("id, doc_type")
             .eq("teaching_load_id", teachingLoadId)
             .eq("week_number", weekNumber)
-            .eq("doc_type", docType)
-            .eq("school_year", "2025-2026") // Should ideally match current active SY
+            .eq("school_year", "2025-2026")
             .maybeSingle();
 
         if (error) {
@@ -922,6 +921,12 @@
                                 >
                                 Already archived for Week {weekNumber}
                             </div>
+                            <p
+                                class="mt-2 text-[10px] text-text-muted text-center uppercase tracking-widest font-bold"
+                            >
+                                Strict Policy: Only one upload permitted per
+                                teaching load per week.
+                            </p>
                         {:else}
                             <button
                                 onclick={handleUpload}
@@ -1153,13 +1158,17 @@
     <div
         class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm transition-opacity"
         onclick={() => (showLoadPicker = false)}
+        onkeydown={(e) => e.key === "Escape" && (showLoadPicker = false)}
+        role="presentation"
         transition:fade={{ duration: 200 }}
     >
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
             class="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-sm overflow-hidden animate-slide-up sm:animate-scale-in"
             onclick={(e) => e.stopPropagation()}
+            onkeydown={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            tabindex="0"
         >
             <div
                 class="p-6 border-b border-gray-100 flex items-center justify-between"
@@ -1170,6 +1179,7 @@
                 <button
                     onclick={() => (showLoadPicker = false)}
                     class="p-2 hover:bg-gray-100 rounded-full text-text-muted"
+                    aria-label="Close"
                 >
                     <svg
                         class="w-6 h-6"
@@ -1233,13 +1243,17 @@
     <div
         class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm transition-opacity"
         onclick={() => (showWeekPicker = false)}
+        onkeydown={(e) => e.key === "Escape" && (showWeekPicker = false)}
+        role="presentation"
         transition:fade={{ duration: 200 }}
     >
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
             class="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl shadow-sm overflow-hidden animate-slide-up sm:animate-scale-in"
             onclick={(e) => e.stopPropagation()}
+            onkeydown={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            tabindex="0"
         >
             <div
                 class="p-6 border-b border-gray-100 flex items-center justify-between"
@@ -1250,6 +1264,7 @@
                 <button
                     onclick={() => (showWeekPicker = false)}
                     class="p-2 hover:bg-gray-100 rounded-full text-text-muted"
+                    aria-label="Close"
                 >
                     <svg
                         class="w-6 h-6"
@@ -1324,7 +1339,7 @@
             opacity: 1;
         }
     }
-    .animate-scale-in {
+    :global(.animate-scale-in) {
         animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
 </style>

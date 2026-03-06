@@ -57,10 +57,28 @@ export async function subscribeToPush() {
 
 /**
  * Trigger a local system notification.
- * Works even if push server isn't fully configured.
+ * Uses Service Worker for maximum reliability on mobile/PWA.
  */
-export function sendLocalNotification(title: string, body: string) {
-    if (Notification.permission === 'granted') {
+export async function sendLocalNotification(title: string, body: string) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+    try {
+        if ('serviceWorker' in navigator) {
+            const registration = await navigator.serviceWorker.ready;
+            await registration.showNotification(title, {
+                body,
+                icon: '/icon-192.png',
+                badge: '/icon-192.png',
+                vibrate: [100, 50, 100],
+                data: {
+                    url: window.location.origin + '/dashboard'
+                }
+            } as any);
+        } else {
+            new Notification(title, { body, icon: '/icon-192.png' });
+        }
+    } catch (err) {
+        console.warn('[Notifications] Fallback to simple notification:', err);
         new Notification(title, { body, icon: '/icon-192.png' });
     }
 }

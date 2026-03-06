@@ -292,7 +292,7 @@
                     weekLabel: w.label,
                     rate: stats.rate,
                     count: weekSubs.length,
-                    tooltip: `${t.full_name} — ${w.label}: ${stats.rate}% (${stats.Compliant} compliant, ${stats.Late} late, ${stats.NonCompliant} non-compliant)`,
+                    tooltip: `${t.full_name} - ${w.label}: ${stats.rate}% (${stats.Compliant} compliant, ${stats.Late} late, ${stats.NonCompliant} non-compliant)`,
                 });
             }
         }
@@ -517,118 +517,99 @@
                     <p class="text-text-muted font-medium">No teachers found</p>
                 </div>
             {:else}
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="border-b border-gray-100">
-                                <th
-                                    class="px-6 py-3 text-left text-xs font-semibold text-text-muted uppercase"
+                <div class="p-6">
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                    >
+                        {#each sortedTeachers() as teacher}
+                            <div
+                                class="bg-white border border-border-subtle rounded-xl p-6 shadow-sm hover:shadow-md hover:border-gov-blue/20 transition-all flex flex-col group cursor-pointer"
+                                onclick={() => openDrillDown(teacher)}
+                                in:fly={{ y: 20, duration: 400 }}
+                            >
+                                <div
+                                    class="flex justify-between items-start mb-4"
                                 >
-                                    <button
-                                        class="hover:text-text-primary"
-                                        onclick={() => toggleSort("full_name")}
-                                    >
-                                        Teacher {sortField === "full_name"
-                                            ? sortDir === "asc"
-                                                ? "(Asc)"
-                                                : "(Desc)"
-                                            : ""}
-                                    </button>
-                                </th>
-                                <th
-                                    class="px-4 py-3 text-center text-xs font-semibold text-text-muted uppercase"
-                                >
-                                    <button
-                                        class="hover:text-text-primary"
-                                        onclick={() => toggleSort("total")}
-                                    >
-                                        Total {sortField === "total"
-                                            ? sortDir === "asc"
-                                                ? "(Asc)"
-                                                : "(Desc)"
-                                            : ""}
-                                    </button>
-                                </th>
-                                <th
-                                    class="px-4 py-3 text-center text-xs font-semibold text-text-muted uppercase"
-                                    >Compliant</th
-                                >
-                                <th
-                                    class="px-4 py-3 text-center text-xs font-semibold text-text-muted uppercase"
-                                    >Late</th
-                                >
-                                <th
-                                    class="px-4 py-3 text-center text-xs font-semibold text-text-muted uppercase"
-                                    >Non-compliant</th
-                                >
-                                <th
-                                    class="px-4 py-3 text-center text-xs font-semibold text-text-muted uppercase"
-                                >
-                                    <button
-                                        class="hover:text-text-primary"
-                                        onclick={() => toggleSort("rate")}
-                                    >
-                                        Rate {sortField === "rate"
-                                            ? sortDir === "asc"
-                                                ? "(Asc)"
-                                                : "(Desc)"
-                                            : ""}
-                                    </button>
-                                </th>
-                                <th
-                                    class="px-4 py-3 text-right text-xs font-semibold text-text-muted uppercase"
-                                    >Action</th
-                                >
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-50">
-                            {#each sortedTeachers() as teacher}
-                                <tr
-                                    class="hover:bg-white/40 transition-colors cursor-pointer"
-                                    onclick={() => openDrillDown(teacher)}
-                                >
-                                    <td
-                                        class="px-6 py-3 font-medium text-text-primary"
-                                        >{teacher.full_name}</td
-                                    >
-                                    <td
-                                        class="px-4 py-3 text-center text-text-secondary"
-                                        >{teacher.total}</td
-                                    >
-                                    <td
-                                        class="px-4 py-3 text-center text-gov-green font-semibold"
-                                        >{teacher.Compliant}</td
-                                    >
-                                    <td
-                                        class="px-4 py-3 text-center text-gov-gold-dark font-semibold"
-                                        >{teacher.Late}</td
-                                    >
-                                    <td
-                                        class="px-4 py-3 text-center text-gov-red font-semibold"
-                                        >{teacher.NonCompliant}</td
-                                    >
-                                    <td class="px-4 py-3 text-center">
-                                        <span
-                                            class="inline-block px-2.5 py-1 rounded-full text-xs font-bold {getComplianceBgClass(
-                                                teacher.rate,
-                                            )} {getComplianceClass(
-                                                teacher.rate,
-                                            )}"
+                                    <div>
+                                        <h4
+                                            class="font-bold text-base text-text-primary group-hover:text-gov-blue transition-colors leading-tight"
                                         >
-                                            {teacher.rate}%
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-3 text-right">
-                                        <button
-                                            class="text-gov-blue hover:text-gov-blue-dark text-xs font-semibold"
+                                            {teacher.full_name}
+                                        </h4>
+                                        <p
+                                            class="text-[10px] text-text-muted font-bold uppercase tracking-tight mt-1"
                                         >
-                                            View
-                                        </button>
-                                    </td>
-                                </tr>
-                            {/each}
-                        </tbody>
-                    </table>
+                                            Total: {teacher.total} Documents
+                                        </p>
+                                    </div>
+                                    <span
+                                        class="px-2.5 py-1 rounded-full text-[10px] font-bold {getComplianceBgClass(
+                                            teacher.rate,
+                                        )} {getComplianceClass(
+                                            teacher.rate,
+                                        )} uppercase tracking-wide"
+                                    >
+                                        {teacher.rate}%
+                                    </span>
+                                </div>
+
+                                <div class="grid grid-cols-3 gap-2 mb-6">
+                                    <div
+                                        class="bg-gov-green/5 p-2 rounded text-center"
+                                    >
+                                        <p
+                                            class="text-[9px] font-bold text-gov-green uppercase leading-none mb-1"
+                                        >
+                                            Pass
+                                        </p>
+                                        <p
+                                            class="text-xs font-bold text-text-primary"
+                                        >
+                                            {teacher.Compliant}
+                                        </p>
+                                    </div>
+                                    <div
+                                        class="bg-gov-gold/5 p-2 rounded text-center"
+                                    >
+                                        <p
+                                            class="text-[9px] font-bold text-gov-gold-dark uppercase leading-none mb-1"
+                                        >
+                                            Late
+                                        </p>
+                                        <p
+                                            class="text-xs font-bold text-text-primary"
+                                        >
+                                            {teacher.Late}
+                                        </p>
+                                    </div>
+                                    <div
+                                        class="bg-gov-red/5 p-2 rounded text-center"
+                                    >
+                                        <p
+                                            class="text-[9px] font-bold text-gov-red uppercase leading-none mb-1"
+                                        >
+                                            Miss
+                                        </p>
+                                        <p
+                                            class="text-xs font-bold text-text-primary"
+                                        >
+                                            {teacher.NonCompliant}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="mt-auto pt-4 border-t border-gray-50"
+                                >
+                                    <button
+                                        class="w-full py-2 bg-gov-blue/5 text-gov-blue hover:bg-gov-blue hover:text-white rounded-lg transition-all font-bold text-[10px] uppercase tracking-widest border border-gov-blue/10"
+                                    >
+                                        Analyze Individual Data
+                                    </button>
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
                 </div>
             {/if}
         </div>
@@ -687,7 +668,7 @@
                             <p class="text-xs text-text-muted">
                                 {sub.doc_type}
                                 {#if tl}
-                                    · {tl.subject} - Gr. {tl.grade_level}{/if}
+                                    - {tl.subject} - Gr. {tl.grade_level}{/if}
                             </p>
                         </div>
                         <div class="flex items-center gap-3 flex-shrink-0">

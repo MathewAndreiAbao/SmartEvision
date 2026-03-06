@@ -270,7 +270,7 @@
           row: school.name,
           week: w.week,
           rate: stats.rate,
-          tooltip: `${school.name} — ${w.label}: ${stats.rate}%`,
+          tooltip: `${school.name} - ${w.label}: ${stats.rate}%`,
         });
       }
     }
@@ -450,78 +450,84 @@
         </div>
       </div>
 
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr
-              class="bg-gray-100/80 text-left border-b border-gray-200 backdrop-blur-sm"
+      <div class="p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {#each sortedSchools() as school}
+            <div
+              class="bg-white border border-border-subtle rounded-xl p-6 shadow-sm hover:shadow-md hover:border-gov-blue/20 transition-all flex flex-col group cursor-pointer"
+              onclick={() => openDrillDown(school)}
+              in:fly={{ y: 20, duration: 400 }}
             >
-              <th
-                class="px-6 py-3 font-semibold text-text-muted cursor-pointer hover:text-text-primary"
-                onclick={() => {
-                  sortField = "name";
-                  sortDir = sortDir === "asc" ? "desc" : "asc";
-                }}>School</th
-              >
-              <th class="px-4 py-3 text-center font-semibold text-text-muted"
-                >Compliant</th
-              >
-              <th class="px-4 py-3 text-center font-semibold text-text-muted"
-                >Late</th
-              >
-              <th class="px-4 py-3 text-center font-semibold text-text-muted"
-                >Non-Compliant</th
-              >
-              <th
-                class="px-4 py-3 text-center font-semibold text-text-muted cursor-pointer hover:text-text-primary"
-                onclick={() => {
-                  sortField = "rate";
-                  sortDir = sortDir === "asc" ? "desc" : "asc";
-                }}>Rate</th
-              >
-              <th class="px-6 py-3 text-right font-semibold text-text-muted"
-                >Action</th
-              >
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-50">
-            {#each sortedSchools() as school}
-              <tr
-                class="hover:bg-white/40 transition-colors cursor-pointer"
-                onclick={() => openDrillDown(school)}
-              >
-                <td class="px-6 py-4 font-medium text-text-primary"
-                  >{school.name}</td
+              <div class="flex justify-between items-start mb-4">
+                <h4
+                  class="font-bold text-base text-text-primary group-hover:text-gov-blue transition-colors leading-tight"
                 >
-                <td class="px-4 py-4 text-center text-gov-green font-semibold"
-                  >{school.Compliant}</td
+                  {school.name}
+                </h4>
+                <span
+                  class="px-2.5 py-1 rounded-full text-[10px] font-bold {getComplianceBgClass(
+                    school.rate || 0,
+                  )} {getComplianceClass(
+                    school.rate || 0,
+                  )} uppercase tracking-wide"
                 >
-                <td
-                  class="px-4 py-4 text-center text-gov-gold-dark font-semibold"
-                  >{school.Late}</td
-                >
-                <td class="px-4 py-4 text-center text-gov-red font-semibold"
-                  >{school.NonCompliant}</td
-                >
-                <td class="px-4 py-4 text-center">
-                  <span
-                    class="px-2.5 py-1 rounded-full text-xs font-bold {getComplianceBgClass(
-                      school.rate || 0,
-                    )} {getComplianceClass(school.rate || 0)}"
+                  {school.rate}%
+                </span>
+              </div>
+
+              <div class="grid grid-cols-3 gap-2 mb-6">
+                <div class="bg-gov-green/5 p-2 rounded text-center">
+                  <p
+                    class="text-[9px] font-bold text-gov-green uppercase leading-none mb-1"
                   >
-                    {school.rate}%
-                  </span>
-                </td>
-                <td class="px-6 py-4 text-right">
-                  <button
-                    class="px-3 py-1.5 bg-gov-blue/5 text-gov-blue hover:bg-gov-blue hover:text-white rounded-md transition-all font-bold text-[10px] uppercase tracking-wider border border-gov-blue/20"
-                    >Details</button
+                    Pass
+                  </p>
+                  <p class="text-xs font-bold text-text-primary">
+                    {school.Compliant}
+                  </p>
+                </div>
+                <div class="bg-gov-gold/5 p-2 rounded text-center">
+                  <p
+                    class="text-[9px] font-bold text-gov-gold-dark uppercase leading-none mb-1"
                   >
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
+                    Late
+                  </p>
+                  <p class="text-xs font-bold text-text-primary">
+                    {school.Late}
+                  </p>
+                </div>
+                <div class="bg-gov-red/5 p-2 rounded text-center">
+                  <p
+                    class="text-[9px] font-bold text-gov-red uppercase leading-none mb-1"
+                  >
+                    Miss
+                  </p>
+                  <p class="text-xs font-bold text-text-primary">
+                    {school.NonCompliant}
+                  </p>
+                </div>
+              </div>
+
+              <div class="mt-auto pt-4 border-t border-gray-50">
+                <button
+                  class="w-full py-2 bg-gov-blue/5 text-gov-blue hover:bg-gov-blue hover:text-white rounded-lg transition-all font-bold text-[10px] uppercase tracking-widest border border-gov-blue/10"
+                >
+                  View Performance Details
+                </button>
+              </div>
+            </div>
+          {/each}
+        </div>
+
+        {#if sortedSchools().length === 0}
+          <div class="p-12 text-center">
+            <p
+              class="text-text-muted font-bold text-sm uppercase tracking-widest"
+            >
+              No matching institutional records found
+            </p>
+          </div>
+        {/if}
       </div>
     </div>
   {/if}
@@ -566,7 +572,7 @@
                 {sub.file_name}
               </p>
               <p class="text-xs text-text-muted">
-                {sub.doc_type} • Week {sub.week_number}
+                {sub.doc_type} - Week {sub.week_number}
               </p>
             </div>
             <StatusBadge
