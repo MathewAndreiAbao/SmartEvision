@@ -12,6 +12,7 @@
         Info,
         CalendarDays,
     } from "lucide-svelte";
+    import { markNonCompliantSubmissions } from "$lib/utils/useDashboardData";
 
     interface Deadline {
         id?: string;
@@ -165,6 +166,15 @@
             addToast("success", `Week ${weekData.week_number} updated!`);
             if (data && data[0]) {
                 weekData.id = data[0].id;
+            }
+
+            // Trigger automatic non-compliant record generation for this district
+            if (resolvedDistrictId) {
+                markNonCompliantSubmissions(
+                    supabase,
+                    schoolYear,
+                    resolvedDistrictId,
+                );
             }
         }
     }
