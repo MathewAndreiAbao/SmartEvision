@@ -18,12 +18,24 @@ function createNotificationStore() {
     let userId: string | null = null;
     let channel: any = null;
 
+    // Cache key for notifications
+    const getCacheKey = (uid: string) => `notifications_${uid}`;
+
     return {
         subscribe,
         init: async (id: string) => {
+            if (!id) return;
             userId = id;
 
-            // 1. Fetch initial notifications
+            // 1. Load from cache INSTANTLY for offline-ready UI
+            const { getCachedMetadata } = await import('$lib/utils/offline');
+            const cached = await getCachedMetadata(getCacheKey(userId));
+            if (cached?.data) {
+                set(cached.data);
+                console.log('[notifications] Loaded from offline cache');
+            }
+
+            // 2. Fetch fresh initial notifications from Supabase
             const { data, error } = await supabase
                 .from('notifications')
                 .select('*')
@@ -33,9 +45,12 @@ function createNotificationStore() {
 
             if (!error && data) {
                 set(data);
+                // Also update cache for next time
+                const { cacheMetadata } = await import('$lib/utils/offline');
+                await cacheMetadata(getCacheKey(userId), data);
             }
 
-            // 2. Setup Real-time listener
+            // 3. Setup Real-time listener
             if (channel) supabase.removeChannel(channel);
 
             channel = supabase
@@ -43,60 +58,60 @@ function createNotificationStore() {
                 .on(
                     'postgres_changes',
                     {
-                        event: 'INSERT',
+                        event: '*', // Sync all events
                         schema: 'public',
                         table: 'notifications',
                         filter: `user_id=eq.${userId}`
                     },
-                    (payload) => {
-                        const newNotif = payload.new as Notification;
-                        update(n => [newNotif, ...n]);
+                    async (payload) => {
+                        if (payload.eventType === 'INSERT') {
+                            const newNotif = payload.new as Notification;
+                            update(n => [newNotif, ...n]);
+                            addToast(newNotif.type, `${newNotif.title}: ${newNotif.message}`);
+                            if ('vibrate' in navigator) navigator.vibrate(50);
+                        } else if (payload.eventType === 'UPDATE') {
+                            update(n => n.map(item => item.id === payload.new.id ? payload.new as Notification : item));
+                        } else if (payload.eventType === 'DELETE') {
+                            update(n => n.filter(item => item.id !== payload.old.id));
+                        }
 
-                        // Show a global toast for new notifications
-                        addToast(newNotif.type, `${newNotif.title}: ${newNotif.message}`);
-
-                        // Play a subtle sound or trigger haptic if needed
-                        if ('vibrate' in navigator) navigator.vibrate(50);
-                    }
-                )
-                .on(
-                    'postgres_changes',
-                    {
-                        event: 'UPDATE',
-                        schema: 'public',
-                        table: 'notifications',
-                        filter: `user_id=eq.${userId}`
-                    },
-                    (payload) => {
-                        update(n => n.map(item => item.id === payload.new.id ? payload.new as Notification : item));
-                    }
-                )
-                .on(
-                    'postgres_changes',
-                    {
-                        event: 'DELETE',
-                        schema: 'public',
-                        table: 'notifications',
-                        filter: `user_id=eq.${userId}`
-                    },
-                    (payload) => {
-                        update(n => n.filter(item => item.id !== payload.old.id));
+                        // Always keep cache in sync with local state
+                        const { cacheMetadata } = await import('$lib/utils/offline');
+                        update(current => {
+                            cacheMetadata(getCacheKey(userId!), current);
+                            return current;
+                        });
                     }
                 )
                 .subscribe();
         },
         markAsRead: async (notificationId: string) => {
+            // OPTIMISTIC UPDATE: Update UI immediately even if offline
+            update(n => n.map(item => item.id === notificationId ? { ...item, read: true } : item));
+
             const { error } = await supabase
                 .from('notifications')
                 .update({ read: true })
                 .eq('id', notificationId);
 
-            if (!error) {
-                update(n => n.map(item => item.id === notificationId ? { ...item, read: true } : item));
+            if (error) {
+                console.warn('[notifications] Failed to sync read status online. It will stay read locally.');
+            } else {
+                // Sync cache
+                const { getCachedMetadata, cacheMetadata } = await import('$lib/utils/offline');
+                const current = await getCachedMetadata(getCacheKey(userId!));
+                if (current?.data) {
+                    const updated = current.data.map((i: any) => i.id === notificationId ? { ...i, read: true } : i);
+                    await cacheMetadata(getCacheKey(userId!), updated);
+                }
             }
         },
         markAllAsRead: async () => {
             if (!userId) return;
+
+            // Optimistic update
+            update(n => n.map(item => ({ ...item, read: true })));
+
             const { error } = await supabase
                 .from('notifications')
                 .update({ read: true })
@@ -104,7 +119,12 @@ function createNotificationStore() {
                 .eq('read', false);
 
             if (!error) {
-                update(n => n.map(item => ({ ...item, read: true })));
+                const { getCachedMetadata, cacheMetadata } = await import('$lib/utils/offline');
+                const current = await getCachedMetadata(getCacheKey(userId!));
+                if (current?.data) {
+                    const updated = current.data.map((i: any) => ({ ...i, read: true }));
+                    await cacheMetadata(getCacheKey(userId!), updated);
+                }
             }
         },
         clear: () => {
@@ -116,6 +136,8 @@ function createNotificationStore() {
 
 export const notifications = createNotificationStore();
 
-export const unreadCount = derived(notifications, ($notifications) =>
-    $notifications.filter(n => !n.read).length
-);
+export const unreadCount = derived(notifications, ($notifications) => {
+    const unread = $notifications.filter(n => !n.read).length;
+    import('$lib/utils/badge').then(m => m.updateAppBadge());
+    return unread;
+});

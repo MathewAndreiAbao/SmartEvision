@@ -36,12 +36,40 @@ async function performAuthInit(): Promise<void> {
     if (authInitialized) return;
 
     authLoading.set(true);
+
+    // 1. INSTANT: Load cached profile + user from localStorage BEFORE any network call.
+    // This makes the dashboard render immediately even when fully offline.
+    let hasCachedProfile = false;
+    const cachedKeys = Object.keys(localStorage).filter(k => k.startsWith('auth_profile_'));
+    if (cachedKeys.length > 0) {
+        try {
+            const cached = localStorage.getItem(cachedKeys[0]);
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                profile.set(parsed);
+                // Extract userId from the cache key (format: auth_profile_{userId})
+                const cachedUserId = cachedKeys[0].replace('auth_profile_', '');
+                // Set a minimal user object so dashboard layout guard ($user) passes
+                user.set({ id: cachedUserId } as any);
+                hasCachedProfile = true;
+                console.log('[v0] Auth: Instant profile + user set from cache');
+            }
+        } catch (e) {
+            console.error('[v0] Error loading cached profile:', e);
+        }
+    }
+
+    // If we have cached data, unlock the UI immediately — network will update in background
+    if (hasCachedProfile) {
+        authLoading.set(false);
+    }
+
     try {
-        // Use a longer timeout to prevent lock manager from hanging
+        const timeout = navigator.onLine ? 15000 : 3000;
         console.log('[v0] Auth: starting session check...');
         const sessionPromise = supabase.auth.getSession();
         const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Session check timeout')), 20000)
+            setTimeout(() => reject(new Error('Session check timeout')), timeout)
         );
 
         const { data: { session }, error } = await Promise.race([
@@ -58,7 +86,7 @@ async function performAuthInit(): Promise<void> {
             await fetchProfile(session.user.id);
         }
 
-        // Set up auth state listener without waiting for it
+        // Set up auth state listener
         supabase.auth.onAuthStateChange(async (_event: string, session: any) => {
             if (session?.user) {
                 user.set(session.user);
@@ -72,7 +100,6 @@ async function performAuthInit(): Promise<void> {
         authInitialized = true;
     } catch (err) {
         console.error('[v0] Auth initialization error:', err instanceof Error ? err.message : String(err));
-        // Don't throw - allow the app to continue even if auth check fails
         authInitialized = true;
     } finally {
         authLoading.set(false);
@@ -80,17 +107,39 @@ async function performAuthInit(): Promise<void> {
 }
 
 async function fetchProfile(userId: string): Promise<void> {
-    const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, role, school_id, district_id, avatar_url')
-        .eq('id', userId)
-        .single();
+    const CACHE_KEY = `auth_profile_${userId}`;
 
-    if (error) {
-        console.error('Error fetching profile:', error.message);
-        profile.set(null);
-    } else if (data) {
-        profile.set(data as Profile);
+    // 1. Try to load from cache first if offline or for immediate UI feedback
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+        try {
+            const parsed = JSON.parse(cached);
+            profile.set(parsed);
+            console.log('[v0] Auth: loaded profile from cache');
+        } catch (e) {
+            console.error('[v0] Error parsing cached profile:', e);
+        }
+    }
+
+    if (!navigator.onLine && cached) return;
+
+    try {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('id, full_name, role, school_id, district_id, avatar_url')
+            .eq('id', userId)
+            .single();
+
+        if (error) {
+            console.error('Error fetching profile:', error.message);
+            // If offline, we already set it from cache. If it's a real error (not just fetch), maybe don't clear it yet.
+            if (navigator.onLine) profile.set(null);
+        } else if (data) {
+            profile.set(data as Profile);
+            localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+        }
+    } catch (err) {
+        console.warn('[v0] Auth: fetchProfile failed (ignoring if offline):', err);
     }
 }
 

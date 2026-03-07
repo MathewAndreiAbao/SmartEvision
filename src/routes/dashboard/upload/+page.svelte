@@ -12,7 +12,7 @@
         getCachedMetadata,
         cacheMetadata,
     } from "$lib/utils/offline";
-    import { profile } from "$lib/utils/auth";
+    import { profile, type Profile } from "$lib/utils/auth";
     import { settings } from "$lib/stores/settings";
     import { addToast } from "$lib/stores/toast";
     import { supabase } from "$lib/utils/supabase";
@@ -24,6 +24,10 @@
         validateSelection,
         type CopilotSuggestion,
     } from "$lib/utils/copilot";
+
+    import type { PageData } from "./$types";
+
+    let { data } = $props<{ data: PageData }>();
 
     interface TeachingLoad {
         id: string;
@@ -129,137 +133,175 @@
     onMount(async () => {
         queueCount = await getQueueSize();
 
-        // Fetch teaching loads for the current user
-        if ($profile) {
-            let loads = [];
+        // Handle files launched from OS (PWA File Handling API)
+        if (
+            "launchQueue" in window &&
+            "setConsumer" in (window as any).launchQueue
+        ) {
+            (window as any).launchQueue.setConsumer((launchParams: any) => {
+                if (launchParams.files.length > 0) {
+                    launchParams.files[0].getFile().then((file: File) => {
+                        selectedFile = file;
+                        addToast("info", `Opened from system: ${file.name}`);
+                    });
+                }
+            });
+        }
+    });
+
+    // Handle shared file from the server-side hint (Share Target)
+    $effect(() => {
+        if (data.sharedFile?.isShared) {
+            addToast(
+                "info",
+                `Received shared file: ${data.sharedFile.name}. Please confirm your selection below.`,
+            );
+        }
+    });
+
+    // Reactive data fetching triggered when profile is available
+    let dataLoadedForProfile = $state<string | null>(null);
+
+    $effect(() => {
+        if ($profile && dataLoadedForProfile !== $profile.id) {
+            untrack(() => {
+                fetchInitialData($profile!);
+                dataLoadedForProfile = $profile!.id;
+            });
+        }
+    });
+
+    async function fetchInitialData(userProfile: Profile) {
+        loadingTeachingLoads = true;
+
+        // 1. Fetch teaching loads
+        let loads: TeachingLoad[] = [];
+        if (navigator.onLine) {
+            const { data, error } = await supabase
+                .from("teaching_loads")
+                .select("id, subject, grade_level")
+                .eq("user_id", userProfile.id)
+                .eq("is_active", true)
+                .order("subject, grade_level");
+
+            if (!error && data) {
+                loads = data;
+                cacheMetadata(`teaching_loads_${userProfile.id}`, data);
+            } else if (error) {
+                console.error(
+                    "[upload] Online fetch teaching loads error:",
+                    error.message,
+                );
+            }
+        }
+
+        if (loads.length === 0) {
+            const cached = await getCachedMetadata(
+                `teaching_loads_${userProfile.id}`,
+            );
+            if (cached?.data) {
+                loads = cached.data;
+                console.log("[upload] Using cached teaching loads");
+            }
+        }
+
+        if (loads.length > 0) {
+            teachingLoads = loads;
+            if (!teachingLoadId) {
+                teachingLoadId = teachingLoads[0].id;
+            }
+        } else if (navigator.onLine) {
+            addToast("error", "Failed to load teaching loads");
+        }
+
+        // 2. Fetch academic weeks / calendar
+        if (userProfile.district_id) {
+            let calendarEntries: any[] = [];
+
+            // Try cache first for immediate UI
+            const cachedCal = await getCachedMetadata(
+                `calendar_${userProfile.district_id}`,
+            );
+            if (cachedCal?.data) {
+                calendarEntries = cachedCal.data as any[];
+                academicWeeks = calendarEntries.map((w) => w.week_number);
+                console.log("[upload] Loaded calendar from cache");
+            }
+
+            // Sync with online if possible
             if (navigator.onLine) {
                 const { data, error } = await supabase
-                    .from("teaching_loads")
-                    .select("id, subject, grade_level")
-                    .eq("user_id", $profile.id)
-                    .eq("is_active", true)
-                    .order("subject, grade_level");
+                    .from("academic_calendar")
+                    .select("week_number, deadline_date, description")
+                    .eq("district_id", userProfile.district_id)
+                    .order("week_number", { ascending: true });
 
                 if (!error && data) {
-                    loads = data;
-                    // Update cache for next time
-                    cacheMetadata(`teaching_loads_${$profile.id}`, data);
+                    calendarEntries = data;
+                    academicWeeks = data.map((w) => w.week_number);
+                    cacheMetadata(`calendar_${userProfile.district_id}`, data);
                 } else if (error) {
                     console.error(
-                        "[v0] Error fetching teaching loads:",
+                        "[upload] Online fetch calendar error:",
                         error.message,
                     );
                 }
             }
 
-            // Fallback to cache if offline or fetch failed
-            if (loads.length === 0) {
-                const cached = await getCachedMetadata(
-                    `teaching_loads_${$profile.id}`,
-                );
-                if (cached?.data) {
-                    loads = cached.data;
-                    console.log("[upload] Using cached teaching loads");
-                }
+            // Fallback to 1-10 if still empty
+            if (academicWeeks.length === 0) {
+                academicWeeks = Array.from({ length: 10 }, (_, i) => i + 1);
             }
 
-            if (loads.length > 0) {
-                teachingLoads = loads;
-                if (teachingLoads.length > 0) {
-                    teachingLoadId = teachingLoads[0].id;
-                }
-            } else if (navigator.onLine) {
-                addToast("error", "Failed to load teaching loads");
-            }
+            // Auto-detect current week
+            if (calendarEntries.length > 0 && !weekNumber) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
 
-            // Fetch academic weeks for selection + auto-detect current week
-            if ($profile.district_id) {
-                let calendarEntries: any[] = [];
-                const cachedCal = await getCachedMetadata(
-                    `calendar_${$profile.district_id}`,
-                );
-                if (cachedCal?.data) {
-                    calendarEntries = cachedCal.data as any[];
-                    academicWeeks = calendarEntries.map((w) => w.week_number);
-                } else if (navigator.onLine) {
-                    const { data } = await supabase
-                        .from("academic_calendar")
-                        .select("week_number, deadline_date")
-                        .eq("district_id", $profile.district_id)
-                        .order("week_number", { ascending: true });
-                    if (data) {
-                        calendarEntries = data;
-                        academicWeeks = data.map((w) => w.week_number);
-                    }
-                }
+                const sorted = [...calendarEntries]
+                    .filter((e) => e.deadline_date)
+                    .sort(
+                        (a, b) =>
+                            new Date(a.deadline_date).getTime() -
+                            new Date(b.deadline_date).getTime(),
+                    );
 
-                // If no weeks found, fallback to 1-10
-                if (academicWeeks.length === 0) {
-                    academicWeeks = Array.from({ length: 10 }, (_, i) => i + 1);
-                }
+                const currentEntry = sorted.find((e) => {
+                    const deadline = new Date(e.deadline_date);
+                    deadline.setHours(23, 59, 59, 999);
+                    return deadline >= today;
+                });
 
-                // Auto-detect current week from today's date
-                // Find the earliest upcoming deadline (or closest past if all expired)
-                if (calendarEntries.length > 0 && !weekNumber) {
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-
-                    // Sort by deadline ascending
-                    const sorted = [...calendarEntries]
-                        .filter((e) => e.deadline_date)
-                        .sort(
-                            (a, b) =>
-                                new Date(a.deadline_date).getTime() -
-                                new Date(b.deadline_date).getTime(),
-                        );
-
-                    // Find the first week whose deadline hasn't passed yet
-                    const currentEntry = sorted.find((e) => {
-                        const deadline = new Date(e.deadline_date);
-                        deadline.setHours(23, 59, 59, 999);
-                        return deadline >= today;
-                    });
-
-                    if (currentEntry) {
-                        weekNumber = currentEntry.week_number;
-                        console.log(
-                            `[upload] Auto-detected current week: ${weekNumber} (deadline: ${currentEntry.deadline_date})`,
-                        );
-                    } else if (sorted.length > 0) {
-                        // All deadlines passed — use the last one
-                        weekNumber = sorted[sorted.length - 1].week_number;
-                        console.log(
-                            `[upload] All deadlines passed, using latest week: ${weekNumber}`,
-                        );
-                    }
+                if (currentEntry) {
+                    weekNumber = currentEntry.week_number;
+                } else if (sorted.length > 0) {
+                    weekNumber = sorted[sorted.length - 1].week_number;
                 }
             }
         }
-        loadingTeachingLoads = false;
 
-        // Fetch submission history for Copilot context
-        if ($profile) {
+        // 3. Fetch submission history for Copilot context (Online only)
+        if (navigator.onLine) {
             try {
                 const { data: subs } = await supabase
                     .from("submissions")
                     .select(
                         "teaching_load_id, week_number, doc_type, compliance_status, created_at",
                     )
-                    .eq("user_id", $profile.id)
+                    .eq("user_id", userProfile.id)
                     .eq("school_year", "2025-2026")
                     .order("created_at", { ascending: false })
-                    .limit(100);
-                if (subs) submissionHistory = subs;
+                    .limit(50);
+                if (subs) {
+                    submissionHistory = subs;
+                    cacheMetadata(`submission_history_${userProfile.id}`, subs);
+                }
 
-                // Set current week for Copilot
-                copilotCurrentWeek = weekNumber;
-
-                // Get deadlines for Copilot
-                if ($profile.district_id) {
+                if (userProfile.district_id) {
                     const { data: cals } = await supabase
                         .from("academic_calendar")
                         .select("week_number, deadline_date")
-                        .eq("district_id", $profile.district_id)
+                        .eq("district_id", userProfile.district_id)
                         .eq("school_year", "2025-2026")
                         .order("week_number", { ascending: true });
                     if (cals) copilotDeadlines = cals;
@@ -267,8 +309,19 @@
             } catch (err) {
                 console.warn("[upload] Copilot context fetch error:", err);
             }
+        } else {
+            // Load history from cache for Copilot
+            const cachedHistory = await getCachedMetadata(
+                `submission_history_${userProfile.id}`,
+            );
+            if (cachedHistory?.data) {
+                submissionHistory = cachedHistory.data;
+            }
         }
-    });
+
+        copilotCurrentWeek = weekNumber;
+        loadingTeachingLoads = false;
+    }
 
     function mapTeachingLoad(metadata: Partial<DocMetadata>): string {
         if (!metadata.subject) return teachingLoadId;
@@ -444,6 +497,23 @@
         }
     }
 
+    /** Auto-wait for profile + teaching loads to finish loading (polls every 200ms) */
+    function waitForDataReady(timeoutMs: number): Promise<boolean> {
+        return new Promise((resolve) => {
+            const start = Date.now();
+            const check = () => {
+                // Only wait for the loading FLAGS, not the selection itself
+                if ($profile && !loadingTeachingLoads) {
+                    resolve(true);
+                } else if (Date.now() - start > timeoutMs) {
+                    resolve(false);
+                } else {
+                    setTimeout(check, 200);
+                }
+            };
+            check();
+        });
+    }
     async function handleUpload() {
         if ($settings.maintenance_mode) {
             addToast(
@@ -452,8 +522,27 @@
             );
             return;
         }
-        if (!selectedFile || !$profile || !teachingLoadId) {
+        if (!selectedFile) {
+            addToast("error", "Please select a file to upload");
+            return;
+        }
+
+        // Auto-wait for profile and teaching load list to be ready (up to 5s)
+        if (loadingTeachingLoads || !$profile) {
+            addToast("info", "Syncing clinical data, please wait...");
+            const ready = await waitForDataReady(5000);
+            if (!ready) {
+                addToast(
+                    "error",
+                    "Network timeout: Could not sync profile data.",
+                );
+                return;
+            }
+        }
+
+        if (!teachingLoadId) {
             addToast("error", "Please select a teaching load before uploading");
+            showLoadPicker = true; // Auto-open picker if missing
             return;
         }
 
@@ -465,7 +554,7 @@
         speak(VoicePrompts.UPLOAD_START);
 
         const pipeline = runPipeline(selectedFile, {
-            userId: $profile.id,
+            userId: $profile!.id,
             docType,
             subject: subject || undefined,
             weekNumber,
@@ -637,8 +726,19 @@
                     class="p-4 bg-gov-red/10 border border-gov-red/20 rounded-md text-gov-red text-center font-bold animate-pulse"
                     role="alert"
                 >
-                    🚩 SYSTEM MAINTENANCE ACTIVE: UPLOADS ARE TEMPORARILY
-                    DISABLED
+                    <svg
+                        class="inline-block w-4 h-4 mr-1 align-text-bottom"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        ><path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        /></svg
+                    >
+                    SYSTEM MAINTENANCE ACTIVE: UPLOADS ARE TEMPORARILY DISABLED
                 </div>
             {/if}
 
@@ -712,7 +812,18 @@
                                     in:fade
                                 >
                                     <div class="flex items-start gap-3">
-                                        <span class="text-xl">⚠️</span>
+                                        <svg
+                                            class="w-5 h-5 text-gov-red flex-shrink-0 mt-0.5"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                            ><path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                            /></svg
+                                        >
                                         <div>
                                             <p
                                                 class="text-xs font-semibold text-gov-red uppercase tracking-wide"
@@ -1196,44 +1307,84 @@
                 </button>
             </div>
             <div class="max-h-[60vh] overflow-y-auto p-4 space-y-2">
-                {#each teachingLoads as load}
-                    <button
-                        onclick={() => {
-                            teachingLoadId = load.id;
-                            showLoadPicker = false;
-                        }}
-                        class="w-full p-4 rounded-md text-left transition-all flex items-center justify-between group {teachingLoadId ===
-                        load.id
-                            ? 'bg-gov-blue text-white shadow-lg'
-                            : 'bg-surface-muted hover:bg-gov-blue/5 border border-transparent hover:border-gov-blue/20'}"
+                {#if loadingTeachingLoads}
+                    <div
+                        class="py-12 flex flex-col items-center justify-center gap-4"
                     >
-                        <div>
-                            <p class="font-bold text-lg">{load.subject}</p>
-                            <p
-                                class="text-xs font-medium {teachingLoadId ===
-                                load.id
-                                    ? 'text-white/70'
-                                    : 'text-text-muted'} uppercase tracking-wider"
-                            >
-                                {load.grade_level}
+                        <svg
+                            class="animate-spin h-8 w-8 text-gov-blue"
+                            viewBox="0 0 24 24"
+                        >
+                            <circle
+                                class="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                stroke-width="4"
+                                fill="none"
+                            ></circle>
+                            <path
+                                class="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                        </svg>
+                        <p
+                            class="text-xs font-bold text-gov-blue animate-pulse uppercase tracking-widest"
+                        >
+                            Loading Teaching Loads...
+                        </p>
+                    </div>
+                {:else}
+                    {#each teachingLoads as load}
+                        <button
+                            onclick={() => {
+                                teachingLoadId = load.id;
+                                showLoadPicker = false;
+                            }}
+                            class="w-full p-4 rounded-md text-left transition-all flex items-center justify-between group {teachingLoadId ===
+                            load.id
+                                ? 'bg-gov-blue text-white shadow-lg'
+                                : 'bg-surface-muted hover:bg-gov-blue/5 border border-transparent hover:border-gov-blue/20'}"
+                        >
+                            <div>
+                                <p class="font-bold text-lg">{load.subject}</p>
+                                <p
+                                    class="text-xs font-medium {teachingLoadId ===
+                                    load.id
+                                        ? 'text-white/70'
+                                        : 'text-text-muted'} uppercase tracking-wider"
+                                >
+                                    {load.grade_level}
+                                </p>
+                            </div>
+                            {#if teachingLoadId === load.id}
+                                <svg
+                                    class="w-6 h-6"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                    ><path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="3"
+                                        d="M5 13l4 4L19 7"
+                                    /></svg
+                                >
+                            {/if}
+                        </button>
+                    {:else}
+                        <div class="py-12 text-center">
+                            <p class="text-text-muted text-sm italic">
+                                No teaching loads found.
+                            </p>
+                            <p class="text-[10px] text-text-muted mt-2">
+                                Check your profile or connection.
                             </p>
                         </div>
-                        {#if teachingLoadId === load.id}
-                            <svg
-                                class="w-6 h-6"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                                ><path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="3"
-                                    d="M5 13l4 4L19 7"
-                                /></svg
-                            >
-                        {/if}
-                    </button>
-                {/each}
+                    {/each}
+                {/if}
             </div>
         </div>
     </div>

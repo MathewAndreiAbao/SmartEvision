@@ -23,17 +23,26 @@
     });
 
     // WBS 20.3 & 20.4 — Proactive caching for full offline functionality
-    onMount(async () => {
+    let prefetchDone = false;
+
+    onMount(() => {
         settings.init(); // Initialize real-time settings
-        if ($user && $profile) {
-            await Promise.all([
-                preloadVerificationHashes(),
+    });
+
+    // Reactive prefetch: triggers as soon as profile is available
+    $effect(() => {
+        if ($user && $profile && !prefetchDone) {
+            prefetchDone = true;
+            Promise.all([
+                preloadVerificationHashes($profile.id),
                 prefetchOfflineMetadata(
                     $profile.id,
                     $profile.district_id || undefined,
                 ),
                 notifications.init($user.id),
-            ]);
+            ]).catch((err) => {
+                console.warn("[dashboard] Prefetch error:", err);
+            });
         }
     });
 </script>

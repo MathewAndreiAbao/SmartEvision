@@ -18,7 +18,6 @@
         School,
         User,
         Calendar,
-        Sparkles,
     } from "lucide-svelte";
 
     // ── Types ──
@@ -86,17 +85,7 @@
                 .select("*")
                 .eq("user_id", userProfile.id)
                 .order("created_at", { ascending: false });
-            allSubmissions = ((data as any[]) || []).map((s) => {
-                let ai = s.ai_analysis;
-                if (typeof ai === "string") {
-                    try {
-                        ai = JSON.parse(ai);
-                    } catch (e) {
-                        ai = null;
-                    }
-                }
-                return { ...s, ai_analysis: ai };
-            });
+            allSubmissions = (data as any[]) || [];
         } else if (role === "Master Teacher" || role === "School Head") {
             // School-scoped: fetch submissions from teachers at the same school
             if (!userProfile.school_id) return;
@@ -109,20 +98,7 @@
                 .eq("profiles.school_id", userProfile.school_id)
                 .order("created_at", { ascending: false });
 
-            allSubmissions = ((data as any[]) || []).map((s) => {
-                let ai = s.ai_analysis;
-                if (typeof ai === "string") {
-                    try {
-                        ai = JSON.parse(ai);
-                    } catch (e) {
-                        ai = null;
-                    }
-                }
-                return {
-                    ...s,
-                    uploader: s.uploader,
-                };
-            });
+            allSubmissions = (data as any[]) || [];
 
             // Build teachers map
             const tMap: Record<string, string> = {};
@@ -162,18 +138,9 @@
                 .order("created_at", { ascending: false });
 
             allSubmissions = ((data as any[]) || []).map((s) => {
-                let ai = s.ai_analysis;
-                if (typeof ai === "string") {
-                    try {
-                        ai = JSON.parse(ai);
-                    } catch (e) {
-                        ai = null;
-                    }
-                }
                 return {
                     ...s,
                     uploader: s.uploader,
-                    ai_analysis: ai,
                     school_name:
                         sMap[s.uploader?.school_id || ""] || "Unknown School",
                 };

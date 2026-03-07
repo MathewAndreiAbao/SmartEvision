@@ -28,18 +28,6 @@ export interface DocMetadata {
     weekSource?: 'calendar' | 'header-date' | 'regex' | 'none';
 }
 
-export interface DLLContent {
-    metadata: DocMetadata;
-    contentStandards: string[];
-    performanceStandards: string[];
-    learningCompetencies: string[];
-    content: string[];
-    learningActivities: string[];
-    resources: string[];
-    assessment: string[];
-    remarks: string | null;
-}
-
 export async function extractMetadata(file: File): Promise<DocMetadata> {
     const ext = file.name.split('.').pop()?.toLowerCase();
 
@@ -48,14 +36,22 @@ export async function extractMetadata(file: File): Promise<DocMetadata> {
         try {
             const pdfjsLib = (window as any)['pdfjsLib'];
             if (!pdfjsLib) {
-                console.warn('[ocr] PDF.js (pdfjsLib) not found on window. OCR for PDF skipped.');
+                console.warn('[ocr] PDF.js (pdfjsLib) not found on window. Attempting to use cached metadata if available...');
                 return createDefaultMetadata();
             }
 
             // Set worker source for pdf.js (crucial for some environments)
             if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
                 const version = pdfjsLib.version || '3.11.174';
-                pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
+
+                // Priority 1: Use CDN if online (likely already cached by browser)
+                if (navigator.onLine) {
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
+                } else {
+                    // Priority 2: Try local fallback (will only work if user has manually added it)
+                    // We use /pdf.worker.min.js as a convention
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.js`;
+                }
             }
 
             const arrayBuffer = await file.arrayBuffer();
@@ -89,15 +85,17 @@ export async function extractMetadata(file: File): Promise<DocMetadata> {
 
     try {
         const dataUrl = await fileToDataUrl(file);
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
         // SINGLE PASS OPTIMIZATION (WBS 14.5 Mobile)
-        // Instead of separate language detection pass, use combined 'eng+fil'
-        const worker = await createWorker('eng+fil');
+        // Tesseract.js automatically caches worker and langs in IndexedDB.
+        // As long as it's run once while online, it works offline.
+        const worker = await createWorker('eng+fil', 1, {
+            logger: m => console.log(m), // Helpful for debugging offline issues
+            errorHandler: err => console.error('[ocr] Tesseract Worker Error:', err)
+        });
 
         try {
             // OPTIMIZATION: Manual thresholding for low-end mobile CPUs
-            // Tesseract's internal binarization can be slow on low-end devices
             const { data: { text, confidence } } = await worker.recognize(dataUrl);
 
             // Post-process language detection from result
@@ -188,25 +186,6 @@ async function extractRasterMetadata(page: any, pdfjsLib: any): Promise<DocMetad
 function fileToDataUrl(file: File): Promise<string> {
     // Optimization: createObjectURL is much lighter than FileReader for large images
     return Promise.resolve(URL.createObjectURL(file));
-}
-
-/**
- * Extract and parse DLL content from a document
- * Supports both English and Filipino DLL documents
- */
-export async function extractDLLContent(file: File): Promise<DLLContent> {
-    const { parseDLLContent } = await import('./dll-parser');
-
-    console.log('[ocr] Extracting DLL content from file:', file.name);
-
-    const metadata = await extractMetadata(file);
-
-    if (metadata.docType !== 'DLL') {
-        console.warn('[ocr] Document is not a DLL, parsing as DLL anyway...');
-    }
-
-    const dllContent = await parseDLLContent(metadata.rawText, metadata);
-    return dllContent;
 }
 
 function detectLanguage(text: string): 'English' | 'Filipino' | 'Unknown' {

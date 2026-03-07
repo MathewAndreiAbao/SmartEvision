@@ -74,10 +74,13 @@ export async function prefetchOfflineMetadata(userId: string, districtId?: strin
     try {
         console.log('[offline] Pre-fetching metadata for offline upload...');
 
-        // 1. Fetch Teaching Loads
+        // 1. Fetch ALL Teaching Loads for the user
         const { data: loads, error: loadsErr } = await supabase
             .from('teaching_loads')
-            .select('id, subject, grade_level')
+            .select(`
+                id, subject, grade_level, is_active,
+                profiles:user_id ( full_name )
+            `)
             .eq('user_id', userId)
             .eq('is_active', true);
 
@@ -86,24 +89,102 @@ export async function prefetchOfflineMetadata(userId: string, districtId?: strin
             console.log(`[offline] Cached ${loads.length} teaching loads`);
         }
 
-        // 2. Fetch Academic Calendar (Upcoming weeks)
+        // 2. Fetch ALL Academic Calendar weeks for the district (for week resolution)
+        let calendarData: any[] = [];
         if (districtId) {
             const { data: calendar, error: calErr } = await supabase
                 .from('academic_calendar')
-                .select('week_number, deadline_date, description')
+                .select('id, week_number, deadline_date, description')
                 .eq('district_id', districtId)
-                .gte('deadline_date', new Date().toISOString())
-                .order('deadline_date', { ascending: true })
-                .limit(10);
+                .order('week_number', { ascending: true });
 
-            if (!calErr && calendar) {
+            if (!calErr && calendar && calendar.length > 0) {
+                calendarData = calendar;
                 await cacheMetadata(`calendar_${districtId}`, calendar);
-                console.log(`[offline] Cached ${calendar.length} calendar events`);
+                console.log(`[offline] Cached ${calendar.length} calendar weeks for district ${districtId}`);
             }
         }
+
+        // Fallback: If no district calendar found, fetch global/common
+        if (calendarData.length === 0) {
+            const { data: globalCal, error: globalCalErr } = await supabase
+                .from('academic_calendar')
+                .select('id, week_number, deadline_date, description')
+                .order('week_number', { ascending: true });
+
+            if (!globalCalErr && globalCal) {
+                calendarData = globalCal;
+                await cacheMetadata('calendar_all', globalCal);
+                // Also cache as district-specific if possible to avoid redundant fetches
+                if (districtId) await cacheMetadata(`calendar_${districtId}`, globalCal);
+                console.log(`[offline] Cached ${globalCal.length} global calendar weeks (fallback)`);
+            }
+        }
+
+        // 3. Fetch Submission History (for Copilot context)
+        const { data: subs, error: subsErr } = await supabase
+            .from('submissions')
+            .select('teaching_load_id, week_number, doc_type, compliance_status, created_at')
+            .eq('user_id', userId)
+            .eq('school_year', '2025-2026')
+            .order('created_at', { ascending: false })
+            .limit(100);
+
+        if (!subsErr && subs) {
+            await cacheMetadata(`submission_history_${userId}`, subs);
+            console.log(`[offline] Cached ${subs.length} submission history records`);
+        }
+
+        // 4. Cache current year settings
+        const currentYear = '2025-2026'; // Should ideally come from a config or profile
+        await cacheMetadata('current_school_year', currentYear);
+
+        console.log('[offline] Offline metadata pre-fetch complete.');
     } catch (err) {
         console.warn('[offline] prefetchOfflineMetadata error:', err);
     }
+}
+
+/**
+ * Check if the device has all necessary metadata cached for offline upload.
+ */
+export async function verifyOfflineReadiness(userId: string, districtId?: string): Promise<{
+    ready: boolean;
+    missing: string[];
+    counts: Record<string, number>;
+}> {
+    const missing: string[] = [];
+    const counts: Record<string, number> = {};
+
+    const loads = await getCachedMetadata(`teaching_loads_${userId}`);
+    if (!loads?.data || (loads.data as any[]).length === 0) {
+        missing.push('Teaching Loads');
+    } else {
+        counts.loads = (loads.data as any[]).length;
+    }
+
+    const calendar = districtId
+        ? await getCachedMetadata(`calendar_${districtId}`)
+        : await getCachedMetadata('calendar_all');
+
+    if (!calendar?.data || (calendar.data as any[]).length === 0) {
+        missing.push('Academic Calendar');
+    } else {
+        counts.weeks = (calendar.data as any[]).length;
+    }
+
+    const history = await getCachedMetadata(`submission_history_${userId}`);
+    if (!history?.data || (history.data as any[]).length === 0) {
+        // History is optional but recommended
+    } else {
+        counts.history = (history.data as any[]).length;
+    }
+
+    return {
+        ready: missing.length === 0,
+        missing,
+        counts
+    };
 }
 
 /**
@@ -115,12 +196,12 @@ export async function prefetchOfflineMetadata(userId: string, districtId?: strin
  * 
  * Should be called on login and periodically when online.
  */
-export async function preloadVerificationHashes(): Promise<number> {
+export async function preloadVerificationHashes(userId?: string): Promise<number> {
     try {
         // Check if we're online
         if (!navigator.onLine) return 0;
 
-        const { data, error } = await supabase
+        let query = supabase
             .from('submissions')
             .select(`
                 file_hash, file_name, doc_type, compliance_status, created_at, 
@@ -129,8 +210,14 @@ export async function preloadVerificationHashes(): Promise<number> {
                 teaching_loads ( subject, grade_level )
             `)
             .not('file_hash', 'like', 'missing_%')
-            .order('created_at', { ascending: false })
-            .limit(500);
+            .order('created_at', { ascending: false });
+
+        // Scope to current user to reduce cache size
+        if (userId) {
+            query = query.eq('user_id', userId);
+        }
+
+        const { data, error } = await query.limit(200);
 
         if (error || !data) return 0;
 
@@ -182,7 +269,6 @@ export interface QueueItem {
         subject?: string;
         calendarId?: string;
         teachingLoadId?: string;
-        ai_analysis?: any;
     };
     timestamp: number;
 }
@@ -231,6 +317,10 @@ export async function getQueueSize(): Promise<number> {
 export async function updatePendingCount(): Promise<void> {
     const size = await getQueueSize();
     pendingSyncCount.set(size);
+
+    // Sync to Global App Icon Badge
+    const { updateAppBadge } = await import('./badge');
+    await updateAppBadge();
 }
 
 export async function getQueueItems(): Promise<QueueItem[]> {
@@ -410,32 +500,26 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                     subject: item.options.subject,
                     calendar_id: item.options.calendarId || null,
                     teaching_load_id: item.options.teachingLoadId || null,
-                    compliance_status: complianceStatus,
-                    ai_analysis: item.options.ai_analysis || null
+                    compliance_status: complianceStatus
                 });
 
-                // Resilience: If ai_analysis column is missing (PGRST204), retry without it
                 if (dbError?.code === 'PGRST204') {
-                    console.warn('[pipeline] ai_analysis column missing. Retrying without AI data.');
-                    const { error: retryError } = await supabase.from('submissions').insert({
-                        user_id: item.options.userId,
-                        file_name: item.fileName,
-                        file_path: item.filePath,
-                        file_hash: item.fileHash,
-                        file_size: item.fileSize,
-                        doc_type: item.options.docType || 'Unknown',
-                        week_number: item.options.weekNumber,
-                        school_year: item.options.schoolYear || '2025-2026',
-                        subject: item.options.subject,
-                        calendar_id: item.options.calendarId || null,
-                        teaching_load_id: item.options.teachingLoadId || null,
-                        compliance_status: complianceStatus
-                    });
-                    dbError = retryError;
+                    // Column already missing or other error, handled by generic check below
                 }
 
                 if (dbError) {
                     console.error('[pipeline] DB insert error:', dbError);
+
+                    // Handle unique constraint violation (WBS 14.5 duplicate prevention)
+                    // code 23505 = Unique Violation in Postgres
+                    if (dbError.code === '23505' || dbError.message?.includes('unique_submission_per_load_week')) {
+                        console.warn(`[offline] Removing duplicate record from queue: ${item.fileName}`);
+                        await del(key); // Cancel the sync for this item as it already exists
+                        addToast('warning', `Already submitted: ${item.fileName} is already archived for this week.`);
+                        success++; // Count as "processed" to avoid misleading error toast
+                        continue;
+                    }
+
                     throw new Error(`DB Insert failed: ${dbError.message}`);
                 }
 

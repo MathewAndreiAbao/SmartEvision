@@ -99,11 +99,21 @@ export async function* runPipeline(
                 if (detectedMetadata?.dateRange && !detectedMetadata.weekNumber && !options.weekNumber) {
                     try {
                         const { getCachedMetadata } = await import('./offline');
-                        // Try cached calendar first (offline-compatible)
-                        const cachedCal = await getCachedMetadata('calendar_all');
-                        let calendar = cachedCal?.data || [];
 
-                        // Fallback: fetch live if online and no cache
+                        // 1. Try district-specific calendar first
+                        let calendar: any[] = [];
+                        if (options.preDetectedMetadata?.district_id) {
+                            const cached = await getCachedMetadata(`calendar_${options.preDetectedMetadata.district_id}`);
+                            calendar = cached?.data || [];
+                        }
+
+                        // 2. Try 'calendar_all' as fallback
+                        if (calendar.length === 0) {
+                            const cachedCal = await getCachedMetadata('calendar_all');
+                            calendar = cachedCal?.data || [];
+                        }
+
+                        // 3. Fallback: fetch live if online and no cache
                         if (calendar.length === 0 && navigator.onLine) {
                             const { data } = await (await import('./supabase')).supabase
                                 .from('academic_calendar')
@@ -175,16 +185,27 @@ export async function* runPipeline(
         // Tier 0.5: Metadata Uniqueness Check (One upload per load/week)
         if (navigator.onLine && options.teachingLoadId && options.weekNumber) {
             yield { phase: 'uploading', progress: 0, message: 'Checking metadata integrity...' };
-            const { data: metaMatch } = await supabase
-                .from('submissions')
-                .select('id')
-                .eq('teaching_load_id', options.teachingLoadId)
-                .eq('week_number', options.weekNumber)
-                .eq('school_year', options.schoolYear || '2025-2026')
-                .maybeSingle();
+            try {
+                const metaCheckPromise = supabase
+                    .from('submissions')
+                    .select('id')
+                    .eq('teaching_load_id', options.teachingLoadId)
+                    .eq('week_number', options.weekNumber)
+                    .eq('school_year', options.schoolYear || '2025-2026')
+                    .maybeSingle();
 
-            if (metaMatch) {
-                throw new Error(`Archival failed: A document has already been submitted for this teaching load in Week ${options.weekNumber}.`);
+                const metaTimeout = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Metadata check timeout')), 5000)
+                );
+
+                const { data: metaMatch }: any = await Promise.race([metaCheckPromise, metaTimeout]);
+
+                if (metaMatch) {
+                    throw new Error(`Archival failed: A document has already been submitted for this teaching load in Week ${options.weekNumber}.`);
+                }
+            } catch (metaErr: any) {
+                if (metaErr?.message?.includes('Archival failed')) throw metaErr;
+                console.warn('[pipeline] Metadata integrity check skipped (timeout/offline):', metaErr?.message);
             }
         }
 
