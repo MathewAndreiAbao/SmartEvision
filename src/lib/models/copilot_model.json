@@ -19,27 +19,27 @@
         "missing": {
             "title": "Missing Submission",
             "message": "{subject} (Grade {grade}) — Week {week} {docType} not yet submitted",
-            "icon": "📋"
+            "icon": ""
         },
         "deadline": {
             "title": "Deadline Alert",
             "message": "Week {week} submission is due {days}",
-            "icon": "⏰"
+            "icon": ""
         },
         "duplicate": {
             "title": "Already Submitted",
             "message": "A {docType} for Week {week} has already been archived for this teaching load",
-            "icon": "⚠️"
+            "icon": ""
         },
         "recommendation": {
             "title": "Suggested Upload",
             "message": "Submit {subject} (Grade {grade}) {docType} to complete this week's requirements",
-            "icon": "💡"
+            "icon": ""
         },
         "tip": {
             "title": "Compliance Streak",
             "message": "",
-            "icon": "🔥"
+            "icon": ""
         }
     }
 }

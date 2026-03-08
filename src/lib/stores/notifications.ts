@@ -44,10 +44,34 @@ function createNotificationStore() {
                 .limit(20);
 
             if (!error && data) {
-                set(data);
-                // Also update cache for next time
-                const { cacheMetadata } = await import('$lib/utils/offline');
-                await cacheMetadata(getCacheKey(userId), data);
+                if (data.length === 0) {
+                    set([]); // Clear loading state even if empty
+
+                    // Only attempt welcome notification if online and not already sent this session
+                    const welcomeSent = localStorage.getItem(`welcome_sent_${userId}`);
+                    if (navigator.onLine && !welcomeSent) {
+                        const { createNotification } = await import('$lib/utils/notificationSystem');
+                        const success = await createNotification(
+                            userId,
+                            'Welcome to Smart E-VISION',
+                            'Your instructional supervision dashboard is ready. All your archivals and alerts will appear here.',
+                            'info'
+                        );
+                        if (success) {
+                            localStorage.setItem(`welcome_sent_${userId}`, 'true');
+                        }
+                    }
+                } else {
+                    set(data);
+                    // Also update cache for next time
+                    const { cacheMetadata } = await import('$lib/utils/offline');
+                    await cacheMetadata(getCacheKey(userId), data);
+                }
+            } else if (error) {
+                console.warn('[notifications] Fetch error:', error.message);
+                // Fallback: If network is down, we already loaded from cache above.
+                // If cache also empty, set to empty array to stop loading spinners.
+                update(current => current.length ? current : []);
             }
 
             // 3. Setup Real-time listener
@@ -68,6 +92,12 @@ function createNotificationStore() {
                             const newNotif = payload.new as Notification;
                             update(n => [newNotif, ...n]);
                             addToast(newNotif.type, `${newNotif.title}: ${newNotif.message}`);
+
+                            // Trigger native push notification
+                            import('$lib/utils/notifications').then(m => {
+                                m.sendLocalNotification(newNotif.title, newNotif.message);
+                            });
+
                             if ('vibrate' in navigator) navigator.vibrate(50);
                         } else if (payload.eventType === 'UPDATE') {
                             update(n => n.map(item => item.id === payload.new.id ? payload.new as Notification : item));

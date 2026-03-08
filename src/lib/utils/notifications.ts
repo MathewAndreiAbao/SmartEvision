@@ -5,6 +5,9 @@ import { supabase } from './supabase';
  * Innovative Feature: Phase 4.2 implementation.
  * Uses native Push API + Notification API.
  */
+/**
+ * Handle Web Push Notification subscriptions.
+ */
 export async function subscribeToPush() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         console.warn('Push notifications not supported in this browser');
@@ -43,10 +46,7 @@ export async function subscribeToPush() {
         }
 
         // 4. Test Notification (Local)
-        new Notification('Smart E-VISION', {
-            body: 'Push notifications enabled! You will now receive compliance alerts.',
-            icon: '/icon-192.png'
-        });
+        await sendLocalNotification('Smart E-VISION', 'Push notifications enabled! You will now receive compliance alerts.');
 
         return true;
     } catch (err) {
@@ -56,11 +56,56 @@ export async function subscribeToPush() {
 }
 
 /**
+ * Unsubscribe from Push Notifications.
+ */
+export async function unsubscribeFromPush() {
+    if (!('serviceWorker' in navigator)) return false;
+
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+
+        if (subscription) {
+            await subscription.unsubscribe();
+        }
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            await supabase.from('profiles').update({
+                push_subscription: null
+            }).eq('id', user.id);
+        }
+
+        return true;
+    } catch (err) {
+        console.error('Unsubscribe failed:', err);
+        return false;
+    }
+}
+
+/**
+ * Send a test push notification.
+ */
+export async function sendTestNotification() {
+    return sendLocalNotification(
+        'Test Alert',
+        'This is a real-time test of the Smart E-VISION notification system.'
+    );
+}
+
+/**
  * Trigger a local system notification.
  * Uses Service Worker for maximum reliability on mobile/PWA.
  */
 export async function sendLocalNotification(title: string, body: string) {
-    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    if (!('Notification' in window)) return;
+
+    // Request permission if not already granted
+    if (Notification.permission === 'default') {
+        await Notification.requestPermission();
+    }
+
+    if (Notification.permission !== 'granted') return;
 
     try {
         if ('serviceWorker' in navigator) {

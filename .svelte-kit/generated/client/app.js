@@ -33,7 +33,7 @@ export const dictionary = {
 		"/dashboard/monitoring/district": [11,[2]],
 		"/dashboard/monitoring/school": [12,[2]],
 		"/dashboard/settings": [13,[2]],
-		"/dashboard/upload": [14,[2]],
+		"/dashboard/upload": [~14,[2]],
 		"/verify/[hash]": [15]
 	};
 

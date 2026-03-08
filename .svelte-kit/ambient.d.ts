@@ -27,6 +27,7 @@
  */
 declare module '$env/static/private' {
 	export const ALLUSERSPROFILE: string;
+	export const ANTIGRAVITY_AGENT: string;
 	export const ANTIGRAVITY_CLI_ALIAS: string;
 	export const APPDATA: string;
 	export const BUNDLED_DEBUGPY_PATH: string;
@@ -40,8 +41,6 @@ declare module '$env/static/private' {
 	export const CURL_CA_BUNDLE: string;
 	export const DriverData: string;
 	export const EDITOR: string;
-	export const FPS_BROWSER_APP_PROFILE_STRING: string;
-	export const FPS_BROWSER_USER_PROFILE_STRING: string;
 	export const GDAL_DATA: string;
 	export const GIT_ASKPASS: string;
 	export const HOME: string;
@@ -52,7 +51,6 @@ declare module '$env/static/private' {
 	export const LOCALAPPDATA: string;
 	export const LOGONSERVER: string;
 	export const NODE: string;
-	export const NODE_ENV: string;
 	export const npm_command: string;
 	export const npm_config_cache: string;
 	export const npm_config_globalconfig: string;
@@ -75,6 +73,7 @@ declare module '$env/static/private' {
 	export const NUMBER_OF_PROCESSORS: string;
 	export const OPENSSL_CONF: string;
 	export const OS: string;
+	export const PAGER: string;
 	export const Path: string;
 	export const PATHEXT: string;
 	export const POSTGIS_ENABLE_OUTDB_RASTERS: string;
@@ -147,6 +146,7 @@ declare module '$env/static/public' {
 declare module '$env/dynamic/private' {
 	export const env: {
 		ALLUSERSPROFILE: string;
+		ANTIGRAVITY_AGENT: string;
 		ANTIGRAVITY_CLI_ALIAS: string;
 		APPDATA: string;
 		BUNDLED_DEBUGPY_PATH: string;
@@ -160,8 +160,6 @@ declare module '$env/dynamic/private' {
 		CURL_CA_BUNDLE: string;
 		DriverData: string;
 		EDITOR: string;
-		FPS_BROWSER_APP_PROFILE_STRING: string;
-		FPS_BROWSER_USER_PROFILE_STRING: string;
 		GDAL_DATA: string;
 		GIT_ASKPASS: string;
 		HOME: string;
@@ -172,7 +170,6 @@ declare module '$env/dynamic/private' {
 		LOCALAPPDATA: string;
 		LOGONSERVER: string;
 		NODE: string;
-		NODE_ENV: string;
 		npm_command: string;
 		npm_config_cache: string;
 		npm_config_globalconfig: string;
@@ -195,6 +192,7 @@ declare module '$env/dynamic/private' {
 		NUMBER_OF_PROCESSORS: string;
 		OPENSSL_CONF: string;
 		OS: string;
+		PAGER: string;
 		Path: string;
 		PATHEXT: string;
 		POSTGIS_ENABLE_OUTDB_RASTERS: string;

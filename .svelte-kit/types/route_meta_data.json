@@ -1,8 +1,5 @@
 {
 	"/": [],
-	"/api/summarize": [
-		"src/routes/api/summarize/+server.ts"
-	],
 	"/auth/login": [],
 	"/dashboard": [
 		"src/routes/dashboard/+layout.ts",
@@ -33,6 +30,7 @@
 		"src/routes/dashboard/+layout.ts"
 	],
 	"/dashboard/upload": [
+		"src/routes/dashboard/upload/+page.server.ts",
 		"src/routes/dashboard/+layout.ts"
 	],
 	"/verify/[hash]": []

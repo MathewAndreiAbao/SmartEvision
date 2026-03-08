@@ -309,7 +309,7 @@ function generateTips(ctx: CopilotContext, startId: number): CopilotSuggestion[]
             priority: 'medium',
             title: 'Get Started',
             message: 'Upload your first document to begin building your compliance record.',
-            icon: '🚀'
+            icon: ''
         });
     }
 
@@ -367,7 +367,7 @@ export function validateSelection(selectedLoadId: string, ocrText: string, teach
             priority: 'high',
             title: 'Content Mismatch Detected',
             message: `This document looks like **${prediction.subject}**, but you've selected **${selectedLoad.subject}**. Please verify.`,
-            icon: '⚠️',
+            icon: '',
             action: {
                 subject: prediction.subject
             }

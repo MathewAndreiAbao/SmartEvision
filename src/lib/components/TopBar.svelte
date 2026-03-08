@@ -19,7 +19,6 @@
     <div class="hidden lg:block"></div>
 
     <div class="flex items-center gap-4">
-        <OfflineReadyBadge />
         <NotificationCenter />
 
         <div class="h-8 w-px bg-border-subtle mx-1"></div>

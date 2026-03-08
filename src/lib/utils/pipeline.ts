@@ -6,6 +6,8 @@
 
 import { transcodeToPdf } from './transcode';
 import { supabase } from './supabase';
+import { enqueue } from './offline';
+import { createNotification } from './notificationSystem';
 import { env } from '$env/dynamic/public';
 import PdfWorker from './pdf.worker?worker';
 
@@ -297,6 +299,15 @@ export async function* runPipeline(
             message: 'Queued for background sync!',
             result: { fileHash, filePath, fileSize: stamped.byteLength, fileName }
         };
+
+        // Create a persistent system notification for the archival
+        await createNotification(
+            options.userId,
+            'Archival Successful',
+            `Successfully archived ${options.docType} for ${options.subject || 'Subject'} - Week ${options.weekNumber}.`,
+            'success',
+            '/dashboard/archive'
+        );
 
         yield {
             phase: 'done',

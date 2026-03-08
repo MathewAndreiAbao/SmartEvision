@@ -165,7 +165,6 @@
                     class="p-6 text-center rounded-md bg-gov-green/3 border border-gov-green/10"
                     in:fade={{ duration: 300 }}
                 >
-                    <div class="text-3xl mb-2">✅</div>
                     <p class="text-sm font-semibold text-gov-green">
                         All Clear!
                     </p>
@@ -183,9 +182,11 @@
                         in:fly={{ x: 15, duration: 300, delay: i * 80 }}
                     >
                         <div class="flex items-start gap-3">
-                            <span class="text-lg mt-0.5 flex-shrink-0"
-                                >{suggestion.icon}</span
-                            >
+                            {#if suggestion.icon}
+                                <span class="text-lg mt-0.5 flex-shrink-0"
+                                    >{suggestion.icon}</span
+                                >
+                            {/if}
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-2 mb-1">
                                     <span

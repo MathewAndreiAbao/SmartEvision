@@ -228,7 +228,6 @@
                     </button>
                 </div>
 
-                <!-- Web Push Notifications -->
                 <div
                     class="flex items-center justify-between py-2 border-b border-gray-100"
                 >
@@ -238,23 +237,48 @@
                             >Push Notifications</span
                         >
                         <p class="text-[10px] text-text-muted">
-                            Receive alerts for deadlines and reviews
+                            Receive real-time alerts for deadlines and reviews
                         </p>
                     </div>
-                    <button
-                        onclick={async () => {
-                            const { subscribeToPush } = await import(
-                                "$lib/utils/notifications"
-                            );
-                            const granted = await subscribeToPush();
-                            if (granted) pushEnabled = true;
-                        }}
-                        class="px-3 py-1.5 text-xs font-bold rounded-lg border-2 {pushEnabled
-                            ? 'border-gov-green text-gov-green bg-gov-green/5'
-                            : 'border-gov-blue text-gov-blue hover:bg-gov-blue/5'} transition-colors"
-                    >
-                        {pushEnabled ? "SUBSCRIBED" : "Subscribe Now"}
-                    </button>
+                    <div class="flex items-center gap-3">
+                        <button
+                            onclick={async () => {
+                                const { subscribeToPush, unsubscribeFromPush } =
+                                    await import("$lib/utils/notifications");
+                                if (pushEnabled) {
+                                    const success = await unsubscribeFromPush();
+                                    if (success) {
+                                        pushEnabled = false;
+                                        addToast(
+                                            "success",
+                                            "Unsubscribed from push notifications",
+                                        );
+                                    }
+                                } else {
+                                    const granted = await subscribeToPush();
+                                    if (granted) {
+                                        pushEnabled = true;
+                                        addToast(
+                                            "success",
+                                            "Push notifications enabled!",
+                                        );
+                                    }
+                                }
+                            }}
+                            class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-gov-blue focus:ring-offset-2 {pushEnabled
+                                ? 'bg-gov-green'
+                                : 'bg-gray-200'}"
+                        >
+                            <span class="sr-only"
+                                >Toggle push notifications</span
+                            >
+                            <span
+                                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {pushEnabled
+                                    ? 'translate-x-6'
+                                    : 'translate-x-1'}"
+                            ></span>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="flex items-center justify-between py-2">

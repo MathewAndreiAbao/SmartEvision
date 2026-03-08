@@ -14,6 +14,13 @@ export async function createNotification(
     link?: string
 ) {
     try {
+        const { data: { user } } = await supabase.auth.getUser();
+        console.log('[Notification System] Attempting insert:', {
+            targetUserId: userId,
+            sessionUserId: user?.id,
+            match: userId === user?.id
+        });
+
         const { error } = await supabase
             .from('notifications')
             .insert({
@@ -27,7 +34,12 @@ export async function createNotification(
             });
 
         if (error) {
-            console.error('[Notification System] Failed to push notification:', error);
+            if (error.code === '42501') {
+                console.warn('[Notification System] RLS Policy Blocked: Target ID', userId, 'vs Session ID', user?.id);
+                console.warn('[Notification System] Please check your Supabase RLS policies for the "notifications" table.');
+            } else {
+                console.error('[Notification System] Failed to push notification:', error.message);
+            }
             return false;
         }
         return true;
