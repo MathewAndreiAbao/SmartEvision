@@ -81,12 +81,20 @@
     async function checkExistingSubmission() {
         if (!$profile) return;
 
+        const targetLoadId = teachingLoadId;
+        const targetWeek = Number(weekNumber);
+
+        if (!targetLoadId || isNaN(targetWeek)) {
+            submissionAlreadyExists = false;
+            return;
+        }
+
         // 1. Check local cache/history first (Immediate + Offline support)
+        // STRICT POLICY: Only one upload per load per week (any doc type)
         const localMatch = submissionHistory.find(
             (s) =>
-                s.teaching_load_id === teachingLoadId &&
-                s.week_number === weekNumber &&
-                s.doc_type === docType,
+                s.teaching_load_id === targetLoadId &&
+                Number(s.week_number) === targetWeek,
         );
 
         if (localMatch) {
@@ -99,10 +107,8 @@
             const { data, error } = await supabase
                 .from("submissions")
                 .select("id")
-                .eq("user_id", $profile.id)
-                .eq("teaching_load_id", teachingLoadId)
-                .eq("week_number", weekNumber)
-                .eq("doc_type", docType)
+                .eq("teaching_load_id", targetLoadId)
+                .eq("week_number", targetWeek)
                 .eq("school_year", "2025-2026")
                 .maybeSingle();
 
@@ -1167,6 +1173,15 @@
                         </div>
                     </div>
                 </div>
+                {#if untrack(() => {
+                    // Update internal history to prevent immediate re-upload
+                    const exists = submissionHistory.some((s) => s.teaching_load_id === teachingLoadId && s.week_number === weekNumber);
+                    if (!exists) {
+                        submissionHistory = [{ teaching_load_id: teachingLoadId, week_number: weekNumber, doc_type: docType, created_at: new Date().toISOString() }, ...submissionHistory];
+                        submissionAlreadyExists = true;
+                    }
+                    return false;
+                })}{/if}
             {/if}
         </div>
 
