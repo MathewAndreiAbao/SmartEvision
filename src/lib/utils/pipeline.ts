@@ -191,8 +191,10 @@ export async function* runPipeline(
                 const metaCheckPromise = supabase
                     .from('submissions')
                     .select('id')
+                    .eq('user_id', options.userId)
                     .eq('teaching_load_id', options.teachingLoadId)
                     .eq('week_number', options.weekNumber)
+                    .eq('doc_type', options.docType)
                     .eq('school_year', options.schoolYear || '2025-2026')
                     .maybeSingle();
 

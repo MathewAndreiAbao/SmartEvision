@@ -79,19 +79,41 @@
     });
 
     async function checkExistingSubmission() {
-        const { data, error } = await supabase
-            .from("submissions")
-            .select("id, doc_type")
-            .eq("teaching_load_id", teachingLoadId)
-            .eq("week_number", weekNumber)
-            .eq("school_year", "2025-2026")
-            .maybeSingle();
+        if (!$profile) return;
 
-        if (error) {
-            console.error("[v0] Error checking existence:", error);
+        // 1. Check local cache/history first (Immediate + Offline support)
+        const localMatch = submissionHistory.find(
+            (s) =>
+                s.teaching_load_id === teachingLoadId &&
+                s.week_number === weekNumber &&
+                s.doc_type === docType,
+        );
+
+        if (localMatch) {
+            submissionAlreadyExists = true;
             return;
         }
-        submissionAlreadyExists = !!data;
+
+        // 2. Check online database if available
+        if (navigator.onLine) {
+            const { data, error } = await supabase
+                .from("submissions")
+                .select("id")
+                .eq("user_id", $profile.id)
+                .eq("teaching_load_id", teachingLoadId)
+                .eq("week_number", weekNumber)
+                .eq("doc_type", docType)
+                .eq("school_year", "2025-2026")
+                .maybeSingle();
+
+            if (error) {
+                console.error("[upload] Error checking existence:", error);
+                return;
+            }
+            submissionAlreadyExists = !!data;
+        } else {
+            submissionAlreadyExists = false;
+        }
     }
 
     // Watch weekNumber and fetch deadline
