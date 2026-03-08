@@ -207,7 +207,8 @@ function detectDuplicates(ctx: CopilotContext, startId: number): CopilotSuggesti
 
     const existing = ctx.submissions.find(
         s => s.teaching_load_id === ctx.selectedLoadId &&
-            Number(s.week_number) === Number(ctx.selectedWeek)
+            s.week_number === ctx.selectedWeek &&
+            s.doc_type === ctx.selectedDocType
     );
 
     if (existing) {
