@@ -7,6 +7,7 @@
 import { get, set, del, keys } from 'idb-keyval';
 import { writable } from 'svelte/store';
 import { supabase } from './supabase';
+import { withTimeout } from './pipeline';
 import { env } from '$env/dynamic/public';
 
 export const pendingSyncCount = writable<number>(0);
@@ -422,7 +423,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
 
                 // 1. Strict Metadata Check (One per load/week/type)
                 if (item.options.teachingLoadId && item.options.weekNumber) {
-                    const { data: metaMatch } = await supabase
+                    const metaCheckPromise = supabase
                         .from('submissions')
                         .select('id')
                         .eq('teaching_load_id', item.options.teachingLoadId)
@@ -430,6 +431,12 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                         .eq('school_year', item.options.schoolYear || '2025-2026')
                         .eq('doc_type', item.options.docType || 'DLL')
                         .maybeSingle();
+
+                    const { data: metaMatch } = await withTimeout(
+                        metaCheckPromise as any,
+                        10000,
+                        'Meta check timed out'
+                    ) as { data: any };
 
                     if (metaMatch) {
                         console.warn(`[offline] Slot already taken on server: ${item.fileName}`);
@@ -442,11 +449,17 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                 }
 
                 // 2. Strict File Hash Check (No identical content)
-                const { data: existing } = await supabase
+                const hashCheckPromise = supabase
                     .from('submissions')
                     .select('id')
                     .eq('file_hash', item.fileHash)
                     .maybeSingle();
+
+                const { data: existing } = await withTimeout(
+                    hashCheckPromise as any,
+                    10000,
+                    'Hash check timed out'
+                ) as { data: any };
 
                 if (existing) {
                     console.warn(`[offline] Duplicate hash on server: ${item.fileName}`);
@@ -465,7 +478,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                 const storageUrl = `${env.PUBLIC_SUPABASE_URL}/storage/v1/object/submissions/${item.filePath}`;
                 const uploadFile = new File([item.pdfBytes as any], item.fileName, { type: 'application/pdf' });
 
-                const uploadResponse = await fetch(storageUrl, {
+                const uploadPromise = fetch(storageUrl, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${accessToken}`,
@@ -473,6 +486,12 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                     },
                     body: uploadFile
                 });
+
+                const uploadResponse = await withTimeout(
+                    uploadPromise,
+                    60000, // 60s for background sync upload
+                    'Sync storage upload timed out'
+                );
 
                 if (!uploadResponse.ok) {
                     const errBody = await uploadResponse.text().catch(() => 'Unknown error');
@@ -509,7 +528,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                 // ── Insert database record ──
                 const complianceStatus = calculateComplianceStatus(new Date(), deadlineDate);
 
-                const { error: dbError } = await supabase.from('submissions').insert({
+                const insertPromise = supabase.from('submissions').insert({
                     user_id: item.options.userId,
                     file_name: item.fileName,
                     file_path: item.filePath,
@@ -523,6 +542,12 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                     teaching_load_id: item.options.teachingLoadId || null,
                     compliance_status: complianceStatus
                 });
+
+                const { error: dbError } = await withTimeout(
+                    insertPromise as any,
+                    15000,
+                    'Sync DB insert timed out'
+                ) as { error: any };
 
                 if (dbError) {
                     console.error('[sync] DB insert error:', dbError);

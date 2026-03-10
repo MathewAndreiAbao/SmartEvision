@@ -76,6 +76,26 @@ function runWorkerTask(worker: Worker, type: string, payload: any, transfer: Tra
     });
 }
 
+// ─── Timeout Helper ──────────────────────────────────────────────────────────
+
+/**
+ * Wraps a promise with a timeout.
+ * Prevents indefinite hangs on unstable or glitchy connections.
+ */
+export async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
+    let timeoutId: any;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(errorMessage)), timeoutMs);
+    });
+
+    try {
+        const result = await Promise.race([promise, timeoutPromise]);
+        return result as T;
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
+
 // ─── Core Pipeline (shared by online + offline) ─────────────────────────────
 
 interface CoreResult {
@@ -294,12 +314,18 @@ export async function* runOnlinePipeline(
 
         // Hash uniqueness
         try {
-            const { data: hashMatch, error: hashErr } = await supabase
+            const hashCheckPromise = supabase
                 .from('submissions')
                 .select('id, file_name, doc_type, week_number')
                 .eq('file_hash', fileHash)
                 .limit(1)
                 .maybeSingle();
+
+            const { data: hashMatch, error: hashErr } = await withTimeout(
+                hashCheckPromise as any,
+                10000,
+                'Hash integrity check timed out. Please check your connection and try again.'
+            ) as { data: any, error: any };
 
             if (hashErr) throw new Error(`Integrity check failed: ${hashErr.message}`);
 
@@ -308,7 +334,7 @@ export async function* runOnlinePipeline(
             }
         } catch (err: any) {
             // Rethrow if it's a duplicate error, otherwise fail strictly
-            if (err?.message?.includes('Duplicate') || err?.message?.includes('already archived')) throw err;
+            if (err?.message?.includes('Duplicate') || err?.message?.includes('already archived') || err?.message?.includes('timed out')) throw err;
             throw new Error(`Integrity verification unavailable: ${err?.message || 'Check failed'}. Please try again when online.`);
         }
 
@@ -351,7 +377,7 @@ export async function* runOnlinePipeline(
         const storageUrl = `${env.PUBLIC_SUPABASE_URL}/storage/v1/object/submissions/${filePath}`;
         const uploadFile = new File([stampedBytes as any], fileName, { type: 'application/pdf' });
 
-        const uploadResponse = await fetch(storageUrl, {
+        const uploadPromise = fetch(storageUrl, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
@@ -359,6 +385,12 @@ export async function* runOnlinePipeline(
             },
             body: uploadFile
         });
+
+        const uploadResponse = await withTimeout(
+            uploadPromise,
+            45000, // 45s for storage upload
+            'Storage upload timed out. The file might be too large or the connection is unstable.'
+        );
 
         if (!uploadResponse.ok) {
             const errBody = await uploadResponse.text().catch(() => 'Unknown error');
@@ -397,7 +429,7 @@ export async function* runOnlinePipeline(
         // ── DB Insert ──
         const complianceStatus = calculateComplianceStatus(new Date(), deadlineDate);
 
-        const { error: dbError } = await supabase.from('submissions').insert({
+        const insertPromise = supabase.from('submissions').insert({
             user_id: options.userId,
             file_name: fileName,
             file_path: filePath,
@@ -411,6 +443,12 @@ export async function* runOnlinePipeline(
             teaching_load_id: options.teachingLoadId || null,
             compliance_status: complianceStatus
         });
+
+        const { error: dbError } = await withTimeout(
+            insertPromise as any,
+            15000,
+            'Database archival record timed out.'
+        ) as { error: any };
 
         if (dbError) {
             // Handle unique constraint violation
