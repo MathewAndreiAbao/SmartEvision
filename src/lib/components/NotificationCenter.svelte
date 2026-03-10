@@ -63,17 +63,6 @@
                     >
                         Recent Alerts
                     </h3>
-                    <button
-                        onclick={async () => {
-                            const { sendTestNotification } = await import(
-                                "$lib/utils/notifications"
-                            );
-                            await sendTestNotification();
-                        }}
-                        class="text-[9px] font-bold text-gov-blue hover:underline uppercase tracking-tight text-left mt-0.5"
-                    >
-                        Send Test Alert
-                    </button>
                 </div>
                 {#if $unreadCount > 0}
                     <button

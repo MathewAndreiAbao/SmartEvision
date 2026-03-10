@@ -10,7 +10,7 @@
         accept = ".docx,.pdf",
         onfileselected,
         disabled = false,
-        maxSizeMb = 2,
+        maxSizeMb = 500,
     }: Props = $props();
 
     let dragOver = $state(false);

@@ -23,7 +23,7 @@ async function hashPdf(buffer: ArrayBuffer | Uint8Array): Promise<string> {
 
 // Compress using pdf-lib
 async function compressPdf(pdfBytes: Uint8Array): Promise<Uint8Array> {
-    const MAX_SIZE_BYTES = 1024 * 1024; // 1MB ideal target
+    const MAX_SIZE_BYTES = 100 * 1024 * 1024; // 100MB (effective 'no limit')arget
 
     if (pdfBytes.byteLength <= MAX_SIZE_BYTES) {
         return pdfBytes;

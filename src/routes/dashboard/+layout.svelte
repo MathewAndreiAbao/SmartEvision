@@ -40,6 +40,12 @@
                     $profile.district_id || undefined,
                 ),
                 notifications.init($user.id),
+                import("$lib/utils/deadlineNotifier").then((m) =>
+                    m.checkUpcomingDeadlines(
+                        $profile!.id,
+                        $profile!.district_id || "",
+                    ),
+                ),
             ]).catch((err) => {
                 console.warn("[dashboard] Prefetch error:", err);
             });

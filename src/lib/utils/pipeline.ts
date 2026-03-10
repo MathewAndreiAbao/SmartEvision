@@ -456,6 +456,11 @@ export async function* runOnlinePipeline(
             '/dashboard/archive'
         );
 
+        // Trigger native local notification
+        import('./notifications').then(m => {
+            m.sendLocalNotification('Archival Successful', `Successfully archived ${activeDocType} for Week ${activeWeekNumber}.`);
+        });
+
         yield {
             phase: 'done',
             progress: 100,
@@ -579,6 +584,11 @@ export async function* runOfflinePipeline(
             'info',
             '/dashboard/upload'
         );
+
+        // Trigger native local notification
+        import('./notifications').then(m => {
+            m.sendLocalNotification('Queued for Sync', `Saved offline: ${activeDocType} for Week ${activeWeekNumber}.`);
+        });
 
         yield {
             phase: 'done',

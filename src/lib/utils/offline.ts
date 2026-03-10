@@ -557,6 +557,11 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                 success++;
                 console.log(`[sync] Successfully synced: ${item.fileName}`);
 
+                // Trigger native local notification
+                import('./notifications').then(m => {
+                    m.sendLocalNotification('Sync Successful', `Offline archival for ${item.fileName} has been synced to the cloud.`);
+                });
+
             } catch (err: any) {
                 console.error(`[sync] Failed to sync ${item.fileName}:`, err);
                 failed++;
