@@ -326,7 +326,8 @@ export async function* runPipeline(
                 yield* runOnlinePipelineResilient(core, options);
                 return;
             } catch (err: any) {
-                const isStall = err.message?.includes('timeout') || err.message?.includes('fetch') || err.message?.includes('Network');
+                const msg = err.message?.toLowerCase() || '';
+                const isStall = msg.includes('time') || msg.includes('fetch') || msg.includes('network');
                 if (isStall) {
                     console.warn('[pipeline] Online stall, falling back to offline vault.');
                     yield { phase: 'uploading', progress: 0, message: 'Connection unstable. Saving locally...' };
