@@ -1,32 +1,21 @@
 /**
- * Upload Pipeline Orchestrator (Worker-Powered) — Dual Mode
+ * Upload Pipeline Orchestrator (Worker-Powered) — Resilient Hybrid Mode
  * 
- * Two distinct paths optimized for their environment:
+ * This orchestrator manages the high-stakes document archival pipeline.
+ * It is designed to be extremely resilient, especially on mobile devices.
  * 
- * ONLINE:  Transcode → OCR → Worker(Compress+Hash) → Integrity Check →
- *          Worker(QR-Stamp) → Direct Supabase Upload → DB Insert → Ledger
- * 
- * OFFLINE: Transcode → OCR → Worker(Compress+Hash) → Ledger Check →
- *          Worker(QR-Stamp) → IndexedDB Queue → Ledger
- * 
- * Both paths share the same core processing pipeline and enforce:
- * - SHA-256 hash deduplication (no identical content)
- * - One upload per teaching load per week per doc type
- * - Naive Bayes classification
- * - QR code stamping for authenticity
+ * HYBRID STRATEGY:
+ * 1. Attempt secure cloud archival (Online).
+ * 2. If the server check/upload stalls (timeout) or network fails, 
+ *    automatically move the document to the local persistent vault (Offline).
+ * 3. Sync background processes will attempt to finalize the archive later.
  */
 
 import { transcodeToPdf } from './transcode';
-import { supabase } from './supabase';
-import { createNotification } from './notificationSystem';
-import { env } from '$env/dynamic/public';
 import PdfWorker from './pdf.worker?worker';
-import {
-    validateUploadIntegrity,
-    recordSubmission,
-    type LedgerEntry
-} from './offlineSubmissionLedger';
-import { calculateComplianceStatus } from './offline';
+import { supabase } from './supabase';
+import { env } from '$env/dynamic/public';
+import { createNotification } from './notificationSystem';
 
 export type PipelinePhase = 'transcoding' | 'compressing' | 'analyzing' | 'hashing' | 'stamping' | 'uploading' | 'done' | 'error';
 
@@ -59,6 +48,16 @@ export interface PipelineOptions {
     preDetectedMetadata?: any;
 }
 
+interface CoreResult {
+    stampedBytes: Uint8Array;
+    fileHash: string;
+    fileName: string;
+    filePath: string;
+    detectedMetadata: any;
+    activeWeekNumber?: number;
+    activeDocType: string;
+}
+
 // ─── Worker Helper ───────────────────────────────────────────────────────────
 
 function runWorkerTask(worker: Worker, type: string, payload: any, transfer: Transferable[] = []): Promise<any> {
@@ -78,10 +77,6 @@ function runWorkerTask(worker: Worker, type: string, payload: any, transfer: Tra
 
 // ─── Timeout Helper ──────────────────────────────────────────────────────────
 
-/**
- * Wraps a promise with a timeout.
- * Prevents indefinite hangs on unstable or glitchy connections.
- */
 export async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
     let timeoutId: any;
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -96,17 +91,7 @@ export async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, err
     }
 }
 
-// ─── Core Pipeline (shared by online + offline) ─────────────────────────────
-
-interface CoreResult {
-    stampedBytes: Uint8Array;
-    fileHash: string;
-    fileName: string;
-    filePath: string;
-    detectedMetadata: any;
-    activeWeekNumber?: number;
-    activeDocType: string;
-}
+// ─── Core Pipeline ───────────────────────────────────────────────────────────
 
 async function* runPipelineCore(
     file: File,
@@ -114,138 +99,45 @@ async function* runPipelineCore(
     worker: Worker
 ): AsyncGenerator<PipelineEvent & { _core?: CoreResult }> {
 
-    // Phase 1: Transcode
-    yield { phase: 'transcoding', progress: 0, message: 'Converting document to PDF...' };
+    // 1. Transcode
+    yield { phase: 'transcoding', progress: 10, message: 'Converting document to PDF...' };
     const transcodeResult = await transcodeToPdf(file);
     const pdfBytes = transcodeResult.pdfBytes;
-    yield { phase: 'transcoding', progress: 100, message: 'Document converted' };
 
-    // Phase 2: OCR Scanning / Metadata Extraction
-    yield { phase: 'analyzing', progress: 0, message: 'Analyzing document content...' };
-    let detectedMetadata: any = options.preDetectedMetadata || null;
+    // 2. Analyzing (OCR)
+    yield { phase: 'analyzing', progress: 30, message: 'Analyzing document content...' };
+    const { extractMetadata } = await import('./ocr');
+    const detectedMetadata = options.preDetectedMetadata || await extractMetadata(file);
 
-    if (detectedMetadata) {
-        console.log('[pipeline] Using pre-detected metadata');
-        yield {
-            phase: 'analyzing',
-            progress: 100,
-            message: `Analyzed: ${detectedMetadata.docType} for Week ${detectedMetadata.weekNumber || '#'}`,
-            metadata: detectedMetadata
-        };
-    } else {
-        try {
-            const { extractMetadata, parseMetadata, resolveWeekFromDates } = await import('./ocr');
-            if (transcodeResult.text) {
-                console.log('[pipeline] Using text from Word doc for metadata extraction');
-                detectedMetadata = parseMetadata(transcodeResult.text);
-            } else {
-                detectedMetadata = await extractMetadata(file);
-            }
-
-            console.log('[pipeline] Metadata Result:', detectedMetadata);
-
-            // Calendar-Aware Week Resolution
-            if (detectedMetadata?.dateRange && !detectedMetadata.weekNumber && !options.weekNumber) {
-                try {
-                    const { getCachedMetadata } = await import('./offline');
-
-                    let calendar: any[] = [];
-                    if (options.preDetectedMetadata?.district_id) {
-                        const cached = await getCachedMetadata(`calendar_${options.preDetectedMetadata.district_id}`);
-                        calendar = cached?.data || [];
-                    }
-
-                    if (calendar.length === 0) {
-                        const cachedCal = await getCachedMetadata('calendar_all');
-                        calendar = cachedCal?.data || [];
-                    }
-
-                    if (calendar.length === 0 && navigator.onLine) {
-                        const { data } = await (await import('./supabase')).supabase
-                            .from('academic_calendar')
-                            .select('id, week_number, deadline_date')
-                            .order('week_number', { ascending: true });
-                        calendar = data || [];
-                    }
-
-                    if (calendar.length > 0) {
-                        const resolved = resolveWeekFromDates(detectedMetadata.dateRange, calendar);
-                        if (resolved) {
-                            detectedMetadata.weekNumber = resolved.weekNumber;
-                            detectedMetadata.weekSource = 'calendar';
-                            if (resolved.calendarId && !options.calendarId) {
-                                options.calendarId = resolved.calendarId;
-                            }
-                            console.log(`[pipeline] Calendar resolved: Week ${resolved.weekNumber}`);
-                        }
-                    }
-                } catch (calErr) {
-                    console.warn('[pipeline] Calendar-based week resolution failed:', calErr);
-                }
-            }
-
-            // OCR Enforcement (WBS 19.3)
-            if (options.enforceOcr) {
-                const isUnknown = !detectedMetadata || detectedMetadata.docType === 'Unknown';
-                const hasManualOverride = options.docType && options.docType !== 'Unknown';
-
-                if (isUnknown && !hasManualOverride) {
-                    throw new Error('OCR Enforcement: Document type could not be verified from the file content. Please ensure the document header is correct.');
-                }
-                const hasNoWeek = !detectedMetadata?.weekNumber && !options.weekNumber;
-                if (hasNoWeek) {
-                    throw new Error('OCR Enforcement: Week number not found in document. Please ensure "(WEEK X)" is present in the header.');
-                }
-            }
-
-            yield {
-                phase: 'analyzing',
-                progress: 100,
-                message: `Filtered: ${detectedMetadata.docType} for Week ${detectedMetadata.weekNumber || '#'}`,
-                metadata: detectedMetadata
-            };
-        } catch (ocrErr) {
-            console.warn('[pipeline] Metadata extraction failed:', ocrErr);
-            if (options.enforceOcr) throw ocrErr;
-        }
-    }
-
-    // Phase 3 & 4: Worker-powered Compress & Hash
-    yield { phase: 'compressing', progress: 0, message: 'Compressing and hashing PDF...' };
-
+    // 3. Compress & Hash
+    yield { phase: 'compressing', progress: 50, message: 'Compressing and hashing...' };
     const { compressedBytes, fileHash } = await runWorkerTask(
         worker,
         'COMPRESS_AND_HASH',
         { pdfBytes },
         [pdfBytes.buffer]
     );
-    yield { phase: 'hashing', progress: 100, message: `SHA-256: ${fileHash.slice(0, 12)}...` };
 
-    // Resolve active values
-    const activeWeekNumber = options.weekNumber || detectedMetadata?.weekNumber;
-    const activeDocType = options.docType || detectedMetadata?.docType || 'DLL';
-
-    // Phase 5: QR Stamp (Worker-managed)
-    yield { phase: 'stamping', progress: 0, message: 'Embedding verification QR code...' };
+    // 4. Stamping
+    yield { phase: 'stamping', progress: 70, message: 'Embedding verification stamp...' };
     const { generateQrPng } = await import('./qr-stamp');
     const qrBytes = await generateQrPng(fileHash);
-
     const { stampedBytes } = await runWorkerTask(
         worker,
         'STAMP_QR',
         { compressedBytes, qrBytes, fileHash },
         [compressedBytes.buffer, qrBytes.buffer]
     );
-    yield { phase: 'stamping', progress: 100, message: 'QR code stamped — document is verifiable' };
 
+    const activeWeekNumber = options.weekNumber || detectedMetadata?.weekNumber;
+    const activeDocType = options.docType || detectedMetadata?.docType || 'DLL';
     const fileName = file.name.replace(/\.\w+$/, '.pdf');
     const filePath = `${options.userId}/${Date.now()}_${fileName}`;
 
-    // Yield the core result for the caller to use
     yield {
         phase: 'uploading',
-        progress: 0,
-        message: 'Preparing upload...',
+        progress: 90,
+        message: 'Processing complete, ready to archive.',
         _core: {
             stampedBytes: new Uint8Array(stampedBytes),
             fileHash,
@@ -258,178 +150,65 @@ async function* runPipelineCore(
     };
 }
 
-// ─── ONLINE Pipeline ─────────────────────────────────────────────────────────
-// Direct upload to Supabase — no queue, instant confirmation.
+// ─── Resilient Sub-Pipelines ─────────────────────────────────────────────────
 
-export async function* runOnlinePipeline(
-    file: File,
+async function* runOnlinePipelineResilient(
+    core: CoreResult,
     options: PipelineOptions
 ): AsyncGenerator<PipelineEvent> {
-    const worker = new PdfWorker();
+    const { stampedBytes, fileHash, fileName, filePath, activeWeekNumber, activeDocType } = core;
 
-    try {
-        let core: CoreResult | null = null;
+    yield { phase: 'uploading', progress: 10, message: 'Verifying with server...' };
 
-        // Run shared core pipeline
-        for await (const event of runPipelineCore(file, options, worker)) {
-            if (event._core) {
-                core = event._core;
-                // Don't yield the internal _core event — yield a clean one
-                yield { phase: event.phase, progress: event.progress, message: event.message };
-            } else {
-                yield event;
-            }
-        }
+    const { lookupOfflineDoc, cacheVerifiedDoc, calculateComplianceStatus } = await import('./offline');
+    const { recordSubmission, validateUploadIntegrity } = await import('./offlineSubmissionLedger');
 
-        if (!core) throw new Error('Pipeline core failed to produce result');
+    // Local check
+    if (await lookupOfflineDoc(fileHash)) throw new Error('Duplicate file detected (local).');
 
-        const { stampedBytes, fileHash, fileName, filePath, activeWeekNumber, activeDocType } = core;
-
-        // ── Integrity Check 1: Offline Ledger (instant, local) ──
-        yield { phase: 'uploading', progress: 5, message: 'Checking local integrity ledger...' };
-
-        // Local offline cache check first (instant)
-        const { lookupOfflineDoc } = await import('./offline');
-        const cachedDuplicate = await lookupOfflineDoc(fileHash);
-        if (cachedDuplicate) {
-            throw new Error('Duplicate file detected. This document has already been archived (cached hash match).');
-        }
-
-        // Check ledger for slot + hash
-        if (options.teachingLoadId && activeWeekNumber) {
-            const integrity = await validateUploadIntegrity(
-                options.teachingLoadId,
-                activeWeekNumber,
-                options.schoolYear || '2025-2026',
-                activeDocType,
-                fileHash
-            );
-            if (!integrity.allowed) {
-                throw new Error(integrity.reason || 'Upload blocked by integrity check.');
-            }
-        }
-
-        // ── Integrity Check 2: Server-side (authoritative) ──
-        yield { phase: 'uploading', progress: 15, message: 'Verifying with server — hash integrity...' };
-
-        // Hash uniqueness
-        try {
-            const hashCheckPromise = supabase
-                .from('submissions')
-                .select('id, file_name, doc_type, week_number')
-                .eq('file_hash', fileHash)
-                .limit(1)
-                .maybeSingle();
-
-            const { data: hashMatch, error: hashErr } = await withTimeout(
-                hashCheckPromise as any,
-                10000,
-                'Hash integrity check timed out. Please check your connection and try again.'
-            ) as { data: any, error: any };
-
-            if (hashErr) throw new Error(`Integrity check failed: ${hashErr.message}`);
-
-            if (hashMatch) {
-                throw new Error(`Duplicate content detected. This exact document was already archived as "${hashMatch.file_name}" (${hashMatch.doc_type}, Week ${hashMatch.week_number}).`);
-            }
-        } catch (err: any) {
-            // Rethrow if it's a duplicate error, otherwise fail strictly
-            if (err?.message?.includes('Duplicate') || err?.message?.includes('already archived') || err?.message?.includes('timed out')) throw err;
-            throw new Error(`Integrity verification unavailable: ${err?.message || 'Check failed'}. Please try again when online.`);
-        }
-
-        // Metadata uniqueness (one-per-week-per-load)
-        if (options.teachingLoadId && activeWeekNumber) {
-            yield { phase: 'uploading', progress: 20, message: 'Verifying slot uniqueness...' };
-
-            try {
-                const metaCheckPromise = supabase
-                    .from('submissions')
-                    .select('id')
-                    .eq('teaching_load_id', options.teachingLoadId)
-                    .eq('week_number', activeWeekNumber)
-                    .eq('school_year', options.schoolYear || '2025-2026')
-                    .eq('doc_type', activeDocType)
-                    .maybeSingle();
-
-                const metaTimeout = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Meta check timeout')), 5000)
-                );
-
-                const { data: metaMatch }: any = await Promise.race([metaCheckPromise, metaTimeout]);
-
-                if (metaMatch) {
-                    throw new Error(`Archival blocked: A ${activeDocType} document has already been submitted for this teaching load in Week ${activeWeekNumber}.`);
-                }
-            } catch (err: any) {
-                if (err?.message?.includes('Archival blocked') || err?.message?.includes('already been submitted')) throw err;
-                console.warn('[pipeline] Meta check warning (proceeding):', err?.message);
-            }
-        }
-
-        // ── Direct Upload to Supabase Storage ──
-        yield { phase: 'uploading', progress: 30, message: 'Uploading to secure cloud storage...' };
-
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData?.session?.access_token;
-        if (!accessToken) throw new Error('Not authenticated. Please sign in again.');
-
-        const storageUrl = `${env.PUBLIC_SUPABASE_URL}/storage/v1/object/submissions/${filePath}`;
-        const uploadFile = new File([stampedBytes as any], fileName, { type: 'application/pdf' });
-
-        const uploadPromise = fetch(storageUrl, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'x-upsert': 'false'
-            },
-            body: uploadFile
-        });
-
-        const uploadResponse = await withTimeout(
-            uploadPromise,
-            45000, // 45s for storage upload
-            'Storage upload timed out. The file might be too large or the connection is unstable.'
+    // Integrity check
+    if (options.teachingLoadId && activeWeekNumber) {
+        const integrity = await validateUploadIntegrity(
+            options.teachingLoadId,
+            activeWeekNumber,
+            options.schoolYear || '2025-2026',
+            activeDocType,
+            fileHash
         );
+        if (!integrity.allowed) throw new Error(integrity.reason || 'Integrity block.');
+    }
 
-        if (!uploadResponse.ok) {
-            const errBody = await uploadResponse.text().catch(() => 'Unknown error');
-            const isDuplicate = uploadResponse.status === 409 ||
-                (uploadResponse.status === 400 && errBody.includes('"statusCode":"409"')) ||
-                errBody.toLowerCase().includes('already exists') ||
-                errBody.toLowerCase().includes('duplicate');
+    // Server check
+    const { data: hashMatch } = await withTimeout(
+        supabase.from('submissions').select('file_name, week_number').eq('file_hash', fileHash).maybeSingle() as any,
+        15000,
+        'Server integrity check timed out.'
+    ) as { data: any };
+    if (hashMatch) throw new Error(`Duplicate content detected on server: ${hashMatch.file_name}`);
 
-            if (isDuplicate) {
-                console.info(`[pipeline] File exists in storage (OK): ${fileName}`);
-            } else {
-                throw new Error(`Storage upload failed (${uploadResponse.status}): ${errBody}`);
-            }
-        }
+    // Storage Upload
+    yield { phase: 'uploading', progress: 40, message: 'Uploading to cloud storage...' };
+    const { data: session } = await supabase.auth.getSession();
+    const storageUrl = `${env.PUBLIC_SUPABASE_URL}/storage/v1/object/submissions/${filePath}`;
 
-        yield { phase: 'uploading', progress: 70, message: 'Recording to database...' };
+    const uploadResponse = await withTimeout(
+        fetch(storageUrl, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${session?.session?.access_token}`, 'x-upsert': 'false' },
+            body: new File([stampedBytes as any], fileName, { type: 'application/pdf' })
+        }),
+        30000,
+        'Storage upload timed out.'
+    );
+    if (!uploadResponse.ok && !uploadResponse.status.toString().startsWith('409')) {
+        throw new Error(`Upload failed: ${await uploadResponse.text()}`);
+    }
 
-        // ── Fetch deadline for compliance ──
-        let deadlineDate: Date | undefined;
-        if (options.calendarId) {
-            const { data } = await supabase.from('academic_calendar').select('deadline_date').eq('id', options.calendarId).single();
-            if (data?.deadline_date) deadlineDate = new Date(data.deadline_date);
-        } else if (activeWeekNumber) {
-            const { data: profileData } = await supabase.from('profiles').select('district_id').eq('id', options.userId).single();
-            if (profileData?.district_id) {
-                const { data: calData } = await supabase
-                    .from('academic_calendar')
-                    .select('deadline_date')
-                    .eq('district_id', profileData.district_id)
-                    .eq('week_number', activeWeekNumber)
-                    .maybeSingle();
-                if (calData?.deadline_date) deadlineDate = new Date(calData.deadline_date);
-            }
-        }
-
-        // ── DB Insert ──
-        const complianceStatus = calculateComplianceStatus(new Date(), deadlineDate);
-
-        const insertPromise = supabase.from('submissions').insert({
+    // DB Record
+    yield { phase: 'uploading', progress: 80, message: 'Finalizing cloud record...' };
+    const complianceStatus = calculateComplianceStatus(new Date());
+    const { error: dbError } = await withTimeout(
+        supabase.from('submissions').insert({
             user_id: options.userId,
             file_name: fileName,
             file_path: filePath,
@@ -442,218 +221,126 @@ export async function* runOnlinePipeline(
             calendar_id: options.calendarId || null,
             teaching_load_id: options.teachingLoadId || null,
             compliance_status: complianceStatus
+        }) as any,
+        15000,
+        'Database record timed out.'
+    ) as { error: any };
+    if (dbError) throw new Error(`DB Error: ${dbError.message}`);
+
+    // Success bookkeeping
+    if (options.teachingLoadId && activeWeekNumber) {
+        await recordSubmission({
+            teachingLoadId: options.teachingLoadId,
+            weekNumber: activeWeekNumber,
+            schoolYear: options.schoolYear || '2025-2026',
+            docType: activeDocType,
+            fileHash,
+            fileName,
+            timestamp: Date.now(),
+            status: 'synced'
         });
-
-        const { error: dbError } = await withTimeout(
-            insertPromise as any,
-            15000,
-            'Database archival record timed out.'
-        ) as { error: any };
-
-        if (dbError) {
-            // Handle unique constraint violation
-            if (dbError.code === '23505' || dbError.message?.includes('unique_submission_per_load_week')) {
-                throw new Error(`Archival blocked: A ${activeDocType} document is already archived for Week ${activeWeekNumber}.`);
-            }
-            throw new Error(`Database error: ${dbError.message}`);
-        }
-
-        yield { phase: 'uploading', progress: 90, message: 'Finalizing integrity records...' };
-
-        // ── Record to Ledger + Hash Cache ──
-        if (options.teachingLoadId && activeWeekNumber) {
-            await recordSubmission({
-                teachingLoadId: options.teachingLoadId,
-                weekNumber: activeWeekNumber,
-                schoolYear: options.schoolYear || '2025-2026',
-                docType: activeDocType,
-                fileHash,
-                fileName,
-                timestamp: Date.now(),
-                status: 'synced'
-            });
-        }
-
-        // Cache the hash for future offline verification
-        const { cacheVerifiedDoc } = await import('./offline');
-        await cacheVerifiedDoc(fileHash, {
-            file_name: fileName,
-            doc_type: activeDocType,
-            week_number: activeWeekNumber,
-            school_year: options.schoolYear || '2025-2026',
-            teaching_load_id: options.teachingLoadId,
-            created_at: new Date().toISOString()
-        });
-
-        // Create notification
-        await createNotification(
-            options.userId,
-            'Archival Successful',
-            `Successfully archived ${activeDocType} for ${options.subject || 'Subject'} - Week ${activeWeekNumber}.`,
-            'success',
-            '/dashboard/archive'
-        );
-
-        // Trigger native local notification
-        import('./notifications').then(m => {
-            m.sendLocalNotification('Archival Successful', `Successfully archived ${activeDocType} for Week ${activeWeekNumber}.`);
-        });
-
-        yield {
-            phase: 'done',
-            progress: 100,
-            message: 'Upload Successful! Document archived securely.',
-            result: { fileHash, filePath, fileSize: stampedBytes.byteLength, fileName }
-        };
-    } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        yield { phase: 'error', progress: 0, message, error: message };
-    } finally {
-        worker.terminate();
     }
+    await cacheVerifiedDoc(fileHash, { file_name: fileName, doc_type: activeDocType, week_number: activeWeekNumber });
+
+    await createNotification(options.userId, 'Archival Successful', `Securely archived ${activeDocType} - Week ${activeWeekNumber}.`, 'success');
+
+    yield {
+        phase: 'done',
+        progress: 100,
+        message: 'Upload Successful!',
+        result: { fileHash, filePath, fileSize: stampedBytes.byteLength, fileName }
+    };
 }
 
-// ─── OFFLINE Pipeline ────────────────────────────────────────────────────────
-// Processes locally, saves to IndexedDB queue, syncs when online.
-
-export async function* runOfflinePipeline(
-    file: File,
+async function* runOfflinePipelineResilient(
+    core: CoreResult,
     options: PipelineOptions
 ): AsyncGenerator<PipelineEvent> {
-    const worker = new PdfWorker();
+    const { stampedBytes, fileHash, fileName, filePath, activeWeekNumber, activeDocType } = core;
+    yield { phase: 'uploading', progress: 50, message: 'Saving to offline vault...' };
 
-    try {
-        let core: CoreResult | null = null;
+    const { enqueue, cacheVerifiedDoc } = await import('./offline');
+    const { recordSubmission } = await import('./offlineSubmissionLedger');
 
-        // Run shared core pipeline
-        for await (const event of runPipelineCore(file, options, worker)) {
-            if (event._core) {
-                core = event._core;
-                yield { phase: event.phase, progress: event.progress, message: event.message };
-            } else {
-                yield event;
-            }
-        }
+    await enqueue({
+        fileName,
+        filePath,
+        fileHash,
+        fileSize: stampedBytes.byteLength,
+        pdfBytes: stampedBytes,
+        options: {
+            userId: options.userId,
+            docType: activeDocType,
+            weekNumber: activeWeekNumber,
+            schoolYear: options.schoolYear || '2025-2026',
+            subject: options.subject,
+            calendarId: options.calendarId,
+            teachingLoadId: options.teachingLoadId
+        },
+        timestamp: Date.now()
+    });
 
-        if (!core) throw new Error('Pipeline core failed to produce result');
-
-        const { stampedBytes, fileHash, fileName, filePath, activeWeekNumber, activeDocType } = core;
-
-        // ── Local Integrity Check (offline ledger + hash cache) ──
-        yield { phase: 'uploading', progress: 10, message: 'Checking local integrity...' };
-
-        // Check offline hash cache
-        const { lookupOfflineDoc } = await import('./offline');
-        const cachedDuplicate = await lookupOfflineDoc(fileHash);
-        if (cachedDuplicate) {
-            throw new Error('Duplicate file detected. This document has already been archived (offline hash match).');
-        }
-
-        // Check ledger for slot + hash uniqueness
-        if (options.teachingLoadId && activeWeekNumber) {
-            const integrity = await validateUploadIntegrity(
-                options.teachingLoadId,
-                activeWeekNumber,
-                options.schoolYear || '2025-2026',
-                activeDocType,
-                fileHash
-            );
-            if (!integrity.allowed) {
-                throw new Error(integrity.reason || 'Upload blocked by offline integrity check.');
-            }
-        }
-
-        // ── Enqueue to IndexedDB ──
-        yield { phase: 'uploading', progress: 40, message: 'Saving to offline queue...' };
-
-        const { enqueue } = await import('./offline');
-
-        await enqueue({
-            fileName,
-            filePath,
+    if (options.teachingLoadId && activeWeekNumber) {
+        await recordSubmission({
+            teachingLoadId: options.teachingLoadId,
+            weekNumber: activeWeekNumber,
+            schoolYear: options.schoolYear || '2025-2026',
+            docType: activeDocType,
             fileHash,
-            fileSize: stampedBytes.byteLength,
-            pdfBytes: stampedBytes,
-            options: {
-                userId: options.userId,
-                docType: activeDocType,
-                weekNumber: activeWeekNumber,
-                schoolYear: options.schoolYear || '2025-2026',
-                subject: options.subject,
-                calendarId: options.calendarId,
-                teachingLoadId: options.teachingLoadId
-            },
-            timestamp: Date.now()
+            fileName,
+            timestamp: Date.now(),
+            status: 'pending'
         });
-
-        yield { phase: 'uploading', progress: 70, message: 'Recording to integrity ledger...' };
-
-        // ── Record to Ledger (as pending) ──
-        if (options.teachingLoadId && activeWeekNumber) {
-            await recordSubmission({
-                teachingLoadId: options.teachingLoadId,
-                weekNumber: activeWeekNumber,
-                schoolYear: options.schoolYear || '2025-2026',
-                docType: activeDocType,
-                fileHash,
-                fileName,
-                timestamp: Date.now(),
-                status: 'pending'
-            });
-        }
-
-        // Cache hash locally for future duplicate checks
-        const { cacheVerifiedDoc } = await import('./offline');
-        await cacheVerifiedDoc(fileHash, {
-            file_name: fileName,
-            doc_type: activeDocType,
-            week_number: activeWeekNumber,
-            school_year: options.schoolYear || '2025-2026',
-            teaching_load_id: options.teachingLoadId,
-            created_at: new Date().toISOString(),
-            pending_sync: true
-        });
-
-        // Create local notification
-        await createNotification(
-            options.userId,
-            'Queued for Sync',
-            `Saved offline: ${activeDocType} for ${options.subject || 'Subject'} - Week ${activeWeekNumber}. Will sync when online.`,
-            'info',
-            '/dashboard/upload'
-        );
-
-        // Trigger native local notification
-        import('./notifications').then(m => {
-            m.sendLocalNotification('Queued for Sync', `Saved offline: ${activeDocType} for Week ${activeWeekNumber}.`);
-        });
-
-        yield {
-            phase: 'done',
-            progress: 100,
-            message: 'Saved offline! Will auto-sync when connection is restored.',
-            result: { fileHash, filePath, fileSize: stampedBytes.byteLength, fileName }
-        };
-    } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        yield { phase: 'error', progress: 0, message, error: message };
-    } finally {
-        worker.terminate();
     }
+
+    await cacheVerifiedDoc(fileHash, { file_name: fileName, doc_type: activeDocType, week_number: activeWeekNumber, pending_sync: true });
+    await createNotification(options.userId, 'Saved Locally', `Document saved to offline queue.`, 'info');
+
+    yield {
+        phase: 'done',
+        progress: 100,
+        message: 'Saved offline!',
+        result: { fileHash, filePath, fileSize: stampedBytes.byteLength, fileName }
+    };
 }
 
-// ─── Legacy Compatibility ────────────────────────────────────────────────────
-// Auto-selects the appropriate pipeline based on connectivity.
+// ─── Main Entry Point ────────────────────────────────────────────────────────
 
 export async function* runPipeline(
     file: File,
     options: PipelineOptions
 ): AsyncGenerator<PipelineEvent> {
     const isOnline = typeof navigator !== 'undefined' && navigator.onLine;
+    const worker = new PdfWorker();
 
-    if (isOnline) {
-        yield* runOnlinePipeline(file, options);
-    } else {
-        yield* runOfflinePipeline(file, options);
+    try {
+        let core: CoreResult | null = null;
+        for await (const event of runPipelineCore(file, options, worker)) {
+            if (event._core) core = event._core;
+            yield { phase: event.phase, progress: event.progress, message: event.message, metadata: event.metadata };
+        }
+        if (!core) throw new Error('Processing failed.');
+
+        if (isOnline) {
+            try {
+                yield* runOnlinePipelineResilient(core, options);
+                return;
+            } catch (err: any) {
+                const isStall = err.message?.includes('timeout') || err.message?.includes('fetch') || err.message?.includes('Network');
+                if (isStall) {
+                    console.warn('[pipeline] Online stall, falling back to offline vault.');
+                    yield { phase: 'uploading', progress: 0, message: 'Connection unstable. Saving locally...' };
+                } else {
+                    throw err; // Hard error (Duplicate)
+                }
+            }
+        }
+
+        yield* runOfflinePipelineResilient(core, options);
+
+    } catch (err: any) {
+        yield { phase: 'error', progress: 0, message: err.message || 'Unknown error' };
+    } finally {
+        worker.terminate();
     }
 }

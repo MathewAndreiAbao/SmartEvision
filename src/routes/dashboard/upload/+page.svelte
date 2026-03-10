@@ -3,8 +3,7 @@
     import UploadProgress from "$lib/components/UploadProgress.svelte";
     import CopilotPanel from "$lib/components/CopilotPanel.svelte";
     import {
-        runOnlinePipeline,
-        runOfflinePipeline,
+        runPipeline,
         type PipelinePhase,
         type PipelineResult,
     } from "$lib/utils/pipeline";
@@ -704,9 +703,7 @@
             preDetectedMetadata: detectedMetadata,
         };
 
-        const pipeline = isOnline
-            ? runOnlinePipeline(selectedFile, pipelineOptions)
-            : runOfflinePipeline(selectedFile, pipelineOptions);
+        const pipeline = runPipeline(selectedFile, pipelineOptions);
 
         processLog = [];
 
