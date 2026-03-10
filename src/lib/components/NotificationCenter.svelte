@@ -48,20 +48,33 @@
 
     {#if isOpen}
         <div
-            class="absolute top-12 right-0 w-[calc(100vw-2rem)] sm:w-80 bg-white border border-border-subtle rounded-xl shadow-xl z-50 overflow-hidden"
+            class="fixed inset-x-4 top-20 sm:absolute sm:inset-auto sm:top-12 sm:right-0 sm:w-80 bg-white border border-border-subtle rounded-xl shadow-2xl z-50 overflow-hidden max-h-[calc(100vh-8rem)] flex flex-col"
             in:fly={{ y: 10, duration: 200 }}
             out:fade={{ duration: 150 }}
             role="dialog"
             aria-modal="true"
         >
             <div
-                class="px-5 py-4 border-b border-border-subtle flex items-center justify-between bg-surface-muted/30"
+                class="px-5 py-4 border-b border-border-subtle flex items-center justify-between bg-surface-muted/30 flex-shrink-0"
             >
-                <h3
-                    class="text-xs font-bold text-text-primary uppercase tracking-wider"
-                >
-                    Recent Alerts
-                </h3>
+                <div class="flex flex-col">
+                    <h3
+                        class="text-xs font-bold text-text-primary uppercase tracking-wider"
+                    >
+                        Recent Alerts
+                    </h3>
+                    <button
+                        onclick={async () => {
+                            const { sendTestNotification } = await import(
+                                "$lib/utils/notifications"
+                            );
+                            await sendTestNotification();
+                        }}
+                        class="text-[9px] font-bold text-gov-blue hover:underline uppercase tracking-tight text-left mt-0.5"
+                    >
+                        Send Test Alert
+                    </button>
+                </div>
                 {#if $unreadCount > 0}
                     <button
                         onclick={handleMarkAllRead}
@@ -72,7 +85,7 @@
                 {/if}
             </div>
 
-            <div class="max-h-[360px] overflow-y-auto scrollbar-thin">
+            <div class="overflow-y-auto scrollbar-thin flex-1">
                 {#if $notifications.length === 0}
                     <div class="p-10 text-center">
                         <div
@@ -134,19 +147,24 @@
                                     {#if !n.read}
                                         <button
                                             onclick={() => handleMarkRead(n.id)}
-                                            class="text-[9px] font-bold text-gov-blue hover:text-gov-blue-dark flex items-center gap-1 uppercase tracking-wider"
+                                            class="text-[10px] sm:text-[9px] font-bold text-gov-blue hover:text-gov-blue-dark flex items-center gap-1 uppercase tracking-wider py-1 sm:py-0"
                                         >
-                                            <Check size={10} strokeWidth={3} /> ACKNOWLEDGE
+                                            <Check
+                                                size={12}
+                                                class="sm:w-[10px] sm:h-[10px]"
+                                                strokeWidth={3}
+                                            /> ACKNOWLEDGE
                                         </button>
                                     {/if}
                                     {#if n.link}
                                         <a
                                             href={n.link}
-                                            class="text-[9px] font-bold text-text-muted hover:text-text-primary flex items-center gap-1 uppercase tracking-wider"
+                                            class="text-[10px] sm:text-[9px] font-bold text-text-muted hover:text-text-primary flex items-center gap-1 uppercase tracking-wider py-1 sm:py-0"
                                             onclick={() => (isOpen = false)}
                                         >
                                             <ArrowRight
-                                                size={10}
+                                                size={12}
+                                                class="sm:w-[10px] sm:h-[10px]"
                                                 strokeWidth={3}
                                             /> VIEW DETAILS
                                         </a>
@@ -160,7 +178,7 @@
 
             {#if $notifications.length > 0}
                 <div
-                    class="p-3 border-t border-border-subtle bg-surface-muted/20 text-center"
+                    class="p-3 border-t border-border-subtle bg-surface-muted/20 text-center flex-shrink-0"
                 >
                     <p
                         class="text-[9px] font-bold text-text-muted uppercase tracking-widest"

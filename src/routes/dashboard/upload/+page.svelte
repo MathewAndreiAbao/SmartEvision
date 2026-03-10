@@ -3,15 +3,23 @@
     import UploadProgress from "$lib/components/UploadProgress.svelte";
     import CopilotPanel from "$lib/components/CopilotPanel.svelte";
     import {
-        runPipeline,
+        runOnlinePipeline,
+        runOfflinePipeline,
         type PipelinePhase,
         type PipelineResult,
     } from "$lib/utils/pipeline";
     import {
         getQueueSize,
+        getQueueItems,
         getCachedMetadata,
         cacheMetadata,
+        processQueue,
     } from "$lib/utils/offline";
+    import {
+        validateUploadIntegrity,
+        syncLedgerFromServer,
+        type LedgerEntry,
+    } from "$lib/utils/offlineSubmissionLedger";
     import { profile, type Profile } from "$lib/utils/auth";
     import { settings } from "$lib/stores/settings";
     import { addToast } from "$lib/stores/toast";
@@ -52,10 +60,19 @@
     let processLog = $state<{ timestamp: string; message: string }[]>([]);
     let currentDeadline = $state<any>(null);
     let submissionAlreadyExists = $state(false);
+    let submissionBlockReason = $state("");
     let ocrConfidence = $state<number | null>(null);
     let fileSizeWarning = $state(false);
     let detectingMetadata = $state(false);
     let detectedMetadata = $state<any>(null);
+
+    // Online/Offline Mode
+    let isOnline = $state(
+        typeof navigator !== "undefined" ? navigator.onLine : true,
+    );
+    let pendingItems = $state<any[]>([]);
+    let showPendingPanel = $state(false);
+    let lastLedgerSync = $state<string | null>(null);
 
     // Copilot context
     let submissionHistory = $state<any[]>([]);
@@ -63,6 +80,18 @@
     let copilotDeadlines = $state<
         { week_number: number; deadline_date: string }[]
     >([]);
+
+    // Derived: Merged submissions (History + Pending) for Copilot context
+    let mergedSubmissions = $derived([
+        ...submissionHistory,
+        ...pendingItems.map((p) => ({
+            teaching_load_id: p.teachingLoadId,
+            week_number: p.weekNumber,
+            doc_type: p.docType,
+            compliance_status: "Pending Sync",
+            created_at: p.timestamp,
+        })),
+    ]);
 
     // Selection Pickers
     let showLoadPicker = $state(false);
@@ -75,41 +104,35 @@
             checkExistingSubmission();
         } else {
             submissionAlreadyExists = false;
+            submissionBlockReason = "";
         }
     });
 
     async function checkExistingSubmission() {
-        if (!$profile) return;
-
-        const targetLoadId = teachingLoadId;
-        const targetWeek = Number(weekNumber);
-
-        if (!targetLoadId || isNaN(targetWeek)) {
-            submissionAlreadyExists = false;
-            return;
-        }
-
-        // 1. Check local cache/history first (Immediate + Offline support)
-        // STRICT POLICY: Only one upload per load per week (any doc type)
-        const localMatch = submissionHistory.find(
-            (s) =>
-                s.teaching_load_id === targetLoadId &&
-                Number(s.week_number) === targetWeek,
+        // Check 1: Local ledger (works offline)
+        const integrity = await validateUploadIntegrity(
+            teachingLoadId,
+            weekNumber!,
+            "2025-2026",
+            docType,
+            "", // No hash yet at selection time
         );
-
-        if (localMatch) {
+        if (!integrity.allowed && integrity.blockType === "slot_taken") {
             submissionAlreadyExists = true;
+            submissionBlockReason =
+                integrity.reason || `Already archived for Week ${weekNumber}`;
             return;
         }
 
-        // 2. Check online database if available
+        // Check 2: Server check (online only)
         if (navigator.onLine) {
             const { data, error } = await supabase
                 .from("submissions")
-                .select("id")
-                .eq("teaching_load_id", targetLoadId)
-                .eq("week_number", targetWeek)
+                .select("id, doc_type")
+                .eq("teaching_load_id", teachingLoadId)
+                .eq("week_number", weekNumber)
                 .eq("school_year", "2025-2026")
+                .eq("doc_type", docType)
                 .maybeSingle();
 
             if (error) {
@@ -117,6 +140,8 @@
                 return;
             }
             submissionAlreadyExists = !!data;
+            if (data)
+                submissionBlockReason = `Already archived for Week ${weekNumber}`;
         } else {
             submissionAlreadyExists = false;
         }
@@ -158,8 +183,22 @@
         }
     }
 
-    onMount(async () => {
-        queueCount = await getQueueSize();
+    onMount(() => {
+        getQueueSize().then((s) => {
+            queueCount = s;
+        });
+        refreshPendingItems();
+
+        // Track online/offline state
+        const onOnline = () => {
+            isOnline = true;
+            refreshPendingItems();
+        };
+        const onOffline = () => {
+            isOnline = false;
+        };
+        window.addEventListener("online", onOnline);
+        window.addEventListener("offline", onOffline);
 
         // Handle files launched from OS (PWA File Handling API)
         if (
@@ -175,7 +214,29 @@
                 }
             });
         }
+
+        return () => {
+            window.removeEventListener("online", onOnline);
+            window.removeEventListener("offline", onOffline);
+        };
     });
+
+    async function refreshPendingItems() {
+        queueCount = await getQueueSize();
+        if (queueCount > 0) {
+            const items = await getQueueItems();
+            pendingItems = items.map((item) => ({
+                fileName: item.fileName,
+                fileHash: item.fileHash,
+                docType: item.options.docType || "DLL",
+                weekNumber: item.options.weekNumber,
+                teachingLoadId: item.options.teachingLoadId,
+                timestamp: item.timestamp,
+            }));
+        } else {
+            pendingItems = [];
+        }
+    }
 
     // Handle shared file from the server-side hint (Share Target)
     $effect(() => {
@@ -334,6 +395,10 @@
                         .order("week_number", { ascending: true });
                     if (cals) copilotDeadlines = cals;
                 }
+
+                // Sync ledger from server for integrity consistency
+                await syncLedgerFromServer(userProfile.id);
+                lastLedgerSync = new Date().toLocaleTimeString();
             } catch (err) {
                 console.warn("[upload] Copilot context fetch error:", err);
             }
@@ -557,31 +622,28 @@
 
         // Auto-wait for profile and teaching load list to be ready (up to 5s)
         if (loadingTeachingLoads || !$profile) {
-            addToast("info", "Syncing clinical data, please wait...");
+            addToast("info", "Syncing data, please wait...");
             const ready = await waitForDataReady(5000);
             if (!ready) {
-                addToast(
-                    "error",
-                    "Network timeout: Could not sync profile data.",
-                );
+                addToast("error", "Timeout: Could not sync profile data.");
                 return;
             }
         }
 
         if (!teachingLoadId) {
             addToast("error", "Please select a teaching load before uploading");
-            showLoadPicker = true; // Auto-open picker if missing
+            showLoadPicker = true;
             return;
         }
 
         processing = true;
         result = null;
 
-        // Voice Guidance feedback
         const { speak, VoicePrompts } = await import("$lib/utils/voiceGuide");
         speak(VoicePrompts.UPLOAD_START);
 
-        const pipeline = runPipeline(selectedFile, {
+        // Select the appropriate pipeline based on connectivity
+        const pipelineOptions = {
             userId: $profile!.id,
             docType,
             subject: subject || undefined,
@@ -590,17 +652,19 @@
             enforceOcr: $settings.enforce_ocr,
             submissionWindowDays: $settings.submission_window_days,
             preDetectedMetadata: detectedMetadata,
-        });
+        };
+
+        const pipeline = isOnline
+            ? runOnlinePipeline(selectedFile, pipelineOptions)
+            : runOfflinePipeline(selectedFile, pipelineOptions);
 
         processLog = [];
-        const startTime = Date.now();
 
         for await (const event of pipeline) {
             currentPhase = event.phase;
             progress = event.progress;
             message = event.message;
 
-            // Add to log if message changed (WBS 14.5 Granular Progress)
             if (
                 processLog.length === 0 ||
                 processLog[processLog.length - 1].message !== event.message
@@ -619,15 +683,12 @@
             }
 
             if (event.metadata) {
-                if (event.metadata.docType !== "Unknown") {
+                if (event.metadata.docType !== "Unknown")
                     docType = event.metadata.docType;
-                }
-                if (event.metadata.weekNumber) {
+                if (event.metadata.weekNumber)
                     weekNumber = event.metadata.weekNumber;
-                }
-                if (event.metadata.confidence !== undefined) {
+                if (event.metadata.confidence !== undefined)
                     ocrConfidence = event.metadata.confidence;
-                }
                 const { speak } = await import("$lib/utils/voiceGuide");
                 speak("Smart detection complete. Details updated.");
             }
@@ -635,10 +696,10 @@
             if (event.phase === "done" && event.result) {
                 result = event.result;
                 speak(VoicePrompts.UPLOAD_COMPLETE);
-                addToast(
-                    "success",
-                    `Document queued for background sync! Hash: ${event.result.fileHash.slice(0, 12)}...`,
-                );
+                const successMsg = isOnline
+                    ? `Archived successfully! Hash: ${event.result.fileHash.slice(0, 12)}...`
+                    : `Saved offline! Will sync when connected. Hash: ${event.result.fileHash.slice(0, 12)}...`;
+                addToast("success", successMsg);
                 selectedFile = null;
             }
 
@@ -652,7 +713,7 @@
         }
 
         processing = false;
-        queueCount = await getQueueSize();
+        await refreshPendingItems();
     }
 
     // Reactively validate selection mismatch
@@ -683,12 +744,17 @@
                 class="text-2xl font-bold text-text-primary flex items-center gap-2"
             >
                 Upload Document <span
-                    class="px-2 py-0.5 rounded-md bg-gov-blue/5 text-gov-blue text-[10px] font-semibold uppercase tracking-normal border border-gov-blue/10"
-                    >AI-powered Assistant</span
+                    class="px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-normal border
+                    {isOnline
+                        ? 'bg-gov-green/5 text-gov-green border-gov-green/10'
+                        : 'bg-gov-gold/10 text-gov-gold-dark border-gov-gold/20'}"
+                    >{isOnline ? "Online" : "Offline"}</span
                 >
             </h1>
             <p class="text-base text-text-secondary mt-1">
-                Submit your DLL, ISP, or ISR for archival
+                {isOnline
+                    ? "Submit your DLL, ISP, or ISR for archival"
+                    : "Files will be saved locally and synced when online"}
             </p>
             {#if currentDeadline}
                 <div
@@ -709,32 +775,87 @@
         </div>
 
         {#if queueCount > 0}
-            <div
-                class="flex items-center justify-between sm:justify-end gap-2 px-4 py-2 rounded-xl bg-gov-gold/10 text-gov-gold-dark text-sm font-semibold w-full sm:w-auto"
-            >
-                <div class="flex items-center gap-2">
-                    <span class="relative flex h-2 w-2">
-                        <span
-                            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-gov-gold opacity-75"
-                        ></span>
-                        <span
-                            class="relative inline-flex rounded-full h-2 w-2 bg-gov-gold"
-                        ></span>
-                    </span>
-                    {queueCount} file{queueCount > 1 ? "s" : ""} queued offline
-                </div>
-                <button
-                    onclick={async () => {
-                        const { processQueue } = await import(
-                            "$lib/utils/offline"
-                        );
-                        await processQueue(true); // Force sync
-                        queueCount = await getQueueSize();
-                    }}
-                    class="px-3 py-1 bg-gov-blue text-white text-xs rounded-lg hover:bg-gov-blue-dark transition-colors shadow-sm"
+            <div class="flex flex-col gap-2 w-full sm:w-auto">
+                <div
+                    onclick={() => (showPendingPanel = !showPendingPanel)}
+                    class="flex items-center justify-between gap-2 px-4 py-2 rounded-xl bg-gov-gold/10 text-gov-gold-dark text-sm font-semibold w-full cursor-pointer"
+                    role="button"
+                    tabindex="0"
+                    onkeydown={(e) =>
+                        e.key === "Enter" &&
+                        (showPendingPanel = !showPendingPanel)}
                 >
-                    Sync Now
-                </button>
+                    <div class="flex items-center gap-2">
+                        <span class="relative flex h-2 w-2">
+                            <span
+                                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-gov-gold opacity-75"
+                            ></span>
+                            <span
+                                class="relative inline-flex rounded-full h-2 w-2 bg-gov-gold"
+                            ></span>
+                        </span>
+                        {queueCount} file{queueCount > 1 ? "s" : ""} pending sync
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <svg
+                            class="w-4 h-4 transition-transform {showPendingPanel
+                                ? 'rotate-180'
+                                : ''}"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            ><path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M19 9l-7 7-7-7"
+                            /></svg
+                        >
+                    </div>
+                </div>
+                {#if isOnline}
+                    <button
+                        onclick={async () => {
+                            await processQueue(true);
+                            await refreshPendingItems();
+                        }}
+                        class="w-full px-3 py-2 bg-gov-blue text-white text-xs font-semibold rounded-lg hover:bg-gov-blue-dark transition-colors shadow-sm"
+                    >
+                        Sync All Now
+                    </button>
+                {/if}
+                {#if showPendingPanel && pendingItems.length > 0}
+                    <div
+                        class="bg-white border border-border-subtle rounded-xl p-3 space-y-2 max-h-48 overflow-y-auto animate-fade-in"
+                    >
+                        {#each pendingItems as item}
+                            <div
+                                class="flex items-center justify-between py-2 px-3 bg-surface-muted/50 rounded-lg text-xs"
+                            >
+                                <div class="min-w-0">
+                                    <p
+                                        class="font-semibold text-text-primary truncate"
+                                    >
+                                        {item.fileName}
+                                    </p>
+                                    <p class="text-text-muted">
+                                        {item.docType} · Week {item.weekNumber ||
+                                            "?"} · {new Date(
+                                            item.timestamp,
+                                        ).toLocaleTimeString([], {
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                        })}
+                                    </p>
+                                </div>
+                                <code
+                                    class="text-[9px] text-gov-blue font-mono ml-2 flex-shrink-0"
+                                    >{item.fileHash.slice(0, 8)}</code
+                                >
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
             </div>
         {/if}
     </div>
@@ -1044,21 +1165,24 @@
                     {#if !detectingMetadata}
                         {#if submissionAlreadyExists}
                             <div
-                                class="mt-6 p-4 bg-gov-red/10 border border-gov-red/30 rounded-xl text-gov-red text-sm font-semibold flex items-center justify-center gap-2"
+                                class="mt-6 p-4 bg-gov-red/10 border border-gov-red/30 rounded-xl text-gov-red text-sm font-semibold flex flex-col items-center justify-center gap-2"
                             >
-                                <svg
-                                    class="w-4 h-4"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                    ><path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                                    /></svg
-                                >
-                                Already archived for Week {weekNumber}
+                                <div class="flex items-center gap-2">
+                                    <svg
+                                        class="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                        ><path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                        /></svg
+                                    >
+                                    {submissionBlockReason ||
+                                        `Already archived for Week ${weekNumber}`}
+                                </div>
                             </div>
                             <p
                                 class="mt-2 text-[10px] text-text-muted text-center uppercase tracking-widest font-bold"
@@ -1072,7 +1196,9 @@
                                 disabled={!teachingLoadId ||
                                     !weekNumber ||
                                     processing}
-                                class="mt-6 w-full py-4 bg-gradient-to-r from-gov-blue to-gov-blue-dark text-white text-lg font-extrabold rounded-md shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:grayscale transition-all duration-300 min-h-[60px] flex items-center justify-center gap-3 uppercase tracking-wide"
+                                class="mt-6 w-full py-4 bg-gradient-to-r {isOnline
+                                    ? 'from-gov-blue to-gov-blue-dark'
+                                    : 'from-gov-gold-dark to-gov-gold'} text-white text-lg font-extrabold rounded-md shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:grayscale transition-all duration-300 min-h-[60px] flex items-center justify-center gap-3 uppercase tracking-wide"
                             >
                                 {#if processing}
                                     <svg
@@ -1108,7 +1234,9 @@
                                             d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
                                         /></svg
                                     >
-                                    Confirm & Archive Document
+                                    {isOnline
+                                        ? "Confirm & Archive"
+                                        : "Save Offline"}
                                 {/if}
                             </button>
                         {/if}
@@ -1173,15 +1301,6 @@
                         </div>
                     </div>
                 </div>
-                {#if untrack(() => {
-                    // Update internal history to prevent immediate re-upload
-                    const exists = submissionHistory.some((s) => s.teaching_load_id === teachingLoadId && s.week_number === weekNumber);
-                    if (!exists) {
-                        submissionHistory = [{ teaching_load_id: teachingLoadId, week_number: weekNumber, doc_type: docType, created_at: new Date().toISOString() }, ...submissionHistory];
-                        submissionAlreadyExists = true;
-                    }
-                    return false;
-                })}{/if}
             {/if}
         </div>
 
@@ -1190,17 +1309,19 @@
             <!-- Smart Copilot -->
             <CopilotPanel
                 {teachingLoads}
-                submissions={submissionHistory}
+                submissions={mergedSubmissions}
                 currentWeek={copilotCurrentWeek}
                 selectedWeek={weekNumber}
                 selectedDocType={docType}
                 selectedLoadId={teachingLoadId}
                 calendarDeadlines={copilotDeadlines}
-                onApplySuggestion={(action) => {
-                    if (action?.teachingLoadId)
+                onApplySuggestion={(action: any) => {
+                    if (action.teachingLoadId)
                         teachingLoadId = action.teachingLoadId;
-                    if (action?.weekNumber) weekNumber = action.weekNumber;
-                    if (action?.docType) docType = action.docType;
+                    if (action.weekNumber) weekNumber = action.weekNumber;
+                    if (action.docType) docType = action.docType;
+                    if (action.subject) subject = action.subject;
+                    checkExistingSubmission();
                 }}
             />
 
@@ -1289,13 +1410,72 @@
             </div>
 
             <div class="gov-card-static p-6">
-                <h3 class="text-lg font-bold text-text-primary mb-3">
-                    System Status
+                <h3
+                    class="text-lg font-bold text-text-primary mb-4 pb-2 border-b border-gray-100 flex items-center justify-between"
+                >
+                    System Hub
+                    <span
+                        class="text-[9px] px-1.5 py-0.5 rounded bg-gray-900 text-white font-mono uppercase"
+                        >Live</span
+                    >
                 </h3>
-                <p class="text-sm text-text-secondary leading-relaxed">
-                    No internet? No problem. Your files are queued locally and
-                    will auto-sync when your connection is restored.
-                </p>
+                <div class="space-y-4">
+                    <div
+                        class="flex items-center justify-between text-[11px] pb-2 border-b border-gray-50"
+                    >
+                        <span
+                            class="text-text-muted uppercase font-bold tracking-tight"
+                            >Signal</span
+                        >
+                        <span
+                            class={isOnline
+                                ? "text-gov-green font-bold"
+                                : "text-gov-gold font-bold"}
+                        >
+                            {isOnline
+                                ? "GLOBAL_SYNC_ACTIVE"
+                                : "LOCAL_ONLY_MODE"}
+                        </span>
+                    </div>
+                    <div
+                        class="flex items-center justify-between text-[11px] pb-2 border-b border-gray-50"
+                    >
+                        <span
+                            class="text-text-muted uppercase font-bold tracking-tight"
+                            >Integrity Ledger</span
+                        >
+                        <span class="text-text-primary font-mono"
+                            >{lastLedgerSync
+                                ? `SYNCED ${lastLedgerSync}`
+                                : "INITIALIZING..."}</span
+                        >
+                    </div>
+                    <div
+                        class="flex items-center justify-between text-[11px] pb-2 border-b border-gray-50"
+                    >
+                        <span
+                            class="text-text-muted uppercase font-bold tracking-tight"
+                            >Storage Cluster</span
+                        >
+                        <span class="text-text-primary font-mono"
+                            >IDB_PERSISTENT_V2</span
+                        >
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <h4
+                            class="text-[10px] font-bold text-text-primary uppercase mb-1"
+                        >
+                            PWA Continuity
+                        </h4>
+                        <p
+                            class="text-[10px] text-text-secondary leading-tight"
+                        >
+                            Your sessions are persistent using
+                            **navigator.storage**. This archival vault will not
+                            reset on refresh.
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

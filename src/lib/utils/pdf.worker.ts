@@ -81,8 +81,8 @@ self.onmessage = async (e: MessageEvent) => {
             // 1. Compress
             const compressedBytes = await compressPdf(pdfBytes);
 
-            // 2. Hash
-            const fileHash = await hashPdf(compressedBytes);
+            // 2. Hash ORIGINAL bytes (prevents compression metadata changes from creating unique hashes for renamed duplicates)
+            const fileHash = await hashPdf(pdfBytes);
 
             ctx.postMessage({
                 id,

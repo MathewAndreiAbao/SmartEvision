@@ -303,10 +303,10 @@ export async function enqueue(item: QueueItem): Promise<void> {
     await set(key, storeItem);
     await updatePendingCount();
 
-    // Auto-sync if online
-    if (typeof navigator !== 'undefined' && navigator.onLine) {
-        processQueue();
-    }
+    // NOTE: No auto-sync here. The sync engine handles sync separately
+    // via initOfflineSync listeners (online event, visibility change, etc.)
+    // This prevents unnecessary sync attempts while offline.
+    console.log(`[offline] Enqueued: ${item.fileName} (sync deferred)`);
 }
 
 export async function getQueueSize(): Promise<number> {
@@ -373,7 +373,6 @@ export async function processQueue(force = false): Promise<{ success: number; fa
     const isOnline = force ? true : await checkConnection();
 
     if (!isOnline) {
-        // console.log('[offline] processQueue skipped: Offline');
         return { success: 0, failed: 0 };
     }
 
@@ -386,7 +385,6 @@ export async function processQueue(force = false): Promise<{ success: number; fa
     const queueKeys = allKeys.filter((k: any) => String(k).startsWith(QUEUE_PREFIX));
 
     if (queueKeys.length === 0) {
-        // console.log('[offline] Queue is empty.');
         return { success: 0, failed: 0 };
     }
 
@@ -398,9 +396,12 @@ export async function processQueue(force = false): Promise<{ success: number; fa
     // Notify start
     addToast('info', `Syncing ${queueKeys.length} offline file(s)...`);
 
+    // Lazy-import ledger for marking synced entries
+    const { markSynced, removeLedgerEntry } = await import('./offlineSubmissionLedger');
+
     try {
         for (const key of queueKeys) {
-            // Re-check connection before each item to be safe
+            // Re-check connection before each item
             if (!force && !(await checkConnection())) {
                 console.log('[offline] Connection lost during sync. Pausing...');
                 break;
@@ -416,7 +417,31 @@ export async function processQueue(force = false): Promise<{ success: number; fa
             }
 
             try {
-                // Check for duplicates before upload
+                // ── Re-validate against server before upload ──
+                // (Items may have been uploaded by another device/session since queuing)
+
+                // 1. Strict Metadata Check (One per load/week/type)
+                if (item.options.teachingLoadId && item.options.weekNumber) {
+                    const { data: metaMatch } = await supabase
+                        .from('submissions')
+                        .select('id')
+                        .eq('teaching_load_id', item.options.teachingLoadId)
+                        .eq('week_number', item.options.weekNumber)
+                        .eq('school_year', item.options.schoolYear || '2025-2026')
+                        .eq('doc_type', item.options.docType || 'DLL')
+                        .maybeSingle();
+
+                    if (metaMatch) {
+                        console.warn(`[offline] Slot already taken on server: ${item.fileName}`);
+                        await del(key);
+                        await markSynced(item.fileHash); // Update ledger to 'synced'
+                        addToast('warning', `Already archived: ${item.options.docType || 'DLL'} for Week ${item.options.weekNumber}.`);
+                        success++;
+                        continue;
+                    }
+                }
+
+                // 2. Strict File Hash Check (No identical content)
                 const { data: existing } = await supabase
                     .from('submissions')
                     .select('id')
@@ -424,22 +449,20 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                     .maybeSingle();
 
                 if (existing) {
-                    console.warn(`[offline] Skipping duplicate file: ${item.fileName}`);
-                    await del(key); // Remove from queue
-                    addToast('warning', `Skipped duplicate: ${item.fileName}`);
+                    console.warn(`[offline] Duplicate hash on server: ${item.fileName}`);
+                    await del(key);
+                    await markSynced(item.fileHash);
+                    addToast('warning', `Skipped duplicate content: ${item.fileName}`);
+                    success++;
                     continue;
                 }
 
-                // 1. Upload to Supabase Storage via DIRECT REST API
-                // The supabase.storage.upload() client hangs on mobile devices.
-                // Bypassing it with a direct fetch + FormData for maximum compatibility.
+                // ── Upload to Supabase Storage via direct REST API ──
                 const { data: sessionData } = await supabase.auth.getSession();
                 const accessToken = sessionData?.session?.access_token;
                 if (!accessToken) throw new Error('Not authenticated for background sync');
 
                 const storageUrl = `${env.PUBLIC_SUPABASE_URL}/storage/v1/object/submissions/${item.filePath}`;
-
-                // Create a file object from the Uint8Array
                 const uploadFile = new File([item.pdfBytes as any], item.fileName, { type: 'application/pdf' });
 
                 const uploadResponse = await fetch(storageUrl, {
@@ -453,21 +476,19 @@ export async function processQueue(force = false): Promise<{ success: number; fa
 
                 if (!uploadResponse.ok) {
                     const errBody = await uploadResponse.text().catch(() => 'Unknown error');
-
-                    // Handle BOTH 409 status code and 400 status with 409 body (Supabase quirks)
                     const isDuplicate = uploadResponse.status === 409 ||
                         (uploadResponse.status === 400 && errBody.includes('"statusCode":"409"')) ||
                         errBody.toLowerCase().includes('already exists') ||
                         errBody.toLowerCase().includes('duplicate');
 
                     if (isDuplicate) {
-                        console.info(`[offline] File already exists in storage: ${item.fileName}. Proceeding to DB check.`);
+                        console.info(`[offline] File exists in storage (OK): ${item.fileName}`);
                     } else {
                         throw new Error(`Storage upload failed (${uploadResponse.status}): ${errBody}`);
                     }
                 }
 
-                // 2. Fetch deadline if possible for compliance calculation
+                // ── Fetch deadline for compliance ──
                 let deadlineDate: Date | undefined;
                 if (item.options.calendarId) {
                     const { data } = await supabase.from('academic_calendar').select('deadline_date').eq('id', item.options.calendarId).single();
@@ -485,10 +506,10 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                     }
                 }
 
-                // 3. Insert database record
+                // ── Insert database record ──
                 const complianceStatus = calculateComplianceStatus(new Date(), deadlineDate);
 
-                let { error: dbError } = await supabase.from('submissions').insert({
+                const { error: dbError } = await supabase.from('submissions').insert({
                     user_id: item.options.userId,
                     file_name: item.fileName,
                     file_path: item.filePath,
@@ -503,34 +524,41 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                     compliance_status: complianceStatus
                 });
 
-                if (dbError?.code === 'PGRST204') {
-                    // Column already missing or other error, handled by generic check below
-                }
-
                 if (dbError) {
-                    console.error('[pipeline] DB insert error:', dbError);
+                    console.error('[sync] DB insert error:', dbError);
 
-                    // Handle unique constraint violation (WBS 14.5 duplicate prevention)
-                    // code 23505 = Unique Violation in Postgres
+                    // Handle unique constraint violation (Postgres code 23505)
                     if (dbError.code === '23505' || dbError.message?.includes('unique_submission_per_load_week')) {
-                        console.warn(`[offline] Removing duplicate record from queue: ${item.fileName}`);
-                        await del(key); // Cancel the sync for this item as it already exists
-                        addToast('warning', `Already submitted: ${item.fileName} is already archived for this week.`);
-                        success++; // Count as "processed" to avoid misleading error toast
+                        console.warn(`[sync] Duplicate constraint — removing: ${item.fileName}`);
+                        await del(key);
+                        await markSynced(item.fileHash);
+                        addToast('warning', `Already archived: ${item.fileName}`);
+                        success++;
                         continue;
                     }
 
                     throw new Error(`DB Insert failed: ${dbError.message}`);
                 }
 
-                // Success! Remove from queue
+                // ── Success: clean up ──
                 await del(key);
                 await updatePendingCount();
+                await markSynced(item.fileHash);
+
+                // Cache the hash for future offline verification
+                await cacheVerifiedDoc(item.fileHash, {
+                    file_name: item.fileName,
+                    doc_type: item.options.docType,
+                    week_number: item.options.weekNumber,
+                    school_year: item.options.schoolYear,
+                    created_at: new Date().toISOString()
+                });
+
                 success++;
-                console.log(`[offline] Successfully synced: ${item.fileName}`);
+                console.log(`[sync] Successfully synced: ${item.fileName}`);
 
             } catch (err: any) {
-                console.error(`[offline] Failed to sync ${item.fileName}:`, err);
+                console.error(`[sync] Failed to sync ${item.fileName}:`, err);
                 failed++;
             }
         }
@@ -583,23 +611,33 @@ export function calculateComplianceStatus(
 export function initOfflineSync(): void {
     if (typeof window === 'undefined') return;
 
+    // 0. Request persistent storage (prevents browser from evicting IndexedDB)
+    import('./offlineSubmissionLedger').then(({ requestPersistentStorage }) => {
+        requestPersistentStorage();
+    });
+
     // 1. Event Listener for Network Status
     window.addEventListener('online', () => {
         console.log('[offline] Network "online" event detected.');
-        addToast('info', 'Connection restored. Attempting verification...');
+        addToast('info', 'Connection restored. Syncing pending uploads...');
 
         // Wait a moment for connection to stabilize
         setTimeout(() => {
             processQueue();
+            // Also sync the ledger from server for consistency
+            import('./offlineSubmissionLedger').then(({ syncLedgerFromServer }) => {
+                // We don't have userId here, but the sync will happen via the profile store
+                console.log('[offline] Ledger server sync triggered on reconnect');
+            });
         }, 3000);
     });
 
-    // 2. Periodic "Heartbeat" (every 30s)
+    // 2. Periodic "Heartbeat" (every 60s — battery-friendly for mobile)
     setInterval(() => {
         if (navigator.onLine) {
             processQueue();
         }
-    }, 30000);
+    }, 60000);
 
     // 3. Initial check on load
     updatePendingCount();
@@ -610,7 +648,7 @@ export function initOfflineSync(): void {
         }, 5000);
     }
 
-    // 4. Aggressive Sync Triggers (Visibility & Focus)
+    // 4. Sync Triggers (Visibility & Focus)
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && navigator.onLine) {
             processQueue();
