@@ -294,24 +294,22 @@ export async function* runOnlinePipeline(
 
         // Hash uniqueness
         try {
-            const hashCheckPromise = supabase
+            const { data: hashMatch, error: hashErr } = await supabase
                 .from('submissions')
-                .select('id, file_name')
+                .select('id, file_name, doc_type, week_number')
                 .eq('file_hash', fileHash)
+                .limit(1)
                 .maybeSingle();
 
-            const hashTimeout = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Hash check timeout')), 5000)
-            );
-
-            const { data: hashMatch }: any = await Promise.race([hashCheckPromise, hashTimeout]);
+            if (hashErr) throw new Error(`Integrity check failed: ${hashErr.message}`);
 
             if (hashMatch) {
-                throw new Error(`Duplicate content detected. This exact document was already archived as "${hashMatch.file_name}".`);
+                throw new Error(`Duplicate content detected. This exact document was already archived as "${hashMatch.file_name}" (${hashMatch.doc_type}, Week ${hashMatch.week_number}).`);
             }
         } catch (err: any) {
+            // Rethrow if it's a duplicate error, otherwise fail strictly
             if (err?.message?.includes('Duplicate') || err?.message?.includes('already archived')) throw err;
-            console.warn('[pipeline] Hash check warning (proceeding):', err?.message);
+            throw new Error(`Integrity verification unavailable: ${err?.message || 'Check failed'}. Please try again when online.`);
         }
 
         // Metadata uniqueness (one-per-week-per-load)

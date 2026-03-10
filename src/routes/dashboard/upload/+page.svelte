@@ -65,6 +65,7 @@
     let fileSizeWarning = $state(false);
     let detectingMetadata = $state(false);
     let detectedMetadata = $state<any>(null);
+    let fileHash = $state<string>("");
 
     // Online/Offline Mode
     let isOnline = $state(
@@ -102,6 +103,8 @@
     $effect(() => {
         if (teachingLoadId && weekNumber && docType && $profile) {
             checkExistingSubmission();
+        } else if (fileHash) {
+            checkExistingSubmission();
         } else {
             submissionAlreadyExists = false;
             submissionBlockReason = "";
@@ -109,39 +112,72 @@
     });
 
     async function checkExistingSubmission() {
-        // Check 1: Local ledger (works offline)
-        const integrity = await validateUploadIntegrity(
-            teachingLoadId,
-            weekNumber!,
-            "2025-2026",
-            docType,
-            "", // No hash yet at selection time
-        );
-        if (!integrity.allowed && integrity.blockType === "slot_taken") {
-            submissionAlreadyExists = true;
-            submissionBlockReason =
-                integrity.reason || `Already archived for Week ${weekNumber}`;
-            return;
-        }
-
-        // Check 2: Server check (online only)
-        if (navigator.onLine) {
-            const { data, error } = await supabase
-                .from("submissions")
-                .select("id, doc_type")
-                .eq("teaching_load_id", teachingLoadId)
-                .eq("week_number", weekNumber)
-                .eq("school_year", "2025-2026")
-                .eq("doc_type", docType)
-                .maybeSingle();
-
-            if (error) {
-                console.error("[upload] Error checking existence:", error);
+        // Check 1: Hash uniqueness (highest priority - blocks content regardless of slot)
+        if (fileHash) {
+            const { hasHash } = await import(
+                "$lib/utils/offlineSubmissionLedger"
+            );
+            const localMatch = await hasHash(fileHash);
+            if (localMatch) {
+                submissionAlreadyExists = true;
+                submissionBlockReason = `Duplicate content: This file was already archived as "${localMatch.fileName}" (${localMatch.docType}, Week ${localMatch.weekNumber})`;
                 return;
             }
-            submissionAlreadyExists = !!data;
-            if (data)
-                submissionBlockReason = `Already archived for Week ${weekNumber}`;
+
+            if (navigator.onLine) {
+                const { data: serverHashMatch } = await supabase
+                    .from("submissions")
+                    .select("id, file_name, doc_type, week_number")
+                    .eq("file_hash", fileHash)
+                    .limit(1)
+                    .maybeSingle();
+
+                if (serverHashMatch) {
+                    submissionAlreadyExists = true;
+                    submissionBlockReason = `Duplicate content: Already archived on server as "${serverHashMatch.file_name}" (${serverHashMatch.doc_type}, Week ${serverHashMatch.week_number})`;
+                    return;
+                }
+            }
+        }
+
+        // Check 2: Slot uniqueness (one per teaching load per week per doc type)
+        if (teachingLoadId && weekNumber) {
+            const integrity = await validateUploadIntegrity(
+                teachingLoadId,
+                weekNumber!,
+                "2025-2026",
+                docType,
+                fileHash || "selection-dry-run",
+            );
+            if (!integrity.allowed && integrity.blockType === "slot_taken") {
+                submissionAlreadyExists = true;
+                submissionBlockReason =
+                    integrity.reason ||
+                    `Already archived for Week ${weekNumber}`;
+                return;
+            }
+
+            // Check 2b: Server slot check (online only)
+            if (navigator.onLine) {
+                const { data, error } = await supabase
+                    .from("submissions")
+                    .select("id, doc_type")
+                    .eq("teaching_load_id", teachingLoadId)
+                    .eq("week_number", weekNumber)
+                    .eq("school_year", "2025-2026")
+                    .eq("doc_type", docType)
+                    .maybeSingle();
+
+                if (error) {
+                    console.error("[upload] Error checking existence:", error);
+                    return;
+                }
+                submissionAlreadyExists = !!data;
+                if (data)
+                    submissionBlockReason = `Already archived for Week ${weekNumber}`;
+            } else {
+                submissionAlreadyExists = false;
+            }
         } else {
             submissionAlreadyExists = false;
         }
@@ -587,6 +623,20 @@
             console.error("[upload] OCR error:", err);
         } finally {
             detectingMetadata = false;
+        }
+
+        // START: Hash Calculation for Early Duplicate Detection
+        try {
+            const buffer = await file.arrayBuffer();
+            const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            fileHash = hashArray
+                .map((b) => b.toString(16).padStart(2, "0"))
+                .join("");
+            console.log("[upload] Early hash calculation complete:", fileHash);
+            // checkExistingSubmission is triggered via $effect
+        } catch (hashErr) {
+            console.warn("[upload] Early hash calculation failed:", hashErr);
         }
     }
 
