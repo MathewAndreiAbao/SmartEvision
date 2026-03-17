@@ -7,7 +7,7 @@ import { config } from './config';
  */
 export async function googleConvertToPdf(file: File): Promise<Uint8Array> {
     if (!config.GOOGLE_SCRIPT_URL) {
-        throw new Error('Google Script URL is missing. Please deploy scripts/google_apps_script.js and add PUBLIC_GOOGLE_SCRIPT_URL to your .env file.');
+        throw new Error('Google Script URL is missing. Please deploy google_apps_script.js and add PUBLIC_GOOGLE_SCRIPT_URL to your .env file.');
     }
 
     console.log(`[google-convert] Converting ${file.name} to PDF via Google Apps Script...`);
