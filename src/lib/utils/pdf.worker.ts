@@ -45,28 +45,21 @@ async function stampQrCode(pdfBytes: Uint8Array, qrBytes: Uint8Array, fileHash: 
     const pdfDoc = await PDFDocument.load(pdfBytes);
     const qrImage = await pdfDoc.embedPng(qrBytes);
 
-    const firstPage = pdfDoc.getPages()[0];
-    const { width, height } = firstPage.getSize();
+    const pageCount = pdfDoc.getPageCount();
+    const lastPage = pdfDoc.getPage(pageCount - 1);
+    const { width, height } = lastPage.getSize();
 
     const qrSize = 72; // ~1 inch
     const margin = 30;
 
-    firstPage.drawImage(qrImage, {
+    lastPage.drawImage(qrImage, {
         x: width - qrSize - margin,
         y: margin,
         width: qrSize,
         height: qrSize
     });
 
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-    firstPage.drawText('Verify: ' + fileHash.slice(0, 12) + '...', {
-        x: width - qrSize - margin,
-        y: margin - 10,
-        size: 6,
-        font,
-        color: rgb(0.4, 0.4, 0.4)
-    });
+    // Removed the 'Verify' text as requested
 
     return await pdfDoc.save();
 }

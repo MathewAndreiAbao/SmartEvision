@@ -27,14 +27,12 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/" | "/api" | "/api/convert" | "/auth" | "/auth/login" | "/dashboard" | "/dashboard/admin" | "/dashboard/analytics" | "/dashboard/archive" | "/dashboard/calendar" | "/dashboard/load" | "/dashboard/monitoring" | "/dashboard/monitoring/district" | "/dashboard/monitoring/school" | "/dashboard/settings" | "/dashboard/upload" | "/verify" | "/verify/[hash]";
+		RouteId(): "/" | "/auth" | "/auth/login" | "/dashboard" | "/dashboard/admin" | "/dashboard/analytics" | "/dashboard/archive" | "/dashboard/calendar" | "/dashboard/load" | "/dashboard/monitoring" | "/dashboard/monitoring/district" | "/dashboard/monitoring/school" | "/dashboard/settings" | "/dashboard/upload" | "/verify" | "/verify/[hash]";
 		RouteParams(): {
 			"/verify/[hash]": { hash: string }
 		};
 		LayoutParams(): {
 			"/": { hash?: string };
-			"/api": Record<string, never>;
-			"/api/convert": Record<string, never>;
 			"/auth": Record<string, never>;
 			"/auth/login": Record<string, never>;
 			"/dashboard": Record<string, never>;

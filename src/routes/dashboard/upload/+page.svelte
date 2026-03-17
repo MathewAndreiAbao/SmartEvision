@@ -685,6 +685,15 @@
             return;
         }
 
+        // Block Word files when offline (GAS needs internet)
+        if (!isOnline) {
+            const ext = selectedFile.name.split('.').pop()?.toLowerCase();
+            if (ext === 'docx' || ext === 'doc') {
+                addToast("error", "Word document conversion requires an internet connection. Please upload a PDF or connect to the internet.");
+                return;
+            }
+        }
+
         processing = true;
         result = null;
 
