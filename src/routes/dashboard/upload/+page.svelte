@@ -672,7 +672,7 @@
         // Auto-wait for profile and teaching load list to be ready (up to 5s)
         if (loadingTeachingLoads || !$profile) {
             addToast("info", "Syncing data, please wait...");
-            const ready = await waitForDataReady(5000);
+            const ready = await waitForDataReady(15000);
             if (!ready) {
                 addToast("error", "Timeout: Could not sync profile data.");
                 return;

@@ -181,7 +181,7 @@ async function* runOnlinePipelineResilient(
     // Server check
     const { data: hashMatch } = await withTimeout(
         supabase.from('submissions').select('file_name, week_number').eq('file_hash', fileHash).maybeSingle() as any,
-        15000,
+        30000,
         'Server integrity check timed out.'
     ) as { data: any };
     if (hashMatch) throw new Error(`Duplicate content detected on server: ${hashMatch.file_name}`);
@@ -197,8 +197,8 @@ async function* runOnlinePipelineResilient(
             headers: { 'Authorization': `Bearer ${session?.session?.access_token}`, 'x-upsert': 'false' },
             body: new File([stampedBytes as any], fileName, { type: 'application/pdf' })
         }),
-        30000,
-        'Storage upload timed out.'
+        120000, // 120s (2 minutes) for mobile-friendly upload
+        'Storage upload timed out. Large files on mobile may take longer.'
     );
     if (!uploadResponse.ok && !uploadResponse.status.toString().startsWith('409')) {
         throw new Error(`Upload failed: ${await uploadResponse.text()}`);
@@ -222,7 +222,7 @@ async function* runOnlinePipelineResilient(
             teaching_load_id: options.teachingLoadId || null,
             compliance_status: complianceStatus
         }) as any,
-        15000,
+        30000,
         'Database record timed out.'
     ) as { error: any };
     if (dbError) throw new Error(`DB Error: ${dbError.message}`);
@@ -330,7 +330,7 @@ export async function* runPipeline(
                 const isStall = msg.includes('time') || msg.includes('fetch') || msg.includes('network');
                 if (isStall) {
                     console.warn('[pipeline] Online stall, falling back to offline vault.');
-                    yield { phase: 'uploading', progress: 0, message: 'Connection unstable. Saving locally...' };
+                    yield { phase: 'uploading', progress: 0, message: 'Upload taking longer than expected. Saving locally to ensure no data loss...' };
                 } else {
                     throw err; // Hard error (Duplicate)
                 }

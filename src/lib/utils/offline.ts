@@ -434,7 +434,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
 
                     const { data: metaMatch } = await withTimeout(
                         metaCheckPromise as any,
-                        10000,
+                        20000,
                         'Meta check timed out'
                     ) as { data: any };
 
@@ -457,7 +457,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
 
                 const { data: existing } = await withTimeout(
                     hashCheckPromise as any,
-                    10000,
+                    20000,
                     'Hash check timed out'
                 ) as { data: any };
 
@@ -489,7 +489,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
 
                 const uploadResponse = await withTimeout(
                     uploadPromise,
-                    60000, // 60s for background sync upload
+                    120000, // 2 minutes for background sync
                     'Sync storage upload timed out'
                 );
 
@@ -545,7 +545,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
 
                 const { error: dbError } = await withTimeout(
                     insertPromise as any,
-                    15000,
+                    30000,
                     'Sync DB insert timed out'
                 ) as { error: any };
 
