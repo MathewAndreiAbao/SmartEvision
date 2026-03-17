@@ -218,11 +218,34 @@
         }
     }
 
+    // Mobile Optimization: Multi-stage library pre-warming
+    // Hides the 2-5s loading delay of heavy workers on mobile
+    async function preWarmLibraries() {
+        if (typeof window === "undefined") return;
+        console.log("[upload] Pre-warming heavy libraries...");
+
+        // 1. PDF.js (already in app.html, but let's ensure it's hit)
+        if (!(window as any).pdfjsLib) {
+            console.log("[upload] Fetching PDF.js...");
+        }
+
+        // 2. Tesseract.js (Dynamic import)
+        try {
+            const { createWorker } = await import("tesseract.js");
+            // Just the import is often enough to trigger Service Worker caching
+            console.log("[upload] Tesseract.js pre-warmed.");
+        } catch (e) {
+            console.warn("[upload] Pre-warm failed:", e);
+        }
+    }
+
     onMount(() => {
         getQueueSize().then((s) => {
             queueCount = s;
         });
         refreshPendingItems();
+        // Delay pre-warming slightly to not block initial page render
+        setTimeout(preWarmLibraries, 3000);
 
         // Track online/offline state
         const onOnline = () => {

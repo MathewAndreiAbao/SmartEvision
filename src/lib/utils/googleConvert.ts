@@ -44,12 +44,9 @@ export async function googleConvertToPdf(file: File): Promise<Uint8Array> {
         throw new Error(`Google Script error: ${result.error || 'Unknown error'}`);
     }
 
-    // 3. Decode response back to Uint8Array
+    // 3. Decode response back to Uint8Array (Optimized for Mobile)
     const binaryString = atob(result.pdfBase64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-    }
+    const bytes = Uint8Array.from(binaryString, (c) => c.charCodeAt(0));
 
     console.log(`[google-convert] Conversion successful: ${(bytes.byteLength / 1024).toFixed(0)}KB`);
     return bytes;

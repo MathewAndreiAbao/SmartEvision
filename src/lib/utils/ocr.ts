@@ -81,11 +81,9 @@ export async function extractMetadata(file: File): Promise<DocMetadata> {
         return createDefaultMetadata();
     }
 
-    const { createWorker } = await import('tesseract.js');
+    const objectUrl = URL.createObjectURL(file);
 
     try {
-        const dataUrl = await fileToDataUrl(file);
-
         // SINGLE PASS OPTIMIZATION (WBS 14.5 Mobile)
         // Tesseract.js automatically caches worker and langs in IndexedDB.
         // As long as it's run once while online, it works offline.
@@ -96,7 +94,7 @@ export async function extractMetadata(file: File): Promise<DocMetadata> {
 
         try {
             // OPTIMIZATION: Manual thresholding for low-end mobile CPUs
-            const { data: { text, confidence } } = await worker.recognize(dataUrl);
+            const { data: { text, confidence } } = await worker.recognize(objectUrl);
 
             // Post-process language detection from result
             const language = detectLanguage(text);
@@ -110,6 +108,8 @@ export async function extractMetadata(file: File): Promise<DocMetadata> {
     } catch (err) {
         console.error('[ocr] Optimized Image OCR failed:', err);
         return createDefaultMetadata();
+    } finally {
+        URL.revokeObjectURL(objectUrl);
     }
 }
 
@@ -161,31 +161,38 @@ async function extractRasterMetadata(page: any, pdfjsLib: any): Promise<DocMetad
                 // Thresholding: Black or White only (Binary)
                 const val = avg > 128 ? 255 : 0;
                 data[i] = data[i + 1] = data[i + 2] = val;
+                data[i + 3] = 255; // Ensure alpha is solid
             }
             context.putImageData(imageData, 0, 0);
         }
 
-        const dataUrl = canvas.toDataURL('image/png', 0.7);
-
-        const { createWorker } = await import('tesseract.js');
-        const worker = await createWorker('eng+fil'); // Optimized single pass
-        try {
-            const { data: { text, confidence } } = await worker.recognize(dataUrl);
-            console.log(`[ocr] Raster OCR complete (${text.length} chars), scale: ${scale}, confidence:`, confidence);
-            const metadata = parseMetadata(text);
-            return { ...metadata, rawText: text, confidence, language: detectLanguage(text) };
-        } finally {
-            await worker.terminate();
-        }
+        return new Promise<DocMetadata>((resolve, reject) => {
+            canvas.toBlob(async (blob) => {
+                if (!blob) {
+                    reject(new Error('Canvas toBlob failed'));
+                    return;
+                }
+                const blobUrl = URL.createObjectURL(blob);
+                const { createWorker } = await import('tesseract.js');
+                const worker = await createWorker('eng+fil');
+                
+                try {
+                    const { data: { text, confidence } } = await worker.recognize(blobUrl);
+                    console.log(`[ocr] Raster OCR complete (${text.length} chars), scale: ${scale}, confidence:`, confidence);
+                    const metadata = parseMetadata(text);
+                    resolve({ ...metadata, rawText: text, confidence, language: detectLanguage(text) });
+                } catch (e) {
+                    reject(e);
+                } finally {
+                    await worker.terminate();
+                    URL.revokeObjectURL(blobUrl);
+                }
+            }, 'image/png');
+        });
     } catch (err) {
         console.error('[ocr] Raster fallback failed:', err);
         return createDefaultMetadata();
     }
-}
-
-function fileToDataUrl(file: File): Promise<string> {
-    // Optimization: createObjectURL is much lighter than FileReader for large images
-    return Promise.resolve(URL.createObjectURL(file));
 }
 
 function detectLanguage(text: string): 'English' | 'Filipino' | 'Unknown' {

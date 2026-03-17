@@ -63,24 +63,41 @@ self.addEventListener('activate', (event) => {
 
 // ─── Fetch: Network-first with cache fallback ──────────────────
 self.addEventListener('fetch', (event) => {
-    // Skip non-GET requests
     if (event.request.method !== 'GET') return;
 
     const url = new URL(event.request.url);
-
-    // Skip cross-origin requests (Supabase API, fonts CDN, etc.)
-    if (url.origin !== self.location.origin) return;
+    const isLocal = url.origin === self.location.origin;
+    
+    // Critical Third-Party Assets (CDNs) that we WANT to cache for mobile efficiency
+    const isCriticalThirdParty = 
+        url.hostname.includes('cdnjs.cloudflare.com') || 
+        url.hostname.includes('fonts.googleapis.com') || 
+        url.hostname.includes('fonts.gstatic.com') ||
+        url.hostname.includes('unpkg.com');
 
     async function respond(): Promise<Response> {
         const cache = await caches.open(CACHE);
 
-        // Strategy 1: Cache-first for build assets (immutable, hashed filenames)
-        if (ASSETS.includes(url.pathname)) {
+        // Strategy 1: Cache-first for build assets and critical third-party libs
+        if ((isLocal && ASSETS.includes(url.pathname)) || isCriticalThirdParty) {
             const cachedResponse = await cache.match(event.request);
             if (cachedResponse) return cachedResponse;
+            
+            // If it's a critical third-party but not in cache, fetch and cache it
+            if (isCriticalThirdParty) {
+                try {
+                    const response = await fetch(event.request);
+                    if (response.status === 200) {
+                        cache.put(event.request, response.clone());
+                    }
+                    return response;
+                } catch (e) {
+                    // Fallback to whatever we have
+                }
+            }
         }
 
-        // Strategy 2: Network-first for everything else (pages, API)
+        // Strategy 2: Network-first for everything else
         try {
             const response = await fetch(event.request);
 
@@ -88,8 +105,8 @@ self.addEventListener('fetch', (event) => {
                 throw new Error('Invalid response from fetch');
             }
 
-            // Cache successful responses for future offline use
-            if (response.status === 200) {
+            // Cache successful local responses for future offline use
+            if (isLocal && response.status === 200) {
                 cache.put(event.request, response.clone());
             }
 
@@ -99,14 +116,9 @@ self.addEventListener('fetch', (event) => {
             const cachedResponse = await cache.match(event.request);
             if (cachedResponse) return cachedResponse;
 
-            // For navigation requests (page loads), serve the cached app shell
-            // so SvelteKit's client-side router can render the correct page
             if (event.request.mode === 'navigate') {
                 const appShell = await cache.match('/');
-                if (appShell) {
-                    console.log('[SW] Serving cached app shell for offline navigation:', url.pathname);
-                    return appShell;
-                }
+                if (appShell) return appShell;
             }
 
             throw err;

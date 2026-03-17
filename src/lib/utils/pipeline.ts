@@ -13,6 +13,7 @@
 
 import { transcodeToPdf } from './transcode';
 import PdfWorker from './pdf.worker?worker';
+import { compressFile } from './compress';
 import { supabase } from './supabase';
 import { env } from '$env/dynamic/public';
 import { createNotification } from './notificationSystem';
@@ -99,12 +100,24 @@ async function* runPipelineCore(
     worker: Worker
 ): AsyncGenerator<PipelineEvent & { _core?: CoreResult }> {
 
-    // 1. Transcode
-    yield { phase: 'transcoding', progress: 10, message: 'Converting document to PDF...' };
-    const transcodeResult = await transcodeToPdf(file);
-    const pdfBytes = transcodeResult.pdfBytes;
+    // 1. Transcode (Word to PDF)
+    yield { phase: 'transcoding', progress: 10, message: 'Converting to PDF...' };
+    let pdfBytes = file.type === 'application/pdf' ? new Uint8Array(await file.arrayBuffer()) : (await transcodeToPdf(file)).pdfBytes;
 
-    // 2. Analyzing (OCR)
+    // 2. Mobile Optimization: Detect "Low-Power" or "Slow-Connection" state
+    // Skip heavy compression if the file is already small to save CPU/Battery on mobile
+    const isSlowConnection = (navigator as any).connection?.effectiveType === '2g' || (navigator as any).connection?.saveData;
+    const isSmallEnough = pdfBytes.byteLength < 2 * 1024 * 1024; // 2MB
+
+    if (isSlowConnection && isSmallEnough) {
+        console.log('[pipeline] Low-power/Slow-connection detected. Skipping non-essential compression.');
+        yield { phase: 'compressing', progress: 30, message: 'Fast-tracking small file...' };
+    } else {
+        yield { phase: 'compressing', progress: 30, message: 'Optimizing for mobile...' };
+        pdfBytes = await compressFile(pdfBytes);
+    }
+
+    // 2.5. Analyzing (OCR) - Renumbered from 2 to 2.5 due to new compression step
     yield { phase: 'analyzing', progress: 30, message: 'Analyzing document content...' };
     const { extractMetadata } = await import('./ocr');
     const detectedMetadata = options.preDetectedMetadata || await extractMetadata(file);
