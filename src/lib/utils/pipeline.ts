@@ -224,16 +224,19 @@ async function* runOnlinePipelineResilient(
     }
 
     const { url: uploadUrl } = await presignRes.json();
+    console.log(`[sync] B2 URL: ${uploadUrl.split('?')[0].substring(0, 60)}...`);
+    console.log(`[sync] Attempting PUT to B2 for: ${fileName}`);
 
     // 2. Direct Upload to Cloudflare R2
     const uploadResponse = await withTimeout(
         fetch(uploadUrl, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/pdf' },
+            mode: 'cors',
             body: new Blob([stampedBytes as any], { type: 'application/pdf' })
         }),
-        120000, // 120s (2 minutes) for mobile-friendly upload
-        'Secure archive upload timed out. Large files on mobile may take longer.'
+        120000, 
+        'Secure archive upload timed out.'
     );
 
     if (!uploadResponse.ok) {

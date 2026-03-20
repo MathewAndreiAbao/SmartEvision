@@ -506,6 +506,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                     fetch(uploadUrl, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/pdf' },
+                        mode: 'cors',
                         body: item.pdfBytes as Blob
                     }),
                     120000, // 2 minutes for background sync
