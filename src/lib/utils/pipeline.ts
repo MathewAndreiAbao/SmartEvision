@@ -200,47 +200,36 @@ async function* runOnlinePipelineResilient(
     ) as { data: any };
     if (hashMatch) throw new Error(`Duplicate content detected on server: ${hashMatch.file_name}`);
 
-    // ─── Cloudflare R2 Integration ───
-    yield { phase: 'uploading', progress: 40, message: 'Uploading to secure archive...' };
+    // ─── Server Proxy Upload (Bypass CORS) ───
+    yield { phase: 'uploading', progress: 40, message: 'Uploading securely via server...' };
     const session = await supabase.auth.getSession();
     const token = session.data.session?.access_token;
     
     if (!token) throw new Error('Authentication required for archive.');
 
-    // 1. Get Pre-signed URL from R2 API
-    const presignRes = await withTimeout(
-        fetch('/api/storage/presign', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ key: filePath, contentType: 'application/pdf' })
-        }),
-        10000,
-        'Archive negotiation timed out.'
-    );
+    // 1. Prepare FormData
+    const formData = new FormData();
+    formData.append('file', new Blob([stampedBytes as any], { type: 'application/pdf' }), fileName);
+    formData.append('key', filePath);
 
-    if (!presignRes.ok) {
-        const err = await presignRes.text();
-        throw new Error(`Archive negotiation failed: ${err}`);
-    }
-
-    const { url: uploadUrl } = await presignRes.json();
-    console.log(`[sync] B2 URL: ${uploadUrl.split('?')[0].substring(0, 60)}...`);
-    console.log(`[sync] Attempting PUT to B2 for: ${fileName}`);
-
-    // 2. Direct Upload to Cloudflare R2
+    // 2. Direct POST to our own SvelteKit API (Never hits B2 CORS)
     const uploadResponse = await withTimeout(
-        fetch(uploadUrl, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/pdf' },
-            mode: 'cors',
-            body: new Blob([stampedBytes as any], { type: 'application/pdf' })
+        fetch('/api/storage/upload', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
         }),
         120000, 
         'Secure archive upload timed out.'
     );
 
     if (!uploadResponse.ok) {
-        throw new Error(`Archive upload failed (${uploadResponse.status}): ${uploadResponse.statusText}`);
+        let errStr = uploadResponse.statusText;
+        try {
+            const errJson = await uploadResponse.json();
+            errStr = errJson.message || errStr;
+        } catch { /* ignore */ }
+        throw new Error(`Archive upload failed (${uploadResponse.status}): ${errStr}`);
     }
 
     // DB Record

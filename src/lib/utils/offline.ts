@@ -477,47 +477,35 @@ export async function processQueue(force = false): Promise<{ success: number; fa
 
                 const sanitizedPath = item.filePath.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9./_-]/g, '');
                 
-                const presignRes = await withTimeout(
-                    fetch('/api/storage/presign', {
-                        method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json', 
-                            'Authorization': `Bearer ${accessToken}` 
-                        },
-                        body: JSON.stringify({ 
-                            key: sanitizedPath, 
-                            contentType: 'application/pdf',
-                            intent: 'upload' 
-                        })
-                    }),
-                    15000,
-                    'Sync negotiation timed out'
-                );
+                // Prepare FormData for server proxy
+                const formData = new FormData();
+                formData.append('file', item.pdfBytes as Blob, item.fileName);
+                formData.append('key', sanitizedPath);
 
-                if (!presignRes.ok) {
-                    throw new Error(`Sync negotiation failed: ${await presignRes.text()}`);
-                }
-
-                const { url: uploadUrl } = await presignRes.json();
-                console.log(`[sync] B2 URL: ${uploadUrl.split('?')[0].substring(0, 60)}...`);
-                console.log(`[sync] Attempting PUT to B2 for: ${item.fileName}`);
+                console.log(`[sync] Attempting proxy upload to server for: ${item.fileName}`);
 
                 const uploadResponse = await withTimeout(
-                    fetch(uploadUrl, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/pdf' },
-                        mode: 'cors',
-                        body: item.pdfBytes as Blob
+                    fetch('/api/storage/upload', {
+                        method: 'POST',
+                        headers: { 
+                            'Authorization': `Bearer ${accessToken}` 
+                        },
+                        body: formData
                     }),
-                    120000, // 2 minutes for background sync
+                    120000, 
                     'Sync archive upload timed out'
                 ).catch(err => {
-                    console.error('[sync] Fetch error during PUT to B2. This usually means CORS is blocked or the URL is invalid.', err);
+                    console.error('[sync] Fetch error during server proxy upload.', err);
                     throw err;
                 });
 
                 if (!uploadResponse.ok) {
-                    throw new Error(`Archive upload failed (${uploadResponse.status}): ${uploadResponse.statusText}`);
+                    let errStr = uploadResponse.statusText;
+                    try {
+                        const errJson = await uploadResponse.json();
+                        errStr = errJson.message || errStr;
+                    } catch { /* ignore */ }
+                    throw new Error(`Archive upload failed (${uploadResponse.status}): ${errStr}`);
                 }
 
                 // ── Fetch deadline for compliance ──
