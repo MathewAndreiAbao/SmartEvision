@@ -100,3 +100,41 @@ USING (
         AND district_id::text = (storage.foldername(name))[2]
     )
 );
+-- 4. Schools and Districts RLS Policies
+
+-- 4a. Enable RLS
+ALTER TABLE schools ENABLE ROW LEVEL SECURITY;
+ALTER TABLE districts ENABLE ROW LEVEL SECURITY;
+
+-- 4b. SELECT: Authenticated users can view all schools and districts
+DROP POLICY IF EXISTS "Authenticated users can view schools" ON schools;
+CREATE POLICY "Authenticated users can view schools"
+ON schools FOR SELECT TO authenticated
+USING (true);
+
+DROP POLICY IF EXISTS "Authenticated users can view districts" ON districts;
+CREATE POLICY "Authenticated users can view districts"
+ON districts FOR SELECT TO authenticated
+USING (true);
+
+-- 4c. UPDATE: School Heads can update their own school's avatar_url
+DROP POLICY IF EXISTS "School Heads can update own school logo" ON schools;
+CREATE POLICY "School Heads can update own school logo"
+ON schools FOR UPDATE TO authenticated
+USING (
+    id = (SELECT school_id FROM profiles WHERE id = auth.uid() AND role = 'School Head')
+)
+WITH CHECK (
+    id = (SELECT school_id FROM profiles WHERE id = auth.uid() AND role = 'School Head')
+);
+
+-- 4d. UPDATE: District Supervisors can update their own district's avatar_url
+DROP POLICY IF EXISTS "District Supervisors can update own district logo" ON districts;
+CREATE POLICY "District Supervisors can update own district logo"
+ON districts FOR UPDATE TO authenticated
+USING (
+    id = (SELECT district_id FROM profiles WHERE id = auth.uid() AND role = 'District Supervisor')
+)
+WITH CHECK (
+    id = (SELECT district_id FROM profiles WHERE id = auth.uid() AND role = 'District Supervisor')
+);

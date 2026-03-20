@@ -424,3 +424,40 @@ CREATE INDEX IF NOT EXISTS idx_academic_calendar_sy_week ON academic_calendar(sc
 
 -- ─── Phase 4.2 Support: Web Push Subscriptions ───
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS push_subscription JSONB;
+
+-- ═══════════════════════════════════════════════════════════════
+-- Phase 6: Institutional RLS (Branding/Avatars)
+-- ═══════════════════════════════════════════════════════════════
+
+-- 1. SELECT: Authenticated users can view all schools and districts
+DROP POLICY IF EXISTS "Authenticated users can view schools" ON schools;
+CREATE POLICY "Authenticated users can view schools"
+ON schools FOR SELECT TO authenticated
+USING (true);
+
+DROP POLICY IF EXISTS "Authenticated users can view districts" ON districts;
+CREATE POLICY "Authenticated users can view districts"
+ON districts FOR SELECT TO authenticated
+USING (true);
+
+-- 2. UPDATE: School Heads can update their own school's avatar_url
+DROP POLICY IF EXISTS "School Heads can update own school logo" ON schools;
+CREATE POLICY "School Heads can update own school logo"
+ON schools FOR UPDATE TO authenticated
+USING (
+    id = (SELECT school_id FROM profiles WHERE id = auth.uid() AND role = 'School Head')
+)
+WITH CHECK (
+    id = (SELECT school_id FROM profiles WHERE id = auth.uid() AND role = 'School Head')
+);
+
+-- 3. UPDATE: District Supervisors can update their own district's avatar_url
+DROP POLICY IF EXISTS "District Supervisors can update own district logo" ON districts;
+CREATE POLICY "District Supervisors can update own district logo"
+ON districts FOR UPDATE TO authenticated
+USING (
+    id = (SELECT district_id FROM profiles WHERE id = auth.uid() AND role = 'District Supervisor')
+)
+WITH CHECK (
+    id = (SELECT district_id FROM profiles WHERE id = auth.uid() AND role = 'District Supervisor')
+);
