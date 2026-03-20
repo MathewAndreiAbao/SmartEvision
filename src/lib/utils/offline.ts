@@ -499,7 +499,8 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                 }
 
                 const { url: uploadUrl } = await presignRes.json();
-                console.log(`[sync] Attemping PUT to B2 for: ${item.fileName}`);
+                console.log(`[sync] B2 URL: ${uploadUrl.split('?')[0].substring(0, 60)}...`);
+                console.log(`[sync] Attempting PUT to B2 for: ${item.fileName}`);
 
                 const uploadResponse = await withTimeout(
                     fetch(uploadUrl, {
