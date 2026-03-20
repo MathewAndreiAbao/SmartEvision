@@ -26,6 +26,13 @@ export async function POST({ request }) {
             url = await getPresignedDownloadUrl(key);
         } else {
             if (!contentType) throw error(400, 'Missing contentType for upload');
+            
+            // Server-side validation check for Vercel/Production
+            if (!process.env.B2_APPLICATION_KEY && !process.env.B2_APPLICATION_KEY_ID) {
+                console.error('[presign] Missing B2 credentials in environment.');
+                throw error(500, 'Cloud storage credentials not configured on the server. Please add B2 environment variables to Vercel.');
+            }
+
             url = await getPresignedUploadUrl(key, contentType);
         }
         return json({ url });

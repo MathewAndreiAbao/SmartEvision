@@ -482,7 +482,11 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                             'Content-Type': 'application/json', 
                             'Authorization': `Bearer ${accessToken}` 
                         },
-                        body: JSON.stringify({ key: item.filePath, contentType: 'application/pdf' })
+                        body: JSON.stringify({ 
+                            key: item.filePath, 
+                            contentType: 'application/pdf',
+                            intent: 'upload' 
+                        })
                     }),
                     15000,
                     'Sync negotiation timed out'
@@ -493,6 +497,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                 }
 
                 const { url: uploadUrl } = await presignRes.json();
+                console.log(`[sync] Attemping PUT to B2 for: ${item.fileName}`);
 
                 const uploadResponse = await withTimeout(
                     fetch(uploadUrl, {
@@ -502,7 +507,10 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                     }),
                     120000, // 2 minutes for background sync
                     'Sync archive upload timed out'
-                );
+                ).catch(err => {
+                    console.error('[sync] Fetch error during PUT to B2. This usually means CORS is blocked or the URL is invalid.', err);
+                    throw err;
+                });
 
                 if (!uploadResponse.ok) {
                     throw new Error(`Archive upload failed (${uploadResponse.status}): ${uploadResponse.statusText}`);
