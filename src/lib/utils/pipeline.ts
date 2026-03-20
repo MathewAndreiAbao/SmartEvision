@@ -145,7 +145,8 @@ async function* runPipelineCore(
     const activeWeekNumber = options.weekNumber || detectedMetadata?.weekNumber;
     const activeDocType = options.docType || detectedMetadata?.docType || 'DLL';
     const fileName = file.name.replace(/\.\w+$/, '.pdf');
-    const filePath = `${options.userId}/${Date.now()}_${fileName}`;
+    const sanitizedFileName = (fileName || 'document').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._-]/g, '');
+    const filePath = `submissions/${options.userId}/${activeDocType}/${Date.now()}_${sanitizedFileName}`;
 
     yield {
         phase: 'uploading',

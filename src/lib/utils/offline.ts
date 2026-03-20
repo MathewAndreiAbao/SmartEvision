@@ -475,6 +475,8 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                 const accessToken = sessionData?.session?.access_token;
                 if (!accessToken) throw new Error('Not authenticated for background sync');
 
+                const sanitizedPath = item.filePath.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9./_-]/g, '');
+                
                 const presignRes = await withTimeout(
                     fetch('/api/storage/presign', {
                         method: 'POST',
@@ -483,7 +485,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                             'Authorization': `Bearer ${accessToken}` 
                         },
                         body: JSON.stringify({ 
-                            key: item.filePath, 
+                            key: sanitizedPath, 
                             contentType: 'application/pdf',
                             intent: 'upload' 
                         })
@@ -540,7 +542,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                 const insertPromise = supabase.from('submissions').insert({
                     user_id: item.options.userId,
                     file_name: item.fileName,
-                    file_path: item.filePath,
+                    file_path: sanitizedPath,
                     file_hash: item.fileHash,
                     file_size: item.fileSize,
                     doc_type: item.options.docType || 'Unknown',
