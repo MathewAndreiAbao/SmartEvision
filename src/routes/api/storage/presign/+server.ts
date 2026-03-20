@@ -35,6 +35,8 @@ export async function POST({ request }) {
 
             url = await getPresignedUploadUrl(key, contentType);
         }
+        
+        console.log(`[presign] Generated URL for ${key}: ${url.split('?')[0]}...`);
         return json({ url });
     } catch (err: any) {
         console.error('[presign] Generation error:', err);

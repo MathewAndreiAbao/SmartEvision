@@ -8,8 +8,9 @@ if (!env.B2_ENDPOINT || !env.B2_APPLICATION_KEY_ID || !env.B2_APPLICATION_KEY ||
 }
 
 const b2 = new S3Client({
-    region: 'us-east-005', // Region is usually embedded in the endpoint
+    region: 'us-east-005', 
     endpoint: env.B2_ENDPOINT || 'https://s3.us-east-005.backblazeb2.com',
+    forcePathStyle: true, // Required for some S3-compat providers like B2 to avoid subdomain SSL issues
     credentials: {
         accessKeyId: env.B2_APPLICATION_KEY_ID || '',
         secretAccessKey: env.B2_APPLICATION_KEY || '',
