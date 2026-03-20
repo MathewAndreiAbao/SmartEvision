@@ -1,15 +1,15 @@
 <script lang="ts">
-    import { profile, signOut } from "$lib/utils/auth";
+    import { profile, user, signOut } from "$lib/utils/auth";
     import { addToast } from "$lib/stores/toast";
     import { goto } from "$app/navigation";
     import { supabase } from "$lib/utils/supabase";
     import { getQueueSize } from "$lib/utils/offline";
     import { onMount } from "svelte";
+    import ProfileUploader from "$lib/components/ProfileUploader.svelte";
+    import { User, Shield, Phone, Bell, Languages, ShieldCheck, LogOut } from "lucide-svelte";
 
     let fullName = $state("");
-    let currentPassword = $state("");
-    let newPassword = $state("");
-    let confirmPassword = $state("");
+    let avatarUrl = $state<string | null>(null);
     let saving = $state(false);
     let queueCount = $state(0);
     let voiceEnabled = $state(false);
@@ -18,6 +18,7 @@
     onMount(async () => {
         if ($profile) {
             fullName = $profile.full_name || "";
+            avatarUrl = $profile.avatar_url || null;
         }
         getQueueSize().then((c) => (queueCount = c));
 
@@ -29,50 +30,30 @@
         }
     });
 
-    async function handleToggleVoice() {
-        const { toggleVoiceGuidance } = await import("$lib/utils/voiceGuide");
-        voiceEnabled = toggleVoiceGuidance();
-    }
-
     async function updateProfile() {
+        if (!$profile) return;
         saving = true;
         const { error } = await supabase
             .from("profiles")
-            .update({ full_name: fullName })
-            .eq("id", $profile!.id);
+            .update({ 
+                full_name: fullName,
+                avatar_url: avatarUrl 
+            })
+            .eq("id", $profile.id);
 
         if (error) {
             addToast("error", error.message);
         } else {
-            addToast("success", "Profile updated");
+            addToast("success", "Profile updated successfully");
+            // Update local store if needed (though it should auto-sync if subscribed)
+            profile.update(p => p ? { ...p, full_name: fullName, avatar_url: avatarUrl } : null);
         }
         saving = false;
     }
 
-    async function changePassword() {
-        if (newPassword !== confirmPassword) {
-            addToast("warning", "Passwords do not match");
-            return;
-        }
-        if (newPassword.length < 6) {
-            addToast("warning", "Password must be at least 6 characters");
-            return;
-        }
-
-        saving = true;
-        const { error } = await supabase.auth.updateUser({
-            password: newPassword,
-        });
-
-        if (error) {
-            addToast("error", error.message);
-        } else {
-            addToast("success", "Password changed");
-            currentPassword = "";
-            newPassword = "";
-            confirmPassword = "";
-        }
-        saving = false;
+    async function handleToggleVoice() {
+        const { toggleVoiceGuidance } = await import("$lib/utils/voiceGuide");
+        voiceEnabled = toggleVoiceGuidance();
     }
 
     async function handleSignOut() {
@@ -82,233 +63,172 @@
 </script>
 
 <svelte:head>
-    <title>Settings — Smart E-VISION</title>
+    <title>Profile Settings — Smart E-VISION</title>
 </svelte:head>
 
-<div class="max-w-2xl">
-    <div class="mb-8">
-        <h1 class="text-2xl font-bold text-text-primary">Settings</h1>
-        <p class="text-base text-text-secondary mt-1">
-            Manage your profile and preferences
+<div class="max-w-3xl mx-auto space-y-8 pb-12">
+    <!-- Header -->
+    <div class="mb-2">
+        <h1 class="text-3xl font-bold text-text-primary tracking-tight">Account Identity</h1>
+        <p class="text-text-secondary mt-1 font-medium">
+            Manage your personal profile and system preferences.
         </p>
     </div>
 
-    <div class="space-y-8">
-        <!-- Profile Section -->
-        <div class="gov-card-static p-6">
-            <h2 class="text-lg font-bold text-text-primary mb-5">Profile</h2>
-
-            <div class="space-y-4">
-                <div>
-                    <label
-                        for="fullName"
-                        class="block text-sm font-semibold text-text-primary mb-2"
-                        >Full Name</label
-                    >
-                    <input
-                        id="fullName"
-                        type="text"
-                        bind:value={fullName}
-                        class="w-full px-4 py-3 text-base bg-white/60 border border-gray-200 rounded-xl min-h-[48px]"
-                    />
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Left Column: Identity Card -->
+        <div class="lg:col-span-1">
+            <div class="gov-card-static p-8 flex flex-col items-center text-center">
+                <ProfileUploader 
+                    bind:url={avatarUrl} 
+                    id={$profile?.id || ''}
+                    label="Profile Photo"
+                    path="users"
+                    size="xl"
+                    onUpload={(newUrl) => {
+                       avatarUrl = newUrl;
+                       updateProfile();
+                    }}
+                />
+                
+                <div class="mt-6 w-full">
+                    <h2 class="text-xl font-bold text-text-primary truncate">{fullName || 'User Name'}</h2>
+                    <p class="text-xs font-bold text-gov-blue uppercase tracking-widest mt-1">{$profile?.role || 'User'}</p>
                 </div>
 
-                <div>
-                    <span
-                        class="block text-sm font-semibold text-text-primary mb-2"
-                        >Email</span
-                    >
-                    <p
-                        class="px-4 py-3 text-base bg-gray-50 border border-gray-200 rounded-xl text-text-muted min-h-[48px] flex items-center"
-                    >
-                        {$profile?.id ? "Loaded from Supabase" : "—"}
-                    </p>
+                <div class="mt-8 w-full space-y-3 pt-6 border-t border-gray-50 text-left">
+                    <div class="flex items-center gap-3 text-text-secondary">
+                        <ShieldCheck size={14} class="text-gov-blue" />
+                        <span class="text-[10px] font-bold uppercase tracking-wider">Access Secured</span>
+                    </div>
                 </div>
-
-                <div>
-                    <span
-                        class="block text-sm font-semibold text-text-primary mb-2"
-                        >Role</span
-                    >
-                    <p
-                        class="px-4 py-3 text-base bg-gray-50 border border-gray-200 rounded-xl text-text-muted min-h-[48px] flex items-center"
-                    >
-                        {$profile?.role || "—"}
-                    </p>
-                </div>
-
-                <button
-                    onclick={updateProfile}
-                    disabled={saving}
-                    class="px-6 py-3 bg-gradient-to-r from-gov-blue to-gov-blue-dark text-white font-semibold rounded-xl min-h-[48px] shadow-md hover:shadow-lg transition-all disabled:opacity-60"
-                >
-                    {saving ? "Saving..." : "Save Changes"}
-                </button>
             </div>
         </div>
 
-        <!-- Password Section -->
-        <div class="gov-card-static p-6">
-            <h2 class="text-lg font-bold text-text-primary mb-5">
-                Change Password
-            </h2>
-
-            <div class="space-y-4">
-                <div>
-                    <label
-                        for="newPass"
-                        class="block text-sm font-semibold text-text-primary mb-2"
-                        >New Password</label
-                    >
-                    <input
-                        id="newPass"
-                        type="password"
-                        bind:value={newPassword}
-                        placeholder="Minimum 6 characters"
-                        class="w-full px-4 py-3 text-base bg-white/60 border border-gray-200 rounded-xl min-h-[48px]"
-                    />
+        <!-- Right Column: Details & Preferences -->
+        <div class="lg:col-span-2 space-y-8">
+            <!-- Basic Information -->
+            <div class="gov-card-static p-6">
+                <div class="flex items-center gap-2 mb-6 text-gov-blue">
+                    <User size={18} />
+                    <h2 class="text-sm font-bold uppercase tracking-widest">Personal Details</h2>
                 </div>
 
-                <div>
-                    <label
-                        for="confirmPass"
-                        class="block text-sm font-semibold text-text-primary mb-2"
-                        >Confirm Password</label
-                    >
-                    <input
-                        id="confirmPass"
-                        type="password"
-                        bind:value={confirmPassword}
-                        placeholder="Re-enter new password"
-                        class="w-full px-4 py-3 text-base bg-white/60 border border-gray-200 rounded-xl min-h-[48px]"
-                    />
-                </div>
+                <div class="space-y-6">
+                    <div>
+                        <label for="fullName" class="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">Display Name (User Name)</label>
+                        <input
+                            id="fullName"
+                            type="text"
+                            bind:value={fullName}
+                            placeholder="Enter your full name"
+                            class="w-full px-4 py-3 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none transition-all font-bold"
+                        />
+                    </div>
 
-                <button
-                    onclick={changePassword}
-                    disabled={saving}
-                    class="px-6 py-3 bg-gradient-to-r from-gov-blue to-gov-blue-dark text-white font-semibold rounded-xl min-h-[48px] shadow-md hover:shadow-lg transition-all disabled:opacity-60"
-                >
-                    {saving ? "Updating..." : "Change Password"}
-                </button>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <span class="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">Official Email</span>
+                            <div class="px-4 py-3 text-sm bg-gray-50/50 border border-gray-100 rounded-xl text-text-muted italic flex items-center min-h-[48px]">
+                                {$user?.email || 'Not verified'}
+                            </div>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">Connection Status</span>
+                            <div class="px-4 py-3 text-sm bg-gray-50/50 border border-gray-100 rounded-xl text-text-muted flex items-center min-h-[48px]">
+                                 <LogOut size={14} class="mr-2 rotate-180 opacity-40" />
+                                 {queueCount > 0 ? `${queueCount} Pending Sync` : 'Synchronized'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 flex justify-end">
+                        <button
+                            onclick={updateProfile}
+                            disabled={saving}
+                            class="px-8 py-3 bg-gov-blue text-white font-bold rounded-xl text-xs uppercase tracking-widest hover:bg-gov-blue-dark active:scale-95 transition-all disabled:opacity-50 shadow-sm"
+                        >
+                            {saving ? 'Syncing...' : 'Update Identity'}
+                        </button>
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <!-- System Status & Preferences -->
-        <div class="gov-card-static p-6">
-            <h2 class="text-lg font-bold text-text-primary mb-5">
-                Preferences & Status
-            </h2>
-            <div class="space-y-4">
-                <!-- Voice Guidance Toggle -->
-                <div
-                    class="flex items-center justify-between py-2 border-b border-gray-100"
-                >
-                    <div>
-                        <span
-                            class="block text-sm font-semibold text-text-primary"
-                            >Voice Guidance</span
-                        >
-                        <p class="text-[10px] text-text-muted">
-                            Grandparent UX: Spoken feedback for system actions
-                        </p>
-                    </div>
-                    <button
-                        onclick={handleToggleVoice}
-                        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-gov-blue focus:ring-offset-2 {voiceEnabled
-                            ? 'bg-gov-blue'
-                            : 'bg-gray-200'}"
-                    >
-                        <span class="sr-only">Toggle voice guidance</span>
-                        <span
-                            class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {voiceEnabled
-                                ? 'translate-x-6'
-                                : 'translate-x-1'}"
-                        ></span>
-                    </button>
+            <!-- System Preferences -->
+            <div class="gov-card-static p-6">
+                <div class="flex items-center gap-2 mb-6 text-gov-blue">
+                    <Bell size={18} />
+                    <h2 class="text-sm font-bold uppercase tracking-widest">System Experience</h2>
                 </div>
 
-                <div
-                    class="flex items-center justify-between py-2 border-b border-gray-100"
-                >
-                    <div>
-                        <span
-                            class="block text-sm font-semibold text-text-primary"
-                            >Push Notifications</span
+                <div class="space-y-4">
+                    <!-- Voice Guidance -->
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center text-gov-blue shadow-sm">
+                                <Languages size={18} />
+                            </div>
+                            <div>
+                                <span class="block text-sm font-bold text-text-primary">Voice Assistance</span>
+                                <p class="text-[10px] text-text-muted font-medium">Auditory feedback for accessibility.</p>
+                            </div>
+                        </div>
+                        <button
+                            onclick={handleToggleVoice}
+                            class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-gov-blue focus:ring-offset-2 {voiceEnabled ? 'bg-gov-blue' : 'bg-gray-300'}"
                         >
-                        <p class="text-[10px] text-text-muted">
-                            Receive real-time alerts for deadlines and reviews
-                        </p>
+                            <span class="sr-only">Toggle voice guidance</span>
+                            <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {voiceEnabled ? 'translate-x-6' : 'translate-x-1'}"></span>
+                        </button>
                     </div>
-                    <div class="flex items-center gap-3">
+
+                    <!-- Push Notifications -->
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center text-gov-green shadow-sm">
+                                <Bell size={18} />
+                            </div>
+                            <div>
+                                <span class="block text-sm font-bold text-text-primary">Live Alerts</span>
+                                <p class="text-[10px] text-text-muted font-medium">Real-time deadline and review notifications.</p>
+                            </div>
+                        </div>
                         <button
                             onclick={async () => {
-                                const { subscribeToPush, unsubscribeFromPush } =
-                                    await import("$lib/utils/notifications");
+                                const { subscribeToPush, unsubscribeFromPush } = await import("$lib/utils/notifications");
                                 if (pushEnabled) {
                                     const success = await unsubscribeFromPush();
                                     if (success) {
                                         pushEnabled = false;
-                                        addToast(
-                                            "success",
-                                            "Unsubscribed from push notifications",
-                                        );
+                                        addToast("success", "Notifications disabled");
                                     }
                                 } else {
                                     const granted = await subscribeToPush();
                                     if (granted) {
                                         pushEnabled = true;
-                                        addToast(
-                                            "success",
-                                            "Push notifications enabled!",
-                                        );
+                                        addToast("success", "Notifications enabled");
                                     }
                                 }
                             }}
-                            class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-gov-blue focus:ring-offset-2 {pushEnabled
-                                ? 'bg-gov-green'
-                                : 'bg-gray-200'}"
+                            class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-gov-blue focus:ring-offset-2 {pushEnabled ? 'bg-gov-green' : 'bg-gray-300'}"
                         >
-                            <span class="sr-only"
-                                >Toggle push notifications</span
-                            >
-                            <span
-                                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {pushEnabled
-                                    ? 'translate-x-6'
-                                    : 'translate-x-1'}"
-                            ></span>
+                            <span class="sr-only">Toggle push notifications</span>
+                            <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {pushEnabled ? 'translate-x-6' : 'translate-x-1'}"></span>
                         </button>
                     </div>
                 </div>
+            </div>
 
-                <div class="flex items-center justify-between py-2">
-                    <span class="text-sm text-text-secondary"
-                        >Offline Queue</span
-                    >
-                    <span
-                        class="text-sm font-semibold {queueCount > 0
-                            ? 'text-gov-gold-dark'
-                            : 'text-gov-green'}"
-                    >
-                        {queueCount} file{queueCount !== 1 ? "s" : ""} pending
-                    </span>
-                </div>
-
-                <div class="flex items-center justify-between py-2">
-                    <span class="text-sm text-text-secondary">Connection</span>
-                    <span class="text-sm font-semibold text-gov-green"
-                        >Online</span
-                    >
-                </div>
+            <!-- Danger Zone -->
+            <div class="pt-4">
+                <button
+                    onclick={handleSignOut}
+                    class="w-full py-4 border-2 border-gov-red/20 text-gov-red font-bold rounded-2xl text-xs uppercase tracking-widest hover:bg-gov-red/5 transition-all flex items-center justify-center gap-2 group"
+                >
+                    <LogOut size={16} class="group-hover:translate-x-1 transition-transform" />
+                    Sign Out Securely
+                </button>
             </div>
         </div>
-
-        <!-- Sign Out -->
-        <button
-            onclick={handleSignOut}
-            class="w-full py-4 border-2 border-gov-red/30 text-gov-red font-semibold rounded-xl min-h-[56px] hover:bg-gov-red/5 transition-colors"
-        >
-            Sign Out
-        </button>
     </div>
 </div>

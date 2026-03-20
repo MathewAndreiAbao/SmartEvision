@@ -6,8 +6,11 @@
   import ComplianceHeatmap from "$lib/components/ComplianceHeatmap.svelte";
   import ComplianceTrendChart from "$lib/components/ComplianceTrendChart.svelte";
   import DrillDownModal from "$lib/components/DrillDownModal.svelte";
+  import ProfileUploader from "$lib/components/ProfileUploader.svelte";
   import { onMount, onDestroy } from "svelte";
   import { fly, fade } from "svelte/transition";
+  import { Building2 } from "lucide-svelte";
+  import { addToast } from "$lib/stores/toast";
   import {
     calculateCompliance,
     groupSubmissionsByWeek,
@@ -56,6 +59,7 @@
   let schools = $state<School[]>([]);
   let allSubmissions = $state<Submission[]>([]);
   let loading = $state(true);
+  let districtLogoUrl = $state<string | null>(null);
   let currentDefinedWeeks = $state(1);
   let kpi = $state<KPI>({
     totalSchools: 0,
@@ -105,6 +109,10 @@
   async function loadDistrictData() {
     const userProfile = $profile;
     if (!userProfile?.district_id) return;
+
+    // Fetch District Logo
+    const { data: distData } = await supabase.from('districts').select('avatar_url').eq('id', userProfile.district_id).single();
+    if (distData) districtLogoUrl = distData.avatar_url;
 
     // 1. Fetch District Schools
     const { data: schoolsData } = await supabase
@@ -321,6 +329,28 @@
         > in the district
       </p>
     </div>
+
+    {#if $profile?.role === 'District Supervisor' && $profile?.district_id}
+    <div class="flex items-center gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm" in:fade>
+        <ProfileUploader 
+            id={$profile.district_id}
+            bucket="avatars"
+            path="districts"
+            label="District Logo"
+            size="md"
+            placeholderIcon={Building2}
+            bind:url={districtLogoUrl} 
+            onUpload={async (newUrl) => {
+                await supabase.from('districts').update({ avatar_url: newUrl }).eq('id', $profile?.district_id || '');
+                addToast("success", "District logo updated");
+            }}
+        />
+        <div class="hidden sm:block">
+            <h4 class="text-sm font-bold text-text-primary uppercase tracking-tight">District Branding</h4>
+            <p class="text-[10px] text-text-muted font-medium">Official Governance Logo</p>
+        </div>
+    </div>
+    {/if}
   </div>
 
   {#if loading}
@@ -453,8 +483,9 @@
       <div class="p-6">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {#each sortedSchools() as school}
-            <div
-              class="bg-white border border-border-subtle rounded-xl p-6 shadow-sm hover:shadow-md hover:border-gov-blue/20 transition-all flex flex-col group cursor-pointer"
+            <button
+              type="button"
+              class="bg-white border border-border-subtle rounded-xl p-6 shadow-sm hover:shadow-md hover:border-gov-blue/20 transition-all flex flex-col group cursor-pointer text-left w-full"
               onclick={() => openDrillDown(school)}
               in:fly={{ y: 20, duration: 400 }}
             >
@@ -509,13 +540,13 @@
               </div>
 
               <div class="mt-auto pt-4 border-t border-gray-50">
-                <button
-                  class="w-full py-2 bg-gov-blue/5 text-gov-blue hover:bg-gov-blue hover:text-white rounded-lg transition-all font-bold text-[10px] uppercase tracking-widest border border-gov-blue/10"
+                <div
+                  class="w-full py-2 bg-gov-blue/5 text-gov-blue group-hover:bg-gov-blue group-hover:text-white rounded-lg transition-all font-bold text-[10px] uppercase tracking-widest border border-gov-blue/10 flex items-center justify-center"
                 >
                   View Performance Details
-                </button>
+                </div>
               </div>
-            </div>
+            </button>
           {/each}
         </div>
 
