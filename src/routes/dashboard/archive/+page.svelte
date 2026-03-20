@@ -37,8 +37,10 @@
             full_name: string;
             school_id: string | null;
             district_id: string | null;
+            avatar_url?: string | null;
         };
         school_name?: string;
+        school_avatar?: string | null;
     }
 
     interface PathSegment {
@@ -53,12 +55,13 @@
         count: number;
         type: "docType" | "school" | "teacher" | "week";
         icon?: string;
+        avatar_url?: string | null;
     }
 
     // ── State ──
     let allSubmissions = $state<Submission[]>([]);
-    let schoolsMap = $state<Record<string, string>>({});
-    let teachersMap = $state<Record<string, string>>({});
+    let schoolsMap = $state<Record<string, { label: string; avatar_url: string | null }>>({});
+    let teachersMap = $state<Record<string, { label: string; avatar_url: string | null }>>({});
     let loading = $state(true);
     let searchQuery = $state("");
     let currentPath = $state<PathSegment[]>([
@@ -93,7 +96,7 @@
             const { data } = await supabase
                 .from("submissions")
                 .select(
-                    "*, uploader:profiles!inner(full_name, school_id, district_id)",
+                    "*, uploader:profiles!inner(full_name, school_id, district_id, avatar_url)",
                 )
                 .eq("profiles.school_id", userProfile.school_id)
                 .order("created_at", { ascending: false });
@@ -101,10 +104,13 @@
             allSubmissions = (data as any[]) || [];
 
             // Build teachers map
-            const tMap: Record<string, string> = {};
+            const tMap: Record<string, { label: string; avatar_url: string | null }> = {};
             for (const s of allSubmissions) {
                 if (s.user_id && s.uploader?.full_name) {
-                    tMap[s.user_id] = s.uploader.full_name;
+                    tMap[s.user_id] = {
+                        label: s.uploader.full_name,
+                        avatar_url: s.uploader.avatar_url || null
+                    };
                 }
             }
             teachersMap = tMap;
@@ -115,13 +121,16 @@
             // First get all schools in the district
             const { data: schoolsData } = await supabase
                 .from("schools")
-                .select("id, name")
+                .select("id, name, avatar_url")
                 .eq("district_id", userProfile.district_id);
 
             const schools = schoolsData || [];
-            const sMap: Record<string, string> = {};
+            const sMap: Record<string, { label: string; avatar_url: string | null }> = {};
             for (const s of schools) {
-                sMap[s.id] = s.name;
+                sMap[s.id] = {
+                    label: s.name,
+                    avatar_url: s.avatar_url || null
+                };
             }
             schoolsMap = sMap;
 
@@ -132,25 +141,29 @@
             const { data } = await supabase
                 .from("submissions")
                 .select(
-                    "*, uploader:profiles!inner(full_name, school_id, district_id)",
+                    "*, uploader:profiles!inner(full_name, school_id, district_id, avatar_url)",
                 )
                 .in("profiles.school_id", schoolIds)
                 .order("created_at", { ascending: false });
 
             allSubmissions = ((data as any[]) || []).map((s) => {
+                const schoolInfo = sMap[s.uploader?.school_id || ""];
                 return {
                     ...s,
                     uploader: s.uploader,
-                    school_name:
-                        sMap[s.uploader?.school_id || ""] || "Unknown School",
+                    school_name: schoolInfo?.label || "Unknown School",
+                    school_avatar: schoolInfo?.avatar_url || null
                 };
             });
 
             // Build teachers map
-            const tMap: Record<string, string> = {};
+            const tMap: Record<string, { label: string; avatar_url: string | null }> = {};
             for (const s of allSubmissions) {
                 if (s.user_id && s.uploader?.full_name) {
-                    tMap[s.user_id] = s.uploader.full_name;
+                    tMap[s.user_id] = {
+                        label: s.uploader.full_name,
+                        avatar_url: s.uploader.avatar_url || null
+                    };
                 }
             }
             teachersMap = tMap;
@@ -275,14 +288,18 @@
         }
         return Array.from(grouped.entries())
             .sort(([a], [b]) =>
-                (schoolsMap[a] || a).localeCompare(schoolsMap[b] || b),
+                (schoolsMap[a]?.label || a).localeCompare(schoolsMap[b]?.label || b),
             )
-            .map(([sid, count]) => ({
-                id: sid,
-                label: schoolsMap[sid] || "Unknown School",
-                count,
-                type: "school" as const,
-            }));
+            .map(([sid, count]) => {
+                const info = schoolsMap[sid];
+                return {
+                    id: sid,
+                    label: info?.label || "Unknown School",
+                    count,
+                    type: "school" as const,
+                    avatar_url: info?.avatar_url || null
+                };
+            });
     }
 
     function getTeacherFolders(subs: Submission[]): FolderItem[] {
@@ -294,14 +311,18 @@
         }
         return Array.from(grouped.entries())
             .sort(([a], [b]) =>
-                (teachersMap[a] || a).localeCompare(teachersMap[b] || b),
+                (teachersMap[a]?.label || a).localeCompare(teachersMap[b]?.label || b),
             )
-            .map(([uid, count]) => ({
-                id: uid,
-                label: teachersMap[uid] || "Unknown Teacher",
-                count,
-                type: "teacher" as const,
-            }));
+            .map(([uid, count]) => {
+                const info = teachersMap[uid];
+                return {
+                    id: uid,
+                    label: info?.label || "Unknown Teacher",
+                    count,
+                    type: "teacher" as const,
+                    avatar_url: info?.avatar_url || null
+                };
+            });
     }
 
     function getWeekFolders(subs: Submission[]): FolderItem[] {
@@ -530,9 +551,17 @@
                     <div
                         class="w-12 h-12 rounded-xl bg-gradient-to-br {getFolderColor(
                             folder.type,
-                        )} flex items-center justify-center mb-3 mx-auto group-hover:scale-110 transition-transform duration-200"
+                        )} flex items-center justify-center mb-3 mx-auto group-hover:scale-110 transition-transform duration-200 overflow-hidden"
                     >
-                        <IconComp size={22} />
+                        {#if folder.avatar_url}
+                            <img 
+                                src={folder.avatar_url} 
+                                alt={folder.label} 
+                                class="w-full h-full object-cover"
+                            />
+                        {:else}
+                            <IconComp size={22} />
+                        {/if}
                     </div>
                     <p
                         class="text-sm font-semibold text-text-primary text-center truncate leading-tight"
