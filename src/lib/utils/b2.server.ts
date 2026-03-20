@@ -10,7 +10,7 @@ if (!env.B2_ENDPOINT || !env.B2_APPLICATION_KEY_ID || !env.B2_APPLICATION_KEY ||
 const b2 = new S3Client({
     region: 'us-east-005', 
     endpoint: env.B2_ENDPOINT || 'https://s3.us-east-005.backblazeb2.com',
-    forcePathStyle: true, 
+    forcePathStyle: false, // B2 requires virtual-hosted style for consistent CORS preflight resolution
     // B2 doesn't always support S3 checksums in pre-signed URLs
     requestChecksumCalculation: 'WHEN_REQUIRED',
     responseChecksumValidation: 'WHEN_REQUIRED',
