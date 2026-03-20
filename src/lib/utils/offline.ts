@@ -470,41 +470,42 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                     continue;
                 }
 
-                // ── Upload to Supabase Storage via direct REST API ──
+                // ── Upload to Cloudflare R2 via Pre-signed URL ──
                 const { data: sessionData } = await supabase.auth.getSession();
                 const accessToken = sessionData?.session?.access_token;
                 if (!accessToken) throw new Error('Not authenticated for background sync');
 
-                const storageUrl = `${env.PUBLIC_SUPABASE_URL}/storage/v1/object/submissions/${item.filePath}`;
-                const uploadFile = new File([item.pdfBytes as any], item.fileName, { type: 'application/pdf' });
+                const presignRes = await withTimeout(
+                    fetch('/api/storage/presign', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json', 
+                            'Authorization': `Bearer ${accessToken}` 
+                        },
+                        body: JSON.stringify({ key: item.filePath, contentType: 'application/pdf' })
+                    }),
+                    15000,
+                    'Sync negotiation timed out'
+                );
 
-                const uploadPromise = fetch(storageUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                        'x-upsert': 'false'
-                    },
-                    body: uploadFile
-                });
+                if (!presignRes.ok) {
+                    throw new Error(`Sync negotiation failed: ${await presignRes.text()}`);
+                }
+
+                const { url: uploadUrl } = await presignRes.json();
 
                 const uploadResponse = await withTimeout(
-                    uploadPromise,
+                    fetch(uploadUrl, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/pdf' },
+                        body: item.pdfBytes as Blob
+                    }),
                     120000, // 2 minutes for background sync
-                    'Sync storage upload timed out'
+                    'Sync archive upload timed out'
                 );
 
                 if (!uploadResponse.ok) {
-                    const errBody = await uploadResponse.text().catch(() => 'Unknown error');
-                    const isDuplicate = uploadResponse.status === 409 ||
-                        (uploadResponse.status === 400 && errBody.includes('"statusCode":"409"')) ||
-                        errBody.toLowerCase().includes('already exists') ||
-                        errBody.toLowerCase().includes('duplicate');
-
-                    if (isDuplicate) {
-                        console.info(`[offline] File exists in storage (OK): ${item.fileName}`);
-                    } else {
-                        throw new Error(`Storage upload failed (${uploadResponse.status}): ${errBody}`);
-                    }
+                    throw new Error(`Archive upload failed (${uploadResponse.status}): ${uploadResponse.statusText}`);
                 }
 
                 // ── Fetch deadline for compliance ──

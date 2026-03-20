@@ -8,6 +8,7 @@ import "../../../../chunks/root.js";
 import "../../../../chunks/state.svelte.js";
 import "../../../../chunks/supabase.js";
 /* empty css                                                         */
+import "../../../../chunks/config.js";
 import "../../../../chunks/toast.js";
 import { I as Icon } from "../../../../chunks/Icon.js";
 function Scan_line($$renderer, $$props) {
@@ -54,12 +55,12 @@ function _page($$renderer, $$props) {
     {
       $$renderer2.push("<!--[!-->");
     }
-    $$renderer2.push(`<!--]--> <div class="min-h-screen gradient-mesh flex items-center justify-center p-6"><div class="w-full max-w-lg animate-slide-up"><div class="text-center mb-8"><div class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-gov-blue to-gov-blue-dark flex items-center justify-center text-white text-2xl font-bold shadow-elevated mb-3">E</div> <h1 class="text-xl font-bold text-text-primary">Smart E-VISION</h1> <p class="text-sm text-text-muted">Document Verification</p></div> `);
+    $$renderer2.push(`<!--]--> <div class="min-h-screen gradient-mesh flex items-center justify-center p-6"><div class="w-full max-w-lg animate-slide-up"><div class="text-center mb-8"><div class="w-14 h-14 mx-auto rounded-md bg-gradient-to-br from-gov-blue to-gov-blue-dark flex items-center justify-center text-white text-2xl font-bold shadow-sm mb-3">E</div> <h1 class="text-xl font-bold text-text-primary">Smart E-VISION</h1> <p class="text-sm text-text-muted">Document Verification</p></div> `);
     {
       $$renderer2.push("<!--[-->");
-      $$renderer2.push(`<div class="glass-card-static p-12 text-center" role="status" aria-label="Loading verification"><div class="w-12 h-12 border-4 border-gov-blue/20 border-t-gov-blue rounded-full animate-spin mx-auto mb-4"></div> <p class="text-text-muted font-bold uppercase tracking-widest text-xs">Authenticating Hash...</p></div>`);
+      $$renderer2.push(`<div class="gov-card-static p-12 text-center" role="status" aria-label="Loading verification"><div class="w-12 h-12 border-4 border-gov-blue/20 border-t-gov-blue rounded-full animate-spin mx-auto mb-4"></div> <p class="text-text-muted font-bold uppercase tracking-wide text-xs">Authenticating Hash...</p></div>`);
     }
-    $$renderer2.push(`<!--]--> <div class="flex flex-col gap-3 mt-6"><button class="w-full flex items-center justify-center gap-2 py-3.5 px-6 bg-gradient-to-r from-gov-blue to-gov-blue-dark text-white font-bold text-sm uppercase tracking-widest rounded-2xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all min-h-[48px]" aria-label="Scan another QR code to verify a different document">`);
+    $$renderer2.push(`<!--]--> <div class="flex flex-col gap-3 mt-6"><button class="w-full flex items-center justify-center gap-2 py-3.5 px-6 bg-gradient-to-r from-gov-blue to-gov-blue-dark text-white font-bold text-sm uppercase tracking-wide rounded-md shadow-lg hover:shadow-xl active:scale-[0.98] transition-all min-h-[48px]" aria-label="Scan another QR code to verify a different document">`);
     Scan_line($$renderer2, { size: 18 });
     $$renderer2.push(`<!----> Scan Another Document</button> <a href="/dashboard" class="block text-center text-sm text-text-muted hover:text-gov-blue transition-colors py-2">BACK TO Smart E-VISION</a></div></div></div>`);
   });

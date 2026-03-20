@@ -10,7 +10,7 @@
     "window-controls-overlay",
     "standalone"
   ],
-  "orientation": "any",
+  "orientation": "portrait",
   "theme_color": "#0038A8",
   "background_color": "#f0f4ff",
   "categories": [
@@ -80,10 +80,10 @@
       ]
     },
     {
-      "name": "Dashboard",
-      "short_name": "Dashboard",
-      "url": "/dashboard",
-      "description": "View compliance overview and statistics"
+      "name": "View Inbox",
+      "short_name": "Inbox",
+      "url": "/dashboard/inbox",
+      "description": "Check received notifications and tasks"
     },
     {
       "name": "Verify Document",
@@ -105,10 +105,35 @@
             ".doc",
             ".docx",
             "application/pdf",
-            "application/msword"
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           ]
         }
       ]
     }
-  }
+  },
+  "file_handlers": [
+    {
+      "action": "/dashboard/upload",
+      "name": "Open in E-VISION Archiver",
+      "icons": [
+        {
+          "src": "/favicon.png",
+          "sizes": "48x48",
+          "type": "image/png"
+        }
+      ],
+      "accept": {
+        "application/pdf": [
+          ".pdf"
+        ],
+        "application/msword": [
+          ".doc"
+        ],
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
+          ".docx"
+        ]
+      }
+    }
+  ]
 }

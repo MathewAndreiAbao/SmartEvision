@@ -7,7 +7,6 @@ import "clsx";
 import "@sveltejs/kit/internal/server";
 import "../../chunks/root.js";
 import "../../chunks/state.svelte.js";
-import { S as Shield_check } from "../../chunks/shield-check.js";
 import { I as Icon } from "../../chunks/Icon.js";
 function Arrow_right($$renderer, $$props) {
   const $$sanitized_props = sanitize_props($$props);
@@ -48,27 +47,25 @@ function _page($$renderer, $$props) {
         $$renderer4.push(`<title>Smart E-VISION — Official Portal</title>`);
       });
     });
-    $$renderer2.push(`<div class="min-h-screen bg-white flex flex-col font-sans selection:bg-gov-blue/10 selection:text-gov-blue"><nav class="w-full px-8 py-6 border-b border-gray-100 flex items-center justify-between"><div class="flex items-center gap-2"><div class="w-10 h-10 rounded-xl bg-gov-blue flex items-center justify-center text-white shadow-lg shadow-gov-blue/20">`);
-    Shield_check($$renderer2, { size: 24 });
-    $$renderer2.push(`<!----></div> <div class="flex flex-col"><span class="text-lg font-black tracking-tight text-text-primary">Smart E-VISION</span> <span class="text-[10px] uppercase tracking-[0.2em] font-bold text-gov-blue">Educational Hub</span></div></div> <div>`);
+    $$renderer2.push(`<div class="min-h-screen bg-white flex flex-col font-sans selection:bg-gov-blue/10 selection:text-gov-blue"><nav class="w-full px-6 py-4 border-b border-border-subtle flex items-center justify-between bg-white"><div class="flex items-center gap-2"><img src="/app_icon.png" alt="Smart E-VISION" class="w-8 h-8 rounded-md"/> <div class="flex flex-col"><span class="text-sm font-bold text-text-primary">Smart E-VISION</span> <span class="text-[10px] uppercase tracking-wide font-medium text-gov-blue">Document Hub</span></div></div> <div>`);
     if (!store_get($$store_subs ??= {}, "$authLoading", authLoading)) {
       $$renderer2.push("<!--[-->");
       if (store_get($$store_subs ??= {}, "$profile", profile)) {
         $$renderer2.push("<!--[-->");
-        $$renderer2.push(`<button class="text-sm font-bold text-gov-blue hover:underline">Go to Dashboard</button>`);
+        $$renderer2.push(`<button class="text-sm font-medium text-gov-blue hover:text-gov-blue-dark transition-colors">Go to Dashboard</button>`);
       } else {
         $$renderer2.push("<!--[!-->");
-        $$renderer2.push(`<div class="flex items-center gap-4"><button class="text-sm font-bold text-text-primary hover:text-gov-blue transition-colors px-6 py-2">Sign In</button> <button class="px-6 py-2 rounded-full bg-gov-blue text-white text-sm font-bold shadow-lg shadow-gov-blue/20 hover:bg-gov-blue-dark transition-all">Get Started</button></div>`);
+        $$renderer2.push(`<div class="flex items-center gap-3"><button class="text-sm font-medium text-text-secondary hover:text-gov-blue transition-colors px-4 py-2">Sign In</button> <button class="gov-btn-primary">Get Started</button></div>`);
       }
       $$renderer2.push(`<!--]-->`);
     } else {
       $$renderer2.push("<!--[!-->");
     }
-    $$renderer2.push(`<!--]--></div></nav> <main class="flex-grow flex flex-col items-center justify-center px-6 text-center"><div class="max-w-3xl"><div class="inline-block px-3 py-1 rounded-full bg-gov-blue/5 text-gov-blue text-[10px] font-black uppercase tracking-[0.2em] mb-6">DepEd Calapan City</div> <h1 class="text-5xl md:text-6xl font-black text-text-primary tracking-tight leading-tight mb-8">Official Document <br/> <span class="text-gov-blue">Transparency</span> Portal.</h1> <p class="text-xl text-text-secondary mb-12 max-w-xl mx-auto leading-relaxed font-medium">A unified hub for teachers, school heads, and district
+    $$renderer2.push(`<!--]--></div></nav> <main class="flex-grow flex flex-col items-center justify-center px-6 text-center"><div class="max-w-2xl"><div class="inline-block px-2.5 py-1 rounded-md bg-gov-blue/5 text-gov-blue text-xs font-medium uppercase tracking-wide mb-5">DepEd Calapan City</div> <h1 class="text-3xl md:text-4xl font-bold text-text-primary leading-tight mb-6">Official Document <span class="text-gov-blue">Transparency</span> Portal</h1> <p class="text-base text-text-secondary mb-8 max-w-lg mx-auto leading-relaxed">A unified hub for teachers, school heads, and district
                 supervisors for secure document management and compliance
-                tracking.</p> <div class="flex flex-col sm:flex-row items-center justify-center gap-6"><button class="w-full sm:w-auto px-10 py-4 rounded-full bg-gov-blue text-white text-lg font-black shadow-xl shadow-gov-blue/30 hover:bg-gov-blue-dark transition-all flex items-center justify-center gap-2">Access Portal `);
-    Arrow_right($$renderer2, { size: 20 });
-    $$renderer2.push(`<!----></button> <div class="text-text-muted text-xs font-black uppercase tracking-widest">Restricted Access Hub</div></div></div></main> <footer class="w-full px-8 py-10 border-t border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4"><p class="text-[10px] text-text-muted font-black uppercase tracking-[0.2em]">© 2026 Smart E-VISION Hub</p> <div class="flex items-center gap-6"><span class="text-[10px] text-text-muted font-black uppercase tracking-widest">Public Portal</span> <span class="text-[10px] text-text-muted font-black uppercase tracking-widest px-2 py-0.5 border border-gray-200 rounded">v1.2 Pilot</span></div></footer></div>`);
+                tracking.</p> <div class="flex flex-col sm:flex-row items-center justify-center gap-4"><button class="gov-btn-primary text-base px-8 py-3">Access Portal `);
+    Arrow_right($$renderer2, { size: 18 });
+    $$renderer2.push(`<!----></button> <div class="text-text-muted text-xs font-medium uppercase tracking-wide">Restricted Access Hub</div></div></div></main> <footer class="w-full px-6 py-6 border-t border-border-subtle flex flex-col md:flex-row items-center justify-between gap-3"><p class="text-xs text-text-muted font-medium">© 2026 Smart E-VISION Hub</p> <div class="flex items-center gap-4"><span class="text-xs text-text-muted font-medium">Public Portal</span> <span class="text-xs text-text-muted font-medium px-2 py-0.5 border border-border-subtle rounded-md">v1.2 Pilot</span></div></footer></div>`);
     if ($$store_subs) unsubscribe_stores($$store_subs);
   });
 }

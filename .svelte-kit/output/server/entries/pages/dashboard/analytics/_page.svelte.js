@@ -1,6 +1,5 @@
-import { s as sanitize_props, a as spread_props, b as slot, h as head } from "../../../../chunks/index2.js";
+import { s as sanitize_props, a as spread_props, b as slot, h as head, j as attr } from "../../../../chunks/index2.js";
 import "../../../../chunks/supabase.js";
-import "clsx";
 import { o as onDestroy } from "../../../../chunks/index-server.js";
 import { I as Icon } from "../../../../chunks/Icon.js";
 function Download($$renderer, $$props) {
@@ -76,6 +75,7 @@ function Refresh_cw($$renderer, $$props) {
 }
 function _page($$renderer, $$props) {
   $$renderer.component(($$renderer2) => {
+    let loading = true;
     onDestroy(() => {
     });
     head("1d0h3tk", $$renderer2, ($$renderer3) => {
@@ -83,15 +83,19 @@ function _page($$renderer, $$props) {
         $$renderer4.push(`<title>Analytics — Smart E-VISION</title>`);
       });
     });
-    $$renderer2.push(`<div><div class="mb-10 flex items-start justify-between"><div><h1 class="text-3xl font-black text-text-primary tracking-tight">Institutional Analytics</h1> <p class="text-base text-text-secondary mt-1 font-medium">Longitudinal performance tracking and predictive compliance
-                modeling</p></div> <div class="flex items-center gap-3"><button class="p-2.5 rounded-xl bg-surface-muted text-text-secondary hover:text-gov-blue transition-colors border border-border-subtle shadow-sm">`);
-    Refresh_cw($$renderer2, { size: 18 });
+    $$renderer2.push(`<div><div class="mb-10 flex items-start justify-between"><div><h1 class="text-3xl font-semibold text-text-primary tracking-tight">Institutional Analytics</h1> <p class="text-base text-text-secondary mt-1 font-medium">Longitudinal performance tracking and predictive compliance
+                modeling</p></div> <div class="flex items-center gap-3"><button${attr("disabled", loading, true)} class="p-2.5 rounded-xl bg-surface-muted text-text-secondary hover:text-gov-blue transition-colors border border-border-subtle shadow-sm disabled:opacity-50">`);
+    Refresh_cw($$renderer2, {
+      size: 18,
+      class: "animate-spin",
+      strokeWidth: 1.5
+    });
     $$renderer2.push(`<!----></button> <button class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gov-blue text-white text-sm font-bold shadow-lg shadow-gov-blue/20 hover:bg-gov-blue-dark transition-all">`);
-    Download($$renderer2, { size: 18 });
+    Download($$renderer2, { size: 18, strokeWidth: 1.5 });
     $$renderer2.push(`<!----> Export Data</button></div></div> `);
     {
       $$renderer2.push("<!--[-->");
-      $$renderer2.push(`<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="glass-card-static h-96 animate-pulse"></div> <div class="glass-card-static h-96 animate-pulse"></div></div>`);
+      $$renderer2.push(`<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="gov-card-static h-96 animate-pulse"></div> <div class="gov-card-static h-96 animate-pulse"></div></div>`);
     }
     $$renderer2.push(`<!--]--></div>`);
   });

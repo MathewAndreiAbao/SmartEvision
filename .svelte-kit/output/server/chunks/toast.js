@@ -17,6 +17,8 @@ function createToastStore() {
   };
 }
 const toasts = createToastStore();
+const addToast = (type, message) => toasts.add(type, message);
 export {
+  addToast as a,
   toasts as t
 };

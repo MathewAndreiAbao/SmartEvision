@@ -45,7 +45,7 @@ function _page($$renderer, $$props) {
     });
     $$renderer2.push(`<div class="max-w-5xl mx-auto" role="main" aria-label="Admin Configuration"><div class="mb-8"><h1 class="text-2xl font-bold text-text-primary uppercase tracking-tight flex items-center gap-2">`);
     Settings($$renderer2, { size: 24 });
-    $$renderer2.push(`<!----> Admin Configuration</h1> <p class="text-text-secondary mt-1">Manage system parameters and user accounts.</p></div> <div class="flex gap-1 p-1 bg-gray-100 rounded-2xl mb-8 max-w-md" role="tablist" aria-label="Admin sections"><button${attr_class(`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold transition-all ${stringify(
+    $$renderer2.push(`<!----> Admin Configuration</h1> <p class="text-text-secondary mt-1">Manage system parameters and user accounts.</p></div> <div class="flex gap-1 p-1 bg-gray-100 rounded-md mb-8 max-w-md" role="tablist" aria-label="Admin sections"><button${attr_class(`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold transition-all ${stringify(
       "bg-white text-gov-blue shadow-sm"
     )}`)} role="tab"${attr("aria-selected", activeTab === "settings")} aria-controls="settings-panel">`);
     Settings($$renderer2, { size: 16 });
@@ -61,7 +61,7 @@ function _page($$renderer, $$props) {
         const each_array = ensure_array_like(Array(3));
         for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
           each_array[$$index];
-          $$renderer2.push(`<div class="h-32 glass-card-static animate-pulse"></div>`);
+          $$renderer2.push(`<div class="h-32 gov-card-static animate-pulse"></div>`);
         }
         $$renderer2.push(`<!--]--></div>`);
       }

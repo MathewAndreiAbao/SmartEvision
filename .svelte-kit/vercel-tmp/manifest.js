@@ -7,10 +7,10 @@ function __memo(fn) {
 return {
 	appDir: "_app",
 	appPath: "_app",
-	assets: new Set(["apple-touch-icon.png","favicon.png","icon-192.png","icon-512.png","manifest.json","robots.txt","service-worker.js"]),
+	assets: new Set(["apple-touch-icon.png","app_icon.png","favicon.png","icon-192.png","icon-512.png","manifest.json","robots.txt","service-worker.js"]),
 	mimeTypes: {".png":"image/png",".json":"application/json",".txt":"text/plain"},
 	_: {
-		client: {start:"_app/immutable/entry/start.A00nHuXE.js",app:"_app/immutable/entry/app.BDAR3Z91.js",imports:["_app/immutable/entry/start.A00nHuXE.js","_app/immutable/chunks/Gotkd5Cc.js","_app/immutable/chunks/D02y27Ec.js","_app/immutable/chunks/Cf3REhc8.js","_app/immutable/entry/app.BDAR3Z91.js","_app/immutable/chunks/PPVm8Dsz.js","_app/immutable/chunks/D02y27Ec.js","_app/immutable/chunks/zt7kUNSb.js","_app/immutable/chunks/CyaklKEO.js","_app/immutable/chunks/BcSwuURU.js","_app/immutable/chunks/DtsVQfy1.js","_app/immutable/chunks/BjO9LQ4L.js","_app/immutable/chunks/HxVFllSf.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:true},
+		client: {start:"_app/immutable/entry/start.CZEp0S4p.js",app:"_app/immutable/entry/app.Dxf3L0Xo.js",imports:["_app/immutable/entry/start.CZEp0S4p.js","_app/immutable/chunks/CFRm_RS_.js","_app/immutable/chunks/D75bhFSb.js","_app/immutable/chunks/mSGdUpjc.js","_app/immutable/entry/app.Dxf3L0Xo.js","_app/immutable/chunks/PPVm8Dsz.js","_app/immutable/chunks/D75bhFSb.js","_app/immutable/chunks/7X6HYfud.js","_app/immutable/chunks/Cy4Vfm9E.js","_app/immutable/chunks/-YF3FLK-.js","_app/immutable/chunks/CSvoVpkn.js","_app/immutable/chunks/CFjg9Lrg.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:true},
 		nodes: [
 			__memo(() => import('../output/server/nodes/0.js')),
 			__memo(() => import('../output/server/nodes/1.js')),
@@ -27,8 +27,7 @@ return {
 			__memo(() => import('../output/server/nodes/12.js')),
 			__memo(() => import('../output/server/nodes/13.js')),
 			__memo(() => import('../output/server/nodes/14.js')),
-			__memo(() => import('../output/server/nodes/15.js')),
-			__memo(() => import('../output/server/nodes/16.js'))
+			__memo(() => import('../output/server/nodes/15.js'))
 		],
 		remotes: {
 			
@@ -91,45 +90,38 @@ return {
 				endpoint: null
 			},
 			{
-				id: "/dashboard/master-teacher",
-				pattern: /^\/dashboard\/master-teacher\/?$/,
-				params: [],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 11 },
-				endpoint: null
-			},
-			{
 				id: "/dashboard/monitoring/district",
 				pattern: /^\/dashboard\/monitoring\/district\/?$/,
 				params: [],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 12 },
+				page: { layouts: [0,2,], errors: [1,,], leaf: 11 },
 				endpoint: null
 			},
 			{
 				id: "/dashboard/monitoring/school",
 				pattern: /^\/dashboard\/monitoring\/school\/?$/,
 				params: [],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 13 },
+				page: { layouts: [0,2,], errors: [1,,], leaf: 12 },
 				endpoint: null
 			},
 			{
 				id: "/dashboard/settings",
 				pattern: /^\/dashboard\/settings\/?$/,
 				params: [],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 14 },
+				page: { layouts: [0,2,], errors: [1,,], leaf: 13 },
 				endpoint: null
 			},
 			{
 				id: "/dashboard/upload",
 				pattern: /^\/dashboard\/upload\/?$/,
 				params: [],
-				page: { layouts: [0,2,], errors: [1,,], leaf: 15 },
+				page: { layouts: [0,2,], errors: [1,,], leaf: 14 },
 				endpoint: null
 			},
 			{
 				id: "/verify/[hash]",
 				pattern: /^\/verify\/([^/]+?)\/?$/,
 				params: [{"name":"hash","optional":false,"rest":false,"chained":false}],
-				page: { layouts: [0,], errors: [1,], leaf: 16 },
+				page: { layouts: [0,], errors: [1,], leaf: 15 },
 				endpoint: null
 			}
 		],

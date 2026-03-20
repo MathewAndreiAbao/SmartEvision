@@ -1,4 +1,4 @@
-import { s as sanitize_props, r as rest_props, n as fallback, o as attributes, p as clsx, e as ensure_array_like, q as element, b as slot, t as bind_props } from "./index2.js";
+import { s as sanitize_props, aj as rest_props, ak as fallback, al as attributes, o as clsx, e as ensure_array_like, am as element, b as slot, m as bind_props } from "./index2.js";
 const defaultAttributes = {
   xmlns: "http://www.w3.org/2000/svg",
   width: 24,

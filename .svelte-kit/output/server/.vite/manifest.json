@@ -25,9 +25,61 @@
       "_index2.js"
     ]
   },
+  "_ProfileUploader.js": {
+    "file": "chunks/ProfileUploader.js",
+    "name": "ProfileUploader",
+    "imports": [
+      "_index2.js",
+      "_supabase.js",
+      "_toast.js",
+      "_Icon.js"
+    ],
+    "css": [
+      "_app/immutable/assets/ProfileUploader.tn0RQdqM.css"
+    ]
+  },
+  "_ProfileUploader.tn0RQdqM.css": {
+    "file": "_app/immutable/assets/ProfileUploader.tn0RQdqM.css",
+    "src": "_ProfileUploader.tn0RQdqM.css"
+  },
   "_QRScanner.Dc8H6yY4.css": {
     "file": "_app/immutable/assets/QRScanner.Dc8H6yY4.css",
     "src": "_QRScanner.Dc8H6yY4.css"
+  },
+  "__layout.Cpszmmr6.css": {
+    "file": "_app/immutable/assets/_layout.Cpszmmr6.css",
+    "src": "__layout.Cpszmmr6.css"
+  },
+  "__layout.js": {
+    "file": "chunks/_layout.js",
+    "name": "_layout",
+    "isDynamicEntry": true,
+    "imports": [
+      "_index2.js",
+      "_exports.js",
+      "_utils.js",
+      "_root.js",
+      "_state.svelte.js",
+      "_auth.js",
+      "_index.js",
+      "_supabase.js",
+      "_config.js",
+      "_toast.js",
+      "_ui.js",
+      "_Icon.js",
+      "_chevron-right.js",
+      "_shield-check.js",
+      "_settings.js",
+      "_settings2.js"
+    ],
+    "dynamicImports": [
+      "src/lib/utils/notificationSystem.ts",
+      "src/lib/utils/notifications.ts",
+      "src/lib/utils/badge.ts"
+    ],
+    "css": [
+      "_app/immutable/assets/_layout.Cpszmmr6.css"
+    ]
   },
   "_auth.js": {
     "file": "chunks/auth.js",
@@ -51,6 +103,13 @@
     "imports": [
       "_index2.js",
       "_Icon.js"
+    ]
+  },
+  "_config.js": {
+    "file": "chunks/config.js",
+    "name": "config",
+    "imports": [
+      "_shared-server.js"
     ]
   },
   "_environment.js": {
@@ -175,10 +234,6 @@
       "_index.js"
     ]
   },
-  "_useDashboardData.js": {
-    "file": "chunks/useDashboardData.js",
-    "name": "useDashboardData"
-  },
   "_utils.js": {
     "file": "chunks/utils.js",
     "name": "utils"
@@ -224,6 +279,36 @@
       "_internal.js"
     ]
   },
+  "src/lib/utils/badge.ts": {
+    "file": "chunks/badge.js",
+    "name": "badge",
+    "src": "src/lib/utils/badge.ts",
+    "isDynamicEntry": true,
+    "imports": [
+      "_index.js"
+    ],
+    "dynamicImports": [
+      "__layout.js"
+    ]
+  },
+  "src/lib/utils/notificationSystem.ts": {
+    "file": "chunks/notificationSystem.js",
+    "name": "notificationSystem",
+    "src": "src/lib/utils/notificationSystem.ts",
+    "isDynamicEntry": true,
+    "imports": [
+      "_supabase.js"
+    ]
+  },
+  "src/lib/utils/notifications.ts": {
+    "file": "chunks/notifications.js",
+    "name": "notifications",
+    "src": "src/lib/utils/notifications.ts",
+    "isDynamicEntry": true,
+    "imports": [
+      "_supabase.js"
+    ]
+  },
   "src/routes/+layout.svelte": {
     "file": "entries/pages/_layout.svelte.js",
     "name": "entries/pages/_layout.svelte",
@@ -240,10 +325,11 @@
       "_utils.js",
       "_root.js",
       "_state.svelte.js",
-      "_supabase.js"
+      "_supabase.js",
+      "_config.js"
     ],
     "css": [
-      "_app/immutable/assets/_layout.DOP84LLM.css",
+      "_app/immutable/assets/_layout.CyRrWQ2r.css",
       "_app/immutable/assets/QRScanner.Dc8H6yY4.css"
     ]
   },
@@ -259,11 +345,7 @@
       "_utils.js",
       "_root.js",
       "_state.svelte.js",
-      "_shield-check.js",
       "_Icon.js"
-    ],
-    "css": [
-      "_app/immutable/assets/_page.C6XpIQV4.css"
     ]
   },
   "src/routes/auth/login/+page.svelte": {
@@ -288,21 +370,23 @@
     "isEntry": true,
     "imports": [
       "_index2.js",
+      "__layout.js",
+      "_auth.js",
+      "_supabase.js",
+      "_config.js",
+      "_toast.js",
+      "_settings2.js",
       "_exports.js",
       "_utils.js",
       "_root.js",
-      "_state.svelte.js",
-      "_auth.js",
-      "_index.js",
-      "_supabase.js",
-      "_toast.js",
-      "_ui.js",
-      "_Icon.js",
-      "_chevron-right.js",
-      "_shield-check.js",
-      "_settings.js",
-      "_settings2.js"
+      "_state.svelte.js"
     ]
+  },
+  "src/routes/dashboard/+layout.ts": {
+    "file": "entries/pages/dashboard/_layout.ts.js",
+    "name": "entries/pages/dashboard/_layout.ts",
+    "src": "src/routes/dashboard/+layout.ts",
+    "isEntry": true
   },
   "src/routes/dashboard/+page.svelte": {
     "file": "entries/pages/dashboard/_page.svelte.js",
@@ -317,7 +401,9 @@
       "_exports.js",
       "_utils.js",
       "_root.js",
-      "_state.svelte.js"
+      "_state.svelte.js",
+      "_config.js",
+      "_toast.js"
     ]
   },
   "src/routes/dashboard/admin/+page.svelte": {
@@ -369,7 +455,7 @@
       "_toast.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.C27tHDy2.css"
+      "_app/immutable/assets/_page.BhlLi_Jb.css"
     ]
   },
   "src/routes/dashboard/load/+page.svelte": {
@@ -380,20 +466,8 @@
     "imports": [
       "_index2.js",
       "_supabase.js",
-      "_toast.js"
-    ]
-  },
-  "src/routes/dashboard/master-teacher/+page.svelte": {
-    "file": "entries/pages/dashboard/master-teacher/_page.svelte.js",
-    "name": "entries/pages/dashboard/master-teacher/_page.svelte",
-    "src": "src/routes/dashboard/master-teacher/+page.svelte",
-    "isEntry": true,
-    "imports": [
-      "_index2.js",
-      "_supabase.js",
-      "_index-server.js",
-      "_DrillDownModal.js",
-      "_useDashboardData.js"
+      "_toast.js",
+      "_Icon.js"
     ]
   },
   "src/routes/dashboard/monitoring/district/+page.svelte": {
@@ -403,9 +477,13 @@
     "isEntry": true,
     "imports": [
       "_index2.js",
+      "_auth.js",
       "_supabase.js",
       "_index-server.js",
-      "_DrillDownModal.js"
+      "_DrillDownModal.js",
+      "_ProfileUploader.js",
+      "_toast.js",
+      "_Icon.js"
     ]
   },
   "src/routes/dashboard/monitoring/school/+page.svelte": {
@@ -415,13 +493,15 @@
     "isEntry": true,
     "imports": [
       "_index2.js",
+      "_auth.js",
       "_supabase.js",
       "_search.js",
       "_Icon.js",
       "_circle-alert.js",
-      "_useDashboardData.js",
       "_index-server.js",
-      "_DrillDownModal.js"
+      "_DrillDownModal.js",
+      "_ProfileUploader.js",
+      "_toast.js"
     ]
   },
   "src/routes/dashboard/settings/+page.svelte": {
@@ -437,8 +517,18 @@
       "_utils.js",
       "_root.js",
       "_state.svelte.js",
-      "_supabase.js"
+      "_supabase.js",
+      "_config.js",
+      "_ProfileUploader.js",
+      "_shield-check.js",
+      "_Icon.js"
     ]
+  },
+  "src/routes/dashboard/upload/+page.server.ts": {
+    "file": "entries/pages/dashboard/upload/_page.server.ts.js",
+    "name": "entries/pages/dashboard/upload/_page.server.ts",
+    "src": "src/routes/dashboard/upload/+page.server.ts",
+    "isEntry": true
   },
   "src/routes/dashboard/upload/+page.svelte": {
     "file": "entries/pages/dashboard/upload/_page.svelte.js",
@@ -447,10 +537,13 @@
     "isEntry": true,
     "imports": [
       "_index2.js",
-      "_shared-server.js",
+      "_config.js",
       "_supabase.js",
       "_toast.js",
       "_settings2.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.C2TaOh4G.css"
     ]
   },
   "src/routes/verify/[hash]/+page.svelte": {
@@ -465,6 +558,7 @@
       "_root.js",
       "_state.svelte.js",
       "_supabase.js",
+      "_config.js",
       "_toast.js",
       "_Icon.js"
     ],

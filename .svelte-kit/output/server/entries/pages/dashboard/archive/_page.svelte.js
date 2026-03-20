@@ -90,7 +90,7 @@ function _page($$renderer, $$props) {
         $$renderer4.push(`<title>Archive — Smart E-VISION</title>`);
       });
     });
-    $$renderer2.push(`<div><div class="mb-6"><h1 class="text-2xl font-bold text-text-primary">Document Archive</h1> <p class="text-base text-text-secondary mt-1">${escape_html(getSubtitle())}</p></div> <div class="glass-card-static p-4 mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-4"><div class="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto">`);
+    $$renderer2.push(`<div><div class="mb-6"><h1 class="text-2xl font-bold text-text-primary">Document Archive</h1> <p class="text-base text-text-secondary mt-1">${escape_html(getSubtitle())}</p></div> <div class="gov-card-static p-4 mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-4"><div class="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto">`);
     if (currentPath.length > 1) {
       $$renderer2.push("<!--[-->");
       $$renderer2.push(`<button class="p-2 rounded-lg hover:bg-gray-100 text-text-muted hover:text-text-primary transition-colors flex-shrink-0" title="Go back">`);
@@ -133,7 +133,7 @@ function _page($$renderer, $$props) {
       const each_array_1 = ensure_array_like(Array(10));
       for (let $$index_1 = 0, $$length = each_array_1.length; $$index_1 < $$length; $$index_1++) {
         each_array_1[$$index_1];
-        $$renderer2.push(`<div class="glass-card-static p-6 animate-pulse"><div class="w-12 h-12 bg-gray-200 rounded-xl mx-auto mb-3"></div> <div class="h-3 bg-gray-200 rounded w-3/4 mx-auto mb-2"></div> <div class="h-2 bg-gray-100 rounded w-1/2 mx-auto"></div></div>`);
+        $$renderer2.push(`<div class="gov-card-static p-6 animate-pulse"><div class="w-12 h-12 bg-gray-200 rounded-xl mx-auto mb-3"></div> <div class="h-3 bg-gray-200 rounded w-3/4 mx-auto mb-2"></div> <div class="h-2 bg-gray-100 rounded w-1/2 mx-auto"></div></div>`);
       }
       $$renderer2.push(`<!--]--></div>`);
     }

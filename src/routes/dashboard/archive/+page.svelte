@@ -366,14 +366,24 @@
     }
 
     async function getSignedUrl(path: string): Promise<string | null> {
-        const { data, error } = await supabase.storage
-            .from("submissions")
-            .createSignedUrl(path, 60 * 60);
-        if (error) {
-            console.error("Error getting signed URL:", error);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            if (!token) return null;
+
+            const res = await fetch('/api/storage/presign', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ key: path, intent: 'download' })
+            });
+
+            if (!res.ok) throw new Error('Failed to get download URL');
+            const { url } = await res.json();
+            return url;
+        } catch (err) {
+            console.error("Error getting R2 signed URL:", err);
             return null;
         }
-        return data.signedUrl;
     }
 
     async function handleView(sub: Submission) {
@@ -388,24 +398,28 @@
 
     async function handleDownload(sub: Submission) {
         const path = sub.file_path || `${sub.id}/${sub.file_name}`;
-        const { data, error } = await supabase.storage
-            .from("submissions")
-            .download(path);
-
-        if (error) {
-            console.error("Download error:", error);
-            alert("Download failed.");
+        const url = await getSignedUrl(path);
+        
+        if (!url) {
+            alert("Download failed: could not generate secure link.");
             return;
         }
 
-        const url = URL.createObjectURL(data);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = sub.file_name;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        try {
+            const res = await fetch(url);
+            const blob = await res.blob();
+            const downloadUrl = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = downloadUrl;
+            a.download = sub.file_name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(downloadUrl);
+        } catch (err) {
+            console.error("Download error:", err);
+            alert("Download failed during retrieval.");
+        }
     }
 
     function getFolderColor(type: string): string {

@@ -11,8 +11,8 @@ function _page($$renderer, $$props) {
         $$renderer4.push(`<title>Academic Calendar — Smart E-VISION</title>`);
       });
     });
-    $$renderer2.push(`<div class="max-w-4xl mx-auto"><div class="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6"><div><h1 class="text-3xl font-black text-text-primary tracking-tight">Academic Calendar</h1> <p class="text-base text-text-secondary mt-1 font-medium max-w-lg">Manage submission deadlines and institutional timeline for the
-                current school year.</p></div> <div class="flex items-center gap-3 p-1.5 bg-surface-muted rounded-2xl border border-border-subtle shadow-sm">`);
+    $$renderer2.push(`<div class="max-w-4xl mx-auto"><div class="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6"><div><h1 class="text-3xl font-semibold text-text-primary tracking-tight">Academic Calendar</h1> <p class="text-base text-text-secondary mt-1 font-medium max-w-lg">Manage submission deadlines and institutional timeline for the
+                current school year.</p></div> <div class="flex items-center gap-3 p-1.5 bg-surface-muted rounded-md border border-border-subtle shadow-sm">`);
     $$renderer2.select(
       {
         value: schoolYear,
@@ -55,7 +55,7 @@ function _page($$renderer, $$props) {
       const each_array = ensure_array_like(Array(6));
       for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
         each_array[$$index];
-        $$renderer2.push(`<div class="glass-card-static p-8 h-36 animate-pulse"></div>`);
+        $$renderer2.push(`<div class="gov-card-static p-8 h-36 animate-pulse"></div>`);
       }
       $$renderer2.push(`<!--]--></div>`);
     }

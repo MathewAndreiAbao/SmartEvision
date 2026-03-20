@@ -199,22 +199,44 @@ async function* runOnlinePipelineResilient(
     ) as { data: any };
     if (hashMatch) throw new Error(`Duplicate content detected on server: ${hashMatch.file_name}`);
 
-    // Storage Upload
-    yield { phase: 'uploading', progress: 40, message: 'Uploading to cloud storage...' };
-    const { data: session } = await supabase.auth.getSession();
-    const storageUrl = `${env.PUBLIC_SUPABASE_URL}/storage/v1/object/submissions/${filePath}`;
+    // ─── Cloudflare R2 Integration ───
+    yield { phase: 'uploading', progress: 40, message: 'Uploading to secure archive...' };
+    const session = await supabase.auth.getSession();
+    const token = session.data.session?.access_token;
+    
+    if (!token) throw new Error('Authentication required for archive.');
 
-    const uploadResponse = await withTimeout(
-        fetch(storageUrl, {
+    // 1. Get Pre-signed URL from R2 API
+    const presignRes = await withTimeout(
+        fetch('/api/storage/presign', {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${session?.session?.access_token}`, 'x-upsert': 'false' },
-            body: new File([stampedBytes as any], fileName, { type: 'application/pdf' })
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ key: filePath, contentType: 'application/pdf' })
+        }),
+        10000,
+        'Archive negotiation timed out.'
+    );
+
+    if (!presignRes.ok) {
+        const err = await presignRes.text();
+        throw new Error(`Archive negotiation failed: ${err}`);
+    }
+
+    const { url: uploadUrl } = await presignRes.json();
+
+    // 2. Direct Upload to Cloudflare R2
+    const uploadResponse = await withTimeout(
+        fetch(uploadUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/pdf' },
+            body: new Blob([stampedBytes as any], { type: 'application/pdf' })
         }),
         120000, // 120s (2 minutes) for mobile-friendly upload
-        'Storage upload timed out. Large files on mobile may take longer.'
+        'Secure archive upload timed out. Large files on mobile may take longer.'
     );
-    if (!uploadResponse.ok && !uploadResponse.status.toString().startsWith('409')) {
-        throw new Error(`Upload failed: ${await uploadResponse.text()}`);
+
+    if (!uploadResponse.ok) {
+        throw new Error(`Archive upload failed (${uploadResponse.status}): ${uploadResponse.statusText}`);
     }
 
     // DB Record
