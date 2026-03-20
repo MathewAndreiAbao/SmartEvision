@@ -2,6 +2,7 @@
 -- Date: 2026-03-20
 
 -- 1. Add avatar_url columns
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 ALTER TABLE schools ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 ALTER TABLE districts ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 

@@ -24,11 +24,19 @@
         <div class="h-8 w-px bg-border-subtle mx-1"></div>
 
         <div class="flex items-center gap-2.5">
-            <div
-                class="h-8 w-8 rounded-full bg-gov-blue/5 border border-gov-blue/10 flex items-center justify-center text-[10px] font-bold text-gov-blue uppercase"
-            >
-                {$profile?.full_name?.charAt(0) || "U"}
-            </div>
+            {#if $profile?.avatar_url}
+                <img 
+                    src={$profile.avatar_url} 
+                    alt={$profile.full_name} 
+                    class="h-8 w-8 rounded-full border border-border-subtle object-cover"
+                />
+            {:else}
+                <div
+                    class="h-8 w-8 rounded-full bg-gov-blue/5 border border-gov-blue/10 flex items-center justify-center text-[10px] font-bold text-gov-blue uppercase"
+                >
+                    {$profile?.full_name?.charAt(0) || "U"}
+                </div>
+            {/if}
         </div>
     </div>
 </header>

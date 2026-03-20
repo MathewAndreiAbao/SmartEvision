@@ -293,12 +293,20 @@
 			aria-label="User Profile Summary"
 		>
 			<div class="flex items-center gap-3 mb-3">
-				<div
-					class="w-8 h-8 rounded-md bg-gov-blue/10 flex items-center justify-center text-xs font-semibold text-gov-blue"
-					aria-hidden="true"
-				>
-					{$profile.full_name?.charAt(0) || "?"}
-				</div>
+				{#if $profile.avatar_url}
+					<img 
+						src={$profile.avatar_url} 
+						alt={$profile.full_name} 
+						class="w-8 h-8 rounded-md border border-border-subtle object-cover"
+					/>
+				{:else}
+					<div
+						class="w-8 h-8 rounded-md bg-gov-blue/10 flex items-center justify-center text-xs font-semibold text-gov-blue"
+						aria-hidden="true"
+					>
+						{$profile.full_name?.charAt(0) || "?"}
+					</div>
+				{/if}
 				<div class="flex-1 min-w-0">
 					<p class="text-sm font-semibold text-text-primary truncate">
 						{$profile.full_name}

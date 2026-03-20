@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS districts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     division_id UUID REFERENCES divisions(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
+    avatar_url TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(division_id, name)
 );
@@ -30,6 +31,7 @@ CREATE TABLE schools (
     district_id UUID REFERENCES districts(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     address TEXT,
+    avatar_url TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(district_id, name)
 );
