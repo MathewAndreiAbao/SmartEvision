@@ -240,6 +240,7 @@ function _page($$renderer, $$props) {
     let showModal = false;
     let selectedTeacher = null;
     let selectedSubmissions = [];
+    let showNotesModal = false;
     onDestroy(() => {
     });
     function formatDate(dateStr) {
@@ -315,9 +316,9 @@ function _page($$renderer, $$props) {
             } else {
               $$renderer4.push("<!--[!-->");
               $$renderer4.push(`<div class="divide-y divide-gray-100"><!--[-->`);
-              const each_array_3 = ensure_array_like(selectedSubmissions);
-              for (let $$index_3 = 0, $$length = each_array_3.length; $$index_3 < $$length; $$index_3++) {
-                let sub = each_array_3[$$index_3];
+              const each_array_4 = ensure_array_like(selectedSubmissions);
+              for (let $$index_4 = 0, $$length = each_array_4.length; $$index_4 < $$length; $$index_4++) {
+                let sub = each_array_4[$$index_4];
                 const tl = Array.isArray(sub.teaching_loads) ? sub.teaching_loads[0] : sub.teaching_loads;
                 $$renderer4.push(`<div class="flex items-center justify-between py-3"><div class="min-w-0"><p class="text-sm font-medium text-text-primary truncate">${escape_html(sub.file_name)}</p> <p class="text-xs text-text-muted">${escape_html(sub.doc_type)} `);
                 if (tl) {
@@ -337,6 +338,18 @@ function _page($$renderer, $$props) {
             }
             $$renderer4.push(`<!--]-->`);
           } else {
+            $$renderer4.push("<!--[!-->");
+          }
+          $$renderer4.push(`<!--]-->`);
+        }
+      });
+      $$renderer3.push(`<!----> `);
+      DrillDownModal($$renderer3, {
+        isOpen: showNotesModal,
+        title: "Intervention Notes",
+        onClose: () => showNotesModal = false,
+        children: ($$renderer4) => {
+          {
             $$renderer4.push("<!--[!-->");
           }
           $$renderer4.push(`<!--]-->`);

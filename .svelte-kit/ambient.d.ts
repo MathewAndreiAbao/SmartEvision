@@ -26,13 +26,17 @@
  * ```
  */
 declare module '$env/static/private' {
+	export const B2_ENDPOINT: string;
+	export const B2_BUCKET_NAME: string;
+	export const B2_APPLICATION_KEY_ID: string;
+	export const B2_APPLICATION_KEY: string;
 	export const ALLUSERSPROFILE: string;
 	export const ANTIGRAVITY_AGENT: string;
-	export const ANTIGRAVITY_CLI_ALIAS: string;
+	export const ANTIGRAVITY_EDITOR_APP_ROOT: string;
+	export const ANTIGRAVITY_TRAJECTORY_ID: string;
 	export const APPDATA: string;
 	export const CHROME_CRASHPAD_PIPE_NAME: string;
 	export const COLOR: string;
-	export const COLORTERM: string;
 	export const CommonProgramFiles: string;
 	export const CommonProgramW6432: string;
 	export const COMPUTERNAME: string;
@@ -41,15 +45,14 @@ declare module '$env/static/private' {
 	export const DriverData: string;
 	export const EDITOR: string;
 	export const GDAL_DATA: string;
-	export const GIT_ASKPASS: string;
 	export const HOME: string;
 	export const HOMEDRIVE: string;
 	export const HOMEPATH: string;
 	export const INIT_CWD: string;
-	export const LANG: string;
 	export const LOCALAPPDATA: string;
 	export const LOGONSERVER: string;
 	export const NODE: string;
+	export const NODE_ENV: string;
 	export const npm_command: string;
 	export const npm_config_cache: string;
 	export const npm_config_globalconfig: string;
@@ -72,7 +75,6 @@ declare module '$env/static/private' {
 	export const NUMBER_OF_PROCESSORS: string;
 	export const OPENSSL_CONF: string;
 	export const OS: string;
-	export const PAGER: string;
 	export const Path: string;
 	export const PATHEXT: string;
 	export const POSTGIS_ENABLE_OUTDB_RASTERS: string;
@@ -94,19 +96,16 @@ declare module '$env/static/private' {
 	export const SystemDrive: string;
 	export const SystemRoot: string;
 	export const TEMP: string;
-	export const TERM_PROGRAM: string;
-	export const TERM_PROGRAM_VERSION: string;
 	export const TMP: string;
 	export const USERDOMAIN: string;
 	export const USERDOMAIN_ROAMINGPROFILE: string;
 	export const USERNAME: string;
 	export const USERPROFILE: string;
-	export const VSCODE_GIT_ASKPASS_EXTRA_ARGS: string;
-	export const VSCODE_GIT_ASKPASS_MAIN: string;
-	export const VSCODE_GIT_ASKPASS_NODE: string;
-	export const VSCODE_GIT_IPC_HANDLE: string;
-	export const VSCODE_INJECTION: string;
-	export const VSCODE_PYTHON_AUTOACTIVATE_GUARD: string;
+	export const VSCODE_CODE_CACHE_PATH: string;
+	export const VSCODE_CWD: string;
+	export const VSCODE_IPC_HOOK: string;
+	export const VSCODE_NLS_CONFIG: string;
+	export const VSCODE_PID: string;
 	export const windir: string;
 }
 
@@ -139,13 +138,17 @@ declare module '$env/static/public' {
  */
 declare module '$env/dynamic/private' {
 	export const env: {
+		B2_ENDPOINT: string;
+		B2_BUCKET_NAME: string;
+		B2_APPLICATION_KEY_ID: string;
+		B2_APPLICATION_KEY: string;
 		ALLUSERSPROFILE: string;
 		ANTIGRAVITY_AGENT: string;
-		ANTIGRAVITY_CLI_ALIAS: string;
+		ANTIGRAVITY_EDITOR_APP_ROOT: string;
+		ANTIGRAVITY_TRAJECTORY_ID: string;
 		APPDATA: string;
 		CHROME_CRASHPAD_PIPE_NAME: string;
 		COLOR: string;
-		COLORTERM: string;
 		CommonProgramFiles: string;
 		CommonProgramW6432: string;
 		COMPUTERNAME: string;
@@ -154,15 +157,14 @@ declare module '$env/dynamic/private' {
 		DriverData: string;
 		EDITOR: string;
 		GDAL_DATA: string;
-		GIT_ASKPASS: string;
 		HOME: string;
 		HOMEDRIVE: string;
 		HOMEPATH: string;
 		INIT_CWD: string;
-		LANG: string;
 		LOCALAPPDATA: string;
 		LOGONSERVER: string;
 		NODE: string;
+		NODE_ENV: string;
 		npm_command: string;
 		npm_config_cache: string;
 		npm_config_globalconfig: string;
@@ -185,7 +187,6 @@ declare module '$env/dynamic/private' {
 		NUMBER_OF_PROCESSORS: string;
 		OPENSSL_CONF: string;
 		OS: string;
-		PAGER: string;
 		Path: string;
 		PATHEXT: string;
 		POSTGIS_ENABLE_OUTDB_RASTERS: string;
@@ -207,19 +208,16 @@ declare module '$env/dynamic/private' {
 		SystemDrive: string;
 		SystemRoot: string;
 		TEMP: string;
-		TERM_PROGRAM: string;
-		TERM_PROGRAM_VERSION: string;
 		TMP: string;
 		USERDOMAIN: string;
 		USERDOMAIN_ROAMINGPROFILE: string;
 		USERNAME: string;
 		USERPROFILE: string;
-		VSCODE_GIT_ASKPASS_EXTRA_ARGS: string;
-		VSCODE_GIT_ASKPASS_MAIN: string;
-		VSCODE_GIT_ASKPASS_NODE: string;
-		VSCODE_GIT_IPC_HANDLE: string;
-		VSCODE_INJECTION: string;
-		VSCODE_PYTHON_AUTOACTIVATE_GUARD: string;
+		VSCODE_CODE_CACHE_PATH: string;
+		VSCODE_CWD: string;
+		VSCODE_IPC_HOOK: string;
+		VSCODE_NLS_CONFIG: string;
+		VSCODE_PID: string;
 		windir: string;
 		[key: `PUBLIC_${string}`]: undefined;
 		[key: `${string}`]: string | undefined;

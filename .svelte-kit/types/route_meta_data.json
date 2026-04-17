@@ -1,5 +1,11 @@
 {
 	"/": [],
+	"/api/storage/presign": [
+		"src/routes/api/storage/presign/+server.ts"
+	],
+	"/api/storage/upload": [
+		"src/routes/api/storage/upload/+server.ts"
+	],
 	"/auth/login": [],
 	"/dashboard": [
 		"src/routes/dashboard/+layout.ts",

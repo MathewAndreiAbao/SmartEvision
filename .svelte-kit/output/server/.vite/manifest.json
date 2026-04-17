@@ -329,7 +329,7 @@
       "_config.js"
     ],
     "css": [
-      "_app/immutable/assets/_layout.CyRrWQ2r.css",
+      "_app/immutable/assets/_layout.8rWtOr96.css",
       "_app/immutable/assets/QRScanner.Dc8H6yY4.css"
     ]
   },
@@ -346,6 +346,26 @@
       "_root.js",
       "_state.svelte.js",
       "_Icon.js"
+    ]
+  },
+  "src/routes/api/storage/presign/+server.ts": {
+    "file": "entries/endpoints/api/storage/presign/_server.ts.js",
+    "name": "entries/endpoints/api/storage/presign/_server.ts",
+    "src": "src/routes/api/storage/presign/+server.ts",
+    "isEntry": true,
+    "imports": [
+      "_shared-server.js",
+      "_supabase.js"
+    ]
+  },
+  "src/routes/api/storage/upload/+server.ts": {
+    "file": "entries/endpoints/api/storage/upload/_server.ts.js",
+    "name": "entries/endpoints/api/storage/upload/_server.ts",
+    "src": "src/routes/api/storage/upload/+server.ts",
+    "isEntry": true,
+    "imports": [
+      "_shared-server.js",
+      "_supabase.js"
     ]
   },
   "src/routes/auth/login/+page.svelte": {
@@ -427,6 +447,10 @@
       "_index2.js",
       "_supabase.js",
       "_index-server.js",
+      "_exports.js",
+      "_utils.js",
+      "_root.js",
+      "_state.svelte.js",
       "_Icon.js"
     ]
   },

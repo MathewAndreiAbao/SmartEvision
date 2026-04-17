@@ -53,6 +53,7 @@ function _page($$renderer, $$props) {
       totalSchools: 0
     };
     let showModal = false;
+    let showNotesModal = false;
     onDestroy(() => {
     });
     let $$settled = true;
@@ -106,6 +107,18 @@ function _page($$renderer, $$props) {
         isOpen: showModal,
         title: "School Details",
         onClose: () => showModal = false,
+        children: ($$renderer4) => {
+          {
+            $$renderer4.push("<!--[!-->");
+          }
+          $$renderer4.push(`<!--]-->`);
+        }
+      });
+      $$renderer3.push(`<!----> `);
+      DrillDownModal($$renderer3, {
+        isOpen: showNotesModal,
+        title: "Institutional Support Notes",
+        onClose: () => showNotesModal = false,
         children: ($$renderer4) => {
           {
             $$renderer4.push("<!--[!-->");

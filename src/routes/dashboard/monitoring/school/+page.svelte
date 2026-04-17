@@ -746,6 +746,8 @@
                         {/each}
                     </div>
                 </div>
+            {/if}
+        </div>
         {:else}
             {@const supportCandidates = teachers.filter(t => t.risk && (t.risk.label === 'Critical' || t.risk.label === 'At-Risk'))}
             <!-- Tab 2: Instructional Support Hub Content -->

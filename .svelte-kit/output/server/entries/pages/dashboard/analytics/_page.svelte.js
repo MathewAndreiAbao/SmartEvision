@@ -1,6 +1,12 @@
 import { s as sanitize_props, a as spread_props, b as slot, h as head, j as attr } from "../../../../chunks/index2.js";
 import "../../../../chunks/supabase.js";
 import { o as onDestroy } from "../../../../chunks/index-server.js";
+import "@sveltejs/kit/internal";
+import "../../../../chunks/exports.js";
+import "../../../../chunks/utils.js";
+import "@sveltejs/kit/internal/server";
+import "../../../../chunks/root.js";
+import "../../../../chunks/state.svelte.js";
 import { I as Icon } from "../../../../chunks/Icon.js";
 function Download($$renderer, $$props) {
   const $$sanitized_props = sanitize_props($$props);

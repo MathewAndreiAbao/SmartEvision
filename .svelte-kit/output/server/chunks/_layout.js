@@ -500,7 +500,7 @@ function Sidebar($$renderer, $$props) {
         href: "/dashboard/analytics",
         label: "Analytics",
         icon: Trending_up,
-        roles: ["School Head", "Master Teacher", "District Supervisor"]
+        roles: ["School Head", "District Supervisor"]
       },
       {
         href: "/dashboard/settings",
@@ -585,7 +585,15 @@ function Sidebar($$renderer, $$props) {
     $$renderer2.push(`<!--]--></ul></nav> `);
     if (store_get($$store_subs ??= {}, "$profile", profile)) {
       $$renderer2.push("<!--[-->");
-      $$renderer2.push(`<div class="px-4 py-4 border-t border-border-subtle" role="contentinfo" aria-label="User Profile Summary"><div class="flex items-center gap-3 mb-3"><div class="w-8 h-8 rounded-md bg-gov-blue/10 flex items-center justify-center text-xs font-semibold text-gov-blue" aria-hidden="true">${escape_html(store_get($$store_subs ??= {}, "$profile", profile).full_name?.charAt(0) || "?")}</div> <div class="flex-1 min-w-0"><p class="text-sm font-semibold text-text-primary truncate">${escape_html(store_get($$store_subs ??= {}, "$profile", profile).full_name)}</p> <p class="text-[10px] text-text-muted font-medium uppercase tracking-wide truncate">${escape_html(store_get($$store_subs ??= {}, "$profile", profile).role)}</p></div></div> `);
+      $$renderer2.push(`<div class="px-4 py-4 border-t border-border-subtle" role="contentinfo" aria-label="User Profile Summary"><div class="flex items-center gap-3 mb-3">`);
+      if (store_get($$store_subs ??= {}, "$profile", profile).avatar_url) {
+        $$renderer2.push("<!--[-->");
+        $$renderer2.push(`<img${attr("src", store_get($$store_subs ??= {}, "$profile", profile).avatar_url)}${attr("alt", store_get($$store_subs ??= {}, "$profile", profile).full_name)} class="w-8 h-8 rounded-md border border-border-subtle object-cover"/>`);
+      } else {
+        $$renderer2.push("<!--[!-->");
+        $$renderer2.push(`<div class="w-8 h-8 rounded-md bg-gov-blue/10 flex items-center justify-center text-xs font-semibold text-gov-blue" aria-hidden="true">${escape_html(store_get($$store_subs ??= {}, "$profile", profile).full_name?.charAt(0) || "?")}</div>`);
+      }
+      $$renderer2.push(`<!--]--> <div class="flex-1 min-w-0"><p class="text-sm font-semibold text-text-primary truncate">${escape_html(store_get($$store_subs ??= {}, "$profile", profile).full_name)}</p> <p class="text-[10px] text-text-muted font-medium uppercase tracking-wide truncate">${escape_html(store_get($$store_subs ??= {}, "$profile", profile).role)}</p></div></div> `);
       SyncStatus($$renderer2);
       $$renderer2.push(`<!----></div>`);
     } else {
@@ -761,7 +769,15 @@ function TopBar($$renderer, $$props) {
     var $$store_subs;
     $$renderer2.push(`<header class="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-border-subtle bg-white/80 px-4 sm:px-6 pl-14 lg:pl-6 backdrop-blur-md"><div class="flex items-center gap-2 lg:hidden"><h1 class="text-xs font-bold text-text-primary tracking-tight uppercase">Smart E-VISION</h1></div> <div class="hidden lg:block"></div> <div class="flex items-center gap-4">`);
     NotificationCenter($$renderer2);
-    $$renderer2.push(`<!----> <div class="h-8 w-px bg-border-subtle mx-1"></div> <div class="flex items-center gap-2.5"><div class="h-8 w-8 rounded-full bg-gov-blue/5 border border-gov-blue/10 flex items-center justify-center text-[10px] font-bold text-gov-blue uppercase">${escape_html(store_get($$store_subs ??= {}, "$profile", profile)?.full_name?.charAt(0) || "U")}</div></div></div></header>`);
+    $$renderer2.push(`<!----> <div class="h-8 w-px bg-border-subtle mx-1"></div> <div class="flex items-center gap-2.5">`);
+    if (store_get($$store_subs ??= {}, "$profile", profile)?.avatar_url) {
+      $$renderer2.push("<!--[-->");
+      $$renderer2.push(`<img${attr("src", store_get($$store_subs ??= {}, "$profile", profile).avatar_url)}${attr("alt", store_get($$store_subs ??= {}, "$profile", profile).full_name)} class="h-8 w-8 rounded-full border border-border-subtle object-cover"/>`);
+    } else {
+      $$renderer2.push("<!--[!-->");
+      $$renderer2.push(`<div class="h-8 w-8 rounded-full bg-gov-blue/5 border border-gov-blue/10 flex items-center justify-center text-[10px] font-bold text-gov-blue uppercase">${escape_html(store_get($$store_subs ??= {}, "$profile", profile)?.full_name?.charAt(0) || "U")}</div>`);
+    }
+    $$renderer2.push(`<!--]--></div></div></header>`);
     if ($$store_subs) unsubscribe_stores($$store_subs);
   });
 }
