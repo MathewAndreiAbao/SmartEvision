@@ -26,6 +26,19 @@
         analyzeComplianceRisk,
         type PredictionResult,
     } from "$lib/utils/predictiveAnalytics";
+    import {
+        logTAOutreach,
+        getSupervisorTAWorkflow,
+        type TechnicalAssistance,
+    } from "$lib/utils/taManager";
+    import {
+        LayoutDashboard,
+        HelpingHand,
+        MessageSquare,
+        History,
+        ExternalLink,
+        CheckCircle2
+    } from "lucide-svelte";
 
     // Data
     interface Teacher {
@@ -92,10 +105,18 @@
     let searchQuery = $state("");
     let currentWk = $state(1);
 
-    // Drill-down modal
+    // Modal State
     let showModal = $state(false);
     let selectedTeacher = $state<Teacher | null>(null);
     let selectedSubmissions = $state<Submission[]>([]);
+
+    // TA Management State
+    let activeTab = $state<'performance' | 'support'>('performance');
+    let taHistory = $state<TechnicalAssistance[]>([]);
+    let isSubmittingSupport = $state(false);
+    let selectedTA = $state<TechnicalAssistance | null>(null);
+    let showNotesModal = $state(false);
+    let taNotes = $state("");
 
     // Alert teachers (≥2 late submissions)
     const alertTeachers = $derived(() => {
@@ -264,6 +285,81 @@
                 dashed: true,
             },
         ];
+
+        // Fetch TA History
+        if (userProfile.id) {
+            taHistory = await getSupervisorTAWorkflow(userProfile.id);
+        }
+    }
+
+    async function handleOfferSupport(teacher: Teacher) {
+        if (!$profile?.id || isSubmittingSupport) return;
+        
+        isSubmittingSupport = true;
+        try {
+            // 1. Log to DB
+            const { error } = await logTAOutreach($profile.id, { teacherId: teacher.id });
+            if (error) throw error;
+
+            // 2. Open Email
+            const subject = encodeURIComponent("Instructional Support Schedule");
+            const body = encodeURIComponent(`Hello ${teacher.full_name},\n\nI was reviewing the recent system insights and wanted to schedule a brief session to provide some technical assistance on your archival submissions. Let me know when you're available.`);
+            window.location.href = `mailto:${teacher.email}?subject=${subject}&body=${body}`;
+
+            // 3. Refresh Local History
+            taHistory = await getSupervisorTAWorkflow($profile.id);
+            addToast("success", `Support outreach logged for ${teacher.full_name}`);
+        } catch (e) {
+            console.error("Failed to log TA:", e);
+            addToast("error", "Failed to record support action");
+        } finally {
+            isSubmittingSupport = false;
+        }
+    }
+
+    function getSupportStatus(teacherId: string) {
+        const history = taHistory.filter(h => h.teacher_id === teacherId);
+        if (history.length === 0) return null;
+        return history[0]; // Most recent
+    }
+
+    function formatTADate(dateStr: string) {
+        return new Date(dateStr).toLocaleDateString("en-PH", {
+            month: "short",
+            day: "numeric",
+            year: "numeric"
+        });
+    }
+
+    // Notes Handlers
+    function openNotes(ta: TechnicalAssistance) {
+        selectedTA = ta;
+        taNotes = ta.notes || "";
+        showNotesModal = true;
+    }
+
+    async function saveNotes() {
+        if (!selectedTA) return;
+        
+        try {
+            const { error } = await supabase
+                .from('technical_assistance')
+                .update({ 
+                    notes: taNotes,
+                    status: 'Completed',
+                    completed_at: new Date().toISOString()
+                })
+                .eq('id', selectedTA.id);
+            
+            if (error) throw error;
+            
+            taHistory = await getSupervisorTAWorkflow($profile?.id || '');
+            showNotesModal = false;
+            addToast("success", "Intervention notes saved and status updated to Completed");
+        } catch (e) {
+            console.error("Save error:", e);
+            addToast("error", "Failed to save notes");
+        }
     }
 
     function buildHeatmap(calendar: any[] = []) {
@@ -429,8 +525,29 @@
             {/each}
         </div>
     {:else}
-        <!-- KPI Cards -->
-        <!-- KPI Row -->
+        <!-- Tab Navigation -->
+        <div class="flex items-center gap-1 bg-surface-muted/50 p-1.5 rounded-2xl border border-border-subtle mb-10 w-fit">
+            <button 
+                class="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all {activeTab === 'performance' ? 'bg-white text-gov-blue shadow-sm' : 'text-text-muted hover:text-text-primary'}"
+                onclick={() => activeTab = 'performance'}
+            >
+                <LayoutDashboard size={18} />
+                Performance Dashboard
+            </button>
+            <button 
+                class="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all {activeTab === 'support' ? 'bg-white text-gov-blue shadow-sm' : 'text-text-muted hover:text-text-primary'}"
+                onclick={() => activeTab = 'support'}
+            >
+                <HelpingHand size={18} />
+                Instructional Support Hub
+                {#if teachers.filter(t => t.risk && (t.risk.label === 'Critical' || t.risk.label === 'At-Risk')).length > 0}
+                    <span class="w-2 h-2 bg-gov-red rounded-full animate-pulse"></span>
+                {/if}
+            </button>
+        </div>
+
+        {#if activeTab === 'performance'}
+            <!-- KPI Cards -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
             <div in:fly={{ y: 20, duration: 400 }}>
                 <StatCard
@@ -464,89 +581,6 @@
                 />
             </div>
         </div>
-
-        <!-- Proactive Technical Assistance Referral (Support Focus) - School Head Only -->
-        {#if $profile?.role === "School Head"}
-            {@const supportCandidates = teachers.filter(t => t.risk && (t.risk.label === 'Critical' || t.risk.label === 'At-Risk'))}
-            {#if supportCandidates.length > 0}
-                <div
-                    class="gov-card-static p-6 mb-10 border-l-4 border-gov-blue"
-                    in:fly={{ y: 20, duration: 500, delay: 400 }}
-                >
-                    <div class="flex items-center justify-between mb-6">
-                        <div>
-                            <h3 class="text-sm font-bold text-gov-blue uppercase tracking-widest">
-                                Instructional Support Referrals
-                            </h3>
-                            <p class="text-[10px] text-text-muted font-medium mt-1">
-                                Identified candidates for proactive technical assistance based on longitudinal data.
-                            </p>
-                        </div>
-                        <div class="px-3 py-1 bg-gov-blue/10 text-gov-blue rounded-full text-[10px] font-bold">
-                            {supportCandidates.length} Candidates
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {#each supportCandidates as teacher}
-                            <div class="bg-surface-muted/30 border border-border-subtle rounded-xl p-5 flex flex-col group">
-                                <div class="flex justify-between items-start mb-4">
-                                    <div>
-                                        <h4 class="font-bold text-sm text-text-primary group-hover:text-gov-blue transition-colors">
-                                            {teacher.full_name}
-                                        </h4>
-                                        <p class="text-[9px] font-bold text-text-muted uppercase mt-0.5">
-                                            {teacher.risk?.trend} Performance
-                                        </p>
-                                    </div>
-                                    <span class="px-2 py-0.5 rounded text-[9px] font-bold {teacher.risk?.label === 'Critical' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}">
-                                        {teacher.risk?.label}
-                                    </span>
-                                </div>
-                                <p class="text-[11px] text-text-secondary leading-relaxed mb-6">
-                                    {teacher.risk?.message.replace('Risk', 'Support Need')}
-                                </p>
-                                <div class="mt-auto flex items-center gap-3">
-                                    <a
-                                        href="mailto:{teacher.email}?subject=Instructional Support Schedule&body=Hello {teacher.full_name}, I was reviewing the recent system insights and wanted to schedule a brief session to provide some technical assistance on your archival submissions. Let me know when you're available."
-                                        class="flex-1 py-2 bg-gov-blue text-white rounded-lg text-xs font-bold text-center uppercase tracking-widest hover:bg-gov-blue-dark transition-all shadow-sm"
-                                    >
-                                        Offer Support
-                                    </a>
-                                    <button 
-                                        onclick={() => openDrillDown(teacher)}
-                                        class="p-2.5 rounded-lg border border-border-subtle text-text-muted hover:bg-white hover:text-gov-blue transition-all"
-                                        title="Analyze Data"
-                                    >
-                                        <Activity size={16} />
-                                    </button>
-                                </div>
-                            </div>
-                        {/each}
-                    </div>
-                </div>
-            {/if}
-        {:else if alertTeachers().length > 0}
-            <!-- Fallback Alert for Master Teachers (General Alerts only) -->
-            <div
-                class="gov-card-static p-5 mb-8 border-l-4 border-gov-gold"
-                in:fade={{ duration: 500, delay: 400 }}
-            >
-                <h3 class="text-sm font-bold text-gov-gold-dark mb-2">
-                    Observation: {alertTeachers().length} teacher{alertTeachers().length > 1 ? "s" : ""} with multiple late submissions
-                </h3>
-                <div class="flex flex-wrap gap-2">
-                    {#each alertTeachers() as teacher}
-                        <button
-                            class="px-3 py-1.5 text-xs font-semibold bg-gov-gold/10 text-gov-gold-dark rounded-lg hover:bg-gov-gold/20 transition-colors"
-                            onclick={() => openDrillDown(teacher)}
-                        >
-                            {teacher.full_name}
-                        </button>
-                    {/each}
-                </div>
-            </div>
-        {/if}
 
         <!-- Heatmap + Trend Chart -->
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
@@ -712,8 +746,169 @@
                         {/each}
                     </div>
                 </div>
-            {/if}
-        </div>
+        {:else}
+            {@const supportCandidates = teachers.filter(t => t.risk && (t.risk.label === 'Critical' || t.risk.label === 'At-Risk'))}
+            <!-- Tab 2: Instructional Support Hub Content -->
+            <div in:fade={{ duration: 400 }}>
+                <!-- Summary Card -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+                    <div class="lg:col-span-2 gov-card-static p-8 border-l-4 border-gov-blue bg-gradient-to-r from-gov-blue/5 to-transparent">
+                        <div class="flex items-start gap-4">
+                            <div class="p-3 bg-gov-blue text-white rounded-2xl shadow-lg shadow-gov-blue/20">
+                                <HelpingHand size={28} />
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-bold text-text-primary">Support Referral Hub</h2>
+                                <p class="text-sm text-text-secondary mt-2 leading-relaxed max-w-xl">
+                                    The AI engine has identified candidates who may benefit from Technical Assistance (TA). 
+                                    Outreach tracked here informs your longitudinal coaching history.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="gov-card-static p-6 flex flex-col justify-center items-center text-center">
+                        <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Active Interventions</p>
+                        <p class="text-4xl font-bold text-gov-blue tracking-tight">{taHistory.filter(h => h.status === 'Offered').length}</p>
+                        <p class="text-[10px] text-text-secondary mt-2 font-medium">Outreach records created this period</p>
+                    </div>
+                </div>
+
+                <!-- Section: Support Candidates -->
+                <div class="mb-12">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-sm font-bold text-text-muted uppercase tracking-widest flex items-center gap-2">
+                             <TrendingUp size={16} />
+                             Support Recommendations
+                        </h3>
+                    </div>
+
+                    {#if supportCandidates.length === 0}
+                        <div class="bg-gov-green/5 border border-gov-green/20 rounded-2xl p-10 text-center">
+                            <div class="w-12 h-12 bg-white text-gov-green rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+                                <CheckCircle2 size={24} />
+                            </div>
+                            <p class="text-sm font-bold text-gov-green-dark">Excellent Performance Detected</p>
+                            <p class="text-xs text-text-secondary mt-1">No teachers currently require technical assistance referrals.</p>
+                        </div>
+                    {:else}
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {#each supportCandidates as teacher}
+                                {@const lastSupport = getSupportStatus(teacher.id)}
+                                <div class="gov-card p-6 flex flex-col hover:border-gov-blue/40 transition-all border-l-4 {teacher.risk?.label === 'Critical' ? 'border-l-gov-red' : 'border-l-gov-gold'}">
+                                    <div class="flex justify-between items-start mb-6">
+                                        <div class="max-w-[70%]">
+                                            <h4 class="font-bold text-sm text-text-primary truncate">{teacher.full_name}</h4>
+                                            <p class="text-[10px] text-text-muted mt-1 font-bold uppercase">{teacher.risk?.trend} PERFORMANCE</p>
+                                        </div>
+                                        <div class="flex flex-col items-end gap-1">
+                                            <span class="px-2 py-0.5 rounded text-[9px] font-bold {teacher.risk?.label === 'Critical' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}">
+                                                {teacher.risk?.label}
+                                            </span>
+                                            {#if lastSupport}
+                                                <span class="flex items-center gap-1 text-[8px] font-bold text-gov-blue uppercase">
+                                                    <CheckCircle2 size={8} /> Contacted
+                                                </span>
+                                            {/if}
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-surface-muted/50 rounded-lg p-4 mb-6">
+                                        <p class="text-[11px] font-bold text-text-primary mb-1 flex items-center gap-2">
+                                            <MessageSquare size={12} class="text-gov-blue" />
+                                            System Diagnosis
+                                        </p>
+                                        <p class="text-[11px] text-text-secondary leading-relaxed">
+                                            {teacher.risk?.message.replace('Risk', 'Support Need')}
+                                        </p>
+                                    </div>
+
+                                    <div class="mt-auto pt-6 border-t border-gray-50 flex items-center gap-2">
+                                        <button
+                                            onclick={() => handleOfferSupport(teacher)}
+                                            disabled={isSubmittingSupport}
+                                            class="flex-1 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all
+                                                {lastSupport 
+                                                    ? 'bg-white border border-gov-blue text-gov-blue hover:bg-gov-blue hover:text-white' 
+                                                    : 'bg-gov-blue text-white shadow-md shadow-gov-blue/20 hover:bg-gov-blue-dark'}"
+                                        >
+                                            {#if isSubmittingSupport}
+                                                Processing...
+                                            {:else}
+                                                {lastSupport ? 'Re-Offer Support' : 'Offer Support'}
+                                            {/if}
+                                        </button>
+                                        <button 
+                                            onclick={() => openDrillDown(teacher)}
+                                            class="p-2.5 rounded-xl border border-border-subtle text-text-muted hover:bg-white hover:text-gov-blue transition-all"
+                                            title="View History"
+                                        >
+                                            <History size={16} />
+                                        </button>
+                                    </div>
+                                    {#if lastSupport}
+                                        <p class="text-[8px] text-text-muted mt-3 text-center italic">
+                                            Last outreach recorded on {formatDate(lastSupport.offered_at)}
+                                        </p>
+                                    {/if}
+                                </div>
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
+
+                <!-- Section: Outreach History -->
+                <div in:fly={{ y: 20, duration: 400, delay: 200 }}>
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-sm font-bold text-text-muted uppercase tracking-widest flex items-center gap-2">
+                             <History size={16} />
+                             Recent Intervention History
+                        </h3>
+                    </div>
+
+                    {#if taHistory.length === 0}
+                        <div class="gov-card-static p-12 text-center text-text-muted border-dashed">
+                             <p class="text-xs font-medium">No intervention history recorded yet.</p>
+                        </div>
+                    {:else}
+                        <div class="gov-card-static overflow-hidden">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-gray-50/50 text-[10px] font-bold text-text-muted uppercase tracking-widest border-b border-gray-100">
+                                    <tr>
+                                        <th class="px-6 py-4">Teacher</th>
+                                        <th class="px-6 py-4">Intervention</th>
+                                        <th class="px-6 py-4 text-center">Date</th>
+                                        <th class="px-6 py-4 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-50 text-[11px] font-medium text-text-primary">
+                                    {#each taHistory.slice(0, 5) as ta}
+                                        {@const teacher = teachers.find(t => t.id === ta.teacher_id)}
+                                        <tr class="hover:bg-gray-50/30 transition-colors">
+                                            <td class="px-6 py-4 font-bold">{teacher?.full_name || 'Teacher'}</td>
+                                            <td class="px-6 py-4">
+                                                <div class="flex items-center gap-2">
+                                                    <StatusBadge status={ta.status === 'Completed' ? 'compliant' : 'pending'} size="sm" />
+                                                    {ta.support_type}
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 text-center text-text-muted">{formatTADate(ta.offered_at)}</td>
+                                            <td class="px-6 py-4 text-right">
+                                                <button 
+                                                    onclick={() => openNotes(ta)}
+                                                    class="text-gov-blue hover:underline font-bold uppercase text-[9px]"
+                                                >
+                                                    {ta.notes ? 'Edit Notes' : 'Add Notes'}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    {/each}
+                                </tbody>
+                            </table>
+                        </div>
+                    {/if}
+                </div>
+            </div>
+        {/if}
     {/if}
 </div>
 
@@ -790,5 +985,47 @@
                 {/each}
             </div>
         {/if}
+    {/if}
+</DrillDownModal>
+
+<!-- TA Notes Modal -->
+<DrillDownModal
+    isOpen={showNotesModal}
+    title="Intervention Notes"
+    onClose={() => showNotesModal = false}
+>
+    {#if selectedTA}
+        {@const teacher = teachers.find(t => t.id === selectedTA?.teacher_id)}
+        <div class="space-y-6">
+            <div class="bg-gov-blue/5 p-4 rounded-xl border border-gov-blue/10">
+                <p class="text-[10px] font-bold text-gov-blue uppercase tracking-widest mb-1">Teacher</p>
+                <p class="text-sm font-bold text-text-primary">{teacher?.full_name}</p>
+                <p class="text-[10px] text-text-muted mt-1 uppercase">Support Type: {selectedTA.support_type}</p>
+            </div>
+
+            <div>
+                <label for="ta-notes" class="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">
+                    Private Coaching Observations
+                </label>
+                <textarea
+                    id="ta-notes"
+                    bind:value={taNotes}
+                    placeholder="Describe what was discussed, technical hurdles identified, and coaching provided..."
+                    class="w-full h-40 p-4 text-sm bg-surface-muted/30 border border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/20 outline-none transition-all"
+                ></textarea>
+                <p class="text-[9px] text-text-muted mt-2 italic">
+                    Note: Saving notes will automatically mark this intervention as 'Completed'.
+                </p>
+            </div>
+
+            <div class="flex gap-3">
+                <button
+                    onclick={saveNotes}
+                    class="flex-1 py-3 bg-gov-blue text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-gov-blue-dark shadow-lg shadow-gov-blue/20 transition-all"
+                >
+                    Save & Finalize Session
+                </button>
+            </div>
+        </div>
     {/if}
 </DrillDownModal>

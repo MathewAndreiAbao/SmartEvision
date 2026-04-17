@@ -139,6 +139,20 @@
         updated_by UUID REFERENCES profiles(id)
     );
 
+    -- Technical Assistance (Intervention Tracking)
+    CREATE TABLE IF NOT EXISTS technical_assistance (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        supervisor_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+        teacher_id UUID REFERENCES profiles(id) ON DELETE CASCADE, -- Optional if supporting a specific teacher
+        school_id UUID REFERENCES schools(id) ON DELETE CASCADE, -- Optional if supporting a whole school or school head
+        status TEXT NOT NULL CHECK (status IN ('Suggested', 'Offered', 'Completed', 'Cancelled')) DEFAULT 'Offered',
+        support_type TEXT DEFAULT 'Instructional Guidance',
+        notes TEXT, -- Private notes for the supervisor
+        offered_at TIMESTAMPTZ DEFAULT NOW(),
+        completed_at TIMESTAMPTZ,
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
     -- ─── 06. ROW LEVEL SECURITY (RLS) ───────────────────────────
 
     -- Enable RLS on all tables
@@ -152,6 +166,7 @@
     ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
     ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
     ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE technical_assistance ENABLE ROW LEVEL SECURITY;
 
     -- ─── RLS Policies ───
 
@@ -181,6 +196,12 @@
     CREATE POLICY "Supervisors manage settings" ON system_settings FOR ALL USING (
         EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'District Supervisor')
     );
+
+    -- 6. Technical Assistance: Supervisors manage, Teachers view own
+    CREATE POLICY "Supervisors manage TA" ON technical_assistance FOR ALL USING (
+        EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('School Head', 'District Supervisor', 'Master Teacher'))
+    );
+    CREATE POLICY "Teachers view own TA" ON technical_assistance FOR SELECT USING (auth.uid() = teacher_id);
 
     -- ─── 07. PERFORMANCE INDEXES ────────────────────────────────
 

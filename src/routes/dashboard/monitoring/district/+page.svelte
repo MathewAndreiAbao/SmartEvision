@@ -9,7 +9,6 @@
   import ProfileUploader from "$lib/components/ProfileUploader.svelte";
   import { onMount, onDestroy } from "svelte";
   import { fly, fade } from "svelte/transition";
-  import { Building2 } from "lucide-svelte";
   import { addToast } from "$lib/stores/toast";
   import {
     calculateCompliance,
@@ -26,7 +25,21 @@
     analyzeComplianceRisk,
     calculateDistrictRisk
   } from "$lib/utils/predictiveAnalytics";
-  import { Activity } from "lucide-svelte";
+  import {
+    logTAOutreach,
+    getSupervisorTAWorkflow,
+    type TechnicalAssistance
+  } from "$lib/utils/taManager";
+  import {
+    LayoutDashboard,
+    HelpingHand,
+    Building2,
+    Activity,
+    History,
+    TrendingUp,
+    MessageSquare,
+    CheckCircle2
+  } from "lucide-svelte";
 
   // Data Interfaces
   interface School {
@@ -91,6 +104,14 @@
   let showModal = $state(false);
   let selectedSchool = $state<School | null>(null);
   let selectedSubmissions = $state<Submission[]>([]);
+
+  // TA Management State
+  let activeTab = $state<'performance' | 'support'>('performance');
+  let taHistory = $state<TechnicalAssistance[]>([]);
+  let isSubmittingSupport = $state(false);
+  let selectedTA = $state<TechnicalAssistance | null>(null);
+  let showNotesModal = $state(false);
+  let taNotes = $state("");
 
   let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
 
@@ -256,6 +277,79 @@
         dashed: true,
       },
     ];
+
+    // Fetch TA History
+    if (userProfile.id) {
+        taHistory = await getSupervisorTAWorkflow(userProfile.id);
+    }
+  }
+
+  async function handleOfferSupport(school: School) {
+    if (!$profile?.id || isSubmittingSupport) return;
+    
+    isSubmittingSupport = true;
+    try {
+        // 1. Log to DB
+        const { error } = await logTAOutreach($profile.id, { schoolId: school.id });
+        if (error) throw error;
+
+        // 2. Refresh Local History
+        taHistory = await getSupervisorTAWorkflow($profile.id);
+        addToast("success", `Institutional support logged for ${school.name}`);
+        
+        // Note: For schools, we don't open mailto automatically as it's institutional,
+        // but we could if there's a School Head email. For now, we just log the action.
+    } catch (e) {
+        console.error("Failed to log TA:", e);
+        addToast("error", "Failed to record support action");
+    } finally {
+        isSubmittingSupport = false;
+    }
+  }
+
+  function getSupportStatus(schoolId: string) {
+    const history = taHistory.filter(h => h.school_id === schoolId);
+    if (history.length === 0) return null;
+    return history[0]; // Most recent
+  }
+
+  function formatDate(dateStr: string): string {
+    return new Date(dateStr).toLocaleDateString("en-PH", {
+        month: "short",
+        day: "numeric",
+        year: "numeric"
+    });
+  }
+
+  // Notes Handlers
+  function openNotes(ta: TechnicalAssistance) {
+    selectedTA = ta;
+    taNotes = ta.notes || "";
+    showNotesModal = true;
+  }
+
+  async function saveNotes() {
+    if (!selectedTA) return;
+    
+    try {
+        const { error } = await supabase
+            .from('technical_assistance')
+            .update({ 
+                notes: taNotes,
+                status: 'Completed',
+                completed_at: new Date().toISOString()
+            })
+            .eq('id', selectedTA.id);
+        
+        if (error) throw error;
+        
+        taHistory = await getSupervisorTAWorkflow($profile?.id || '');
+        showNotesModal = false;
+        addToast("success", "Institutional support notes saved");
+    } catch (e) {
+        console.error("Save error:", e);
+        addToast("error", "Failed to save notes");
+    }
   }
 
   function buildHeatmap(calendar: any[]) {
@@ -378,7 +472,29 @@
       {/each}
     </div>
   {:else}
-    <!-- KPI Cards -->
+    <!-- Tab Navigation -->
+    <div class="flex items-center gap-1 bg-surface-muted/50 p-1.5 rounded-2xl border border-border-subtle mb-10 w-fit">
+        <button 
+            class="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all {activeTab === 'performance' ? 'bg-white text-gov-blue shadow-sm' : 'text-text-muted hover:text-text-primary'}"
+            onclick={() => activeTab = 'performance'}
+        >
+            <LayoutDashboard size={18} />
+            Performance View
+        </button>
+        <button 
+            class="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all {activeTab === 'support' ? 'bg-white text-gov-blue shadow-sm' : 'text-text-muted hover:text-text-primary'}"
+            onclick={() => activeTab = 'support'}
+        >
+            <HelpingHand size={18} />
+            Institutional Support Hub
+            {#if schools.filter(s => (s.risk || 0) > 40 || (s.rate || 0) < 70).length > 0}
+                <span class="w-2 h-2 bg-gov-red rounded-full animate-pulse"></span>
+            {/if}
+        </button>
+    </div>
+
+    {#if activeTab === 'performance'}
+        <!-- KPI Cards -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-6">
       <div in:fly={{ y: 20, duration: 400 }}>
         <StatCard
@@ -406,65 +522,6 @@
         />
       </div>
     </div>
-
-    <!-- Institutional Support Referrals (Support Focus) -->
-    {@const supportNeededSchools = schools.filter(s => (s.risk || 0) > 40 || (s.rate || 0) < 70)}
-    {#if supportNeededSchools.length > 0}
-      <div 
-        class="gov-card-static p-6 border-l-4 border-gov-blue"
-        in:fly={{ y: 20, duration: 500, delay: 350 }}
-      >
-        <div class="flex items-center justify-between mb-6">
-            <div>
-                <h3 class="text-xs font-bold text-gov-blue uppercase tracking-widest">
-                    District Instructional Support Referrals
-                </h3>
-                <p class="text-[10px] text-text-muted font-medium mt-1">
-                    Institutions identified for proactive technical assistance and coaching based on current performance trajectories.
-                </p>
-            </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {#each supportNeededSchools as school}
-                <div class="bg-surface-muted/30 border border-border-subtle rounded-xl p-5 flex flex-col h-full group">
-                    <div class="flex justify-between items-start mb-4">
-                        <h4 class="font-bold text-sm text-text-primary group-hover:text-gov-blue transition-colors leading-tight">
-                            {school.name}
-                        </h4>
-                        <span class="px-2 py-0.5 rounded text-[9px] font-bold {(school.risk || 0) > 60 ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}">
-                            {(school.risk || 0) > 60 ? 'Critical Attention' : 'Actionable Support'}
-                        </span>
-                    </div>
-                    <div class="flex items-center gap-2 mb-6 text-[10px] font-bold text-text-muted uppercase">
-                        <span>Compliance: {school.rate}%</span>
-                        <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
-                        <span>Support Score: {school.risk}%</span>
-                    </div>
-                    <div class="mt-auto space-y-3">
-                        <p class="text-[10px] text-text-secondary leading-relaxed">
-                            Recommended physical intervention to revisit archival workflows and document verification standards.
-                        </p>
-                        <div class="flex items-center gap-2">
-                            <button 
-                                onclick={() => openDrillDown(school)}
-                                class="flex-1 py-2 bg-gov-blue text-white rounded-lg text-xs font-bold text-center uppercase tracking-widest hover:bg-gov-blue-dark transition-all"
-                            >
-                                Plan TA Session
-                            </button>
-                            <button 
-                                onclick={() => openDrillDown(school)}
-                                class="p-2 px-3 rounded-lg border border-border-subtle text-text-muted hover:text-gov-blue transition-all"
-                            >
-                                <Activity size={14} />
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            {/each}
-        </div>
-      </div>
-    {/if}
 
     <!-- Charts -->
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -626,6 +683,129 @@
         {/if}
       </div>
     </div>
+    {:else}
+        {@const supportNeededSchools = schools.filter(s => (s.risk || 0) > 40 || (s.rate || 0) < 70)}
+        <!-- Tab 2: Institutional Support Hub -->
+        <div in:fade={{ duration: 400 }}>
+            <!-- Header Summary -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+                <div class="lg:col-span-2 gov-card-static p-8 border-l-4 border-gov-blue bg-gradient-to-r from-gov-blue/5 to-transparent">
+                    <div class="flex items-start gap-4">
+                        <div class="p-3 bg-gov-blue text-white rounded-2xl shadow-lg">
+                            <HelpingHand size={28} />
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-text-primary">Institutional Support Hub</h2>
+                            <p class="text-sm text-text-secondary mt-2 leading-relaxed max-w-xl">
+                                Monitoring institutional health across the district. Use this dashboard to plan and record physical technical assistance sessions for school heads.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="gov-card-static p-6 flex flex-col justify-center items-center text-center">
+                    <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Logged Interventions</p>
+                    <p class="text-4xl font-bold text-gov-blue tracking-tight">{taHistory.length}</p>
+                    <p class="text-[10px] text-text-secondary mt-2 font-medium">Historical records for this district</p>
+                </div>
+            </div>
+
+            <!-- Support Recommendations -->
+            <div class="mb-12">
+                <h3 class="text-sm font-bold text-text-muted uppercase tracking-widest flex items-center gap-2 mb-6">
+                    <TrendingUp size={16} />
+                    Institutional Support Referrals
+                </h3>
+
+                {#if supportNeededSchools.length === 0}
+                    <div class="bg-gov-green/5 border border-gov-green/20 rounded-2xl p-10 text-center">
+                        <CheckCircle2 size={24} class="text-gov-green mx-auto mb-4" />
+                        <p class="text-sm font-bold text-gov-green-dark">Healthy District Trajectory</p>
+                    </div>
+                {:else}
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {#each supportNeededSchools as school}
+                            {@const lastSupport = getSupportStatus(school.id)}
+                            <div class="gov-card p-6 flex flex-col border-l-4 {(school.risk || 0) > 60 ? 'border-l-gov-red' : 'border-l-gov-gold'}">
+                                <div class="flex justify-between items-start mb-4">
+                                    <h4 class="font-bold text-sm text-text-primary truncate max-w-[70%]">{school.name}</h4>
+                                    <div class="flex flex-col items-end gap-1">
+                                        <span class="px-2 py-0.5 rounded text-[9px] font-bold {(school.risk || 0) > 60 ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}">
+                                            {(school.risk || 0) > 60 ? 'Critical' : 'Moderate'}
+                                        </span>
+                                        {#if lastSupport}
+                                            <span class="text-[8px] font-bold text-gov-blue uppercase">Contacted</span>
+                                        {/if}
+                                    </div>
+                                </div>
+                                <div class="bg-surface-muted/50 rounded-lg p-3 mb-6">
+                                    <p class="text-[10px] text-text-secondary leading-relaxed">
+                                        Recommended institutional coaching for archival standards and verification efficiency.
+                                    </p>
+                                </div>
+                                <div class="mt-auto flex items-center gap-2">
+                                    <button 
+                                        onclick={() => handleOfferSupport(school)}
+                                        disabled={isSubmittingSupport}
+                                        class="flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all
+                                            {lastSupport ? 'bg-white border border-gov-blue text-gov-blue' : 'bg-gov-blue text-white'}"
+                                    >
+                                        {lastSupport ? 'Add History' : 'Log Support Offer'}
+                                    </button>
+                                    <button onclick={() => openDrillDown(school)} class="p-2 border border-border-subtle rounded-lg text-text-muted">
+                                        <Activity size={14} />
+                                    </button>
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
+            </div>
+
+            <!-- History -->
+            <div in:fly={{ y: 20, duration: 400, delay: 200 }}>
+                <h3 class="text-sm font-bold text-text-muted uppercase tracking-widest flex items-center gap-2 mb-6">
+                    <History size={16} />
+                    District Intervention Logs
+                </h3>
+                {#if taHistory.length === 0}
+                    <div class="gov-card-static p-12 text-center text-text-muted border-dashed">
+                        No interventions logged yet.
+                    </div>
+                {:else}
+                    <div class="gov-card-static overflow-hidden">
+                        <table class="w-full text-left">
+                            <thead class="bg-gray-50/50 text-[10px] font-bold text-text-muted uppercase tracking-widest border-b border-gray-100">
+                                <tr>
+                                    <th class="px-6 py-4">Institution</th>
+                                    <th class="px-6 py-4">Intervention</th>
+                                    <th class="px-6 py-4">Date</th>
+                                    <th class="px-6 py-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50 text-[11px]">
+                                {#each taHistory as ta}
+                                    {@const school = schools.find(s => s.id === ta.school_id)}
+                                    <tr class="hover:bg-gray-50/30 transition-colors">
+                                        <td class="px-6 py-4 font-bold">{school?.name || 'School'}</td>
+                                        <td class="px-6 py-4">{ta.support_type}</td>
+                                        <td class="px-6 py-4 text-text-muted">{formatDate(ta.offered_at)}</td>
+                                        <td class="px-6 py-4 text-right">
+                                            <button 
+                                                onclick={() => openNotes(ta)}
+                                                class="text-gov-blue font-bold uppercase text-[9px]"
+                                            >
+                                                {ta.notes ? 'Edit Notes' : 'Add Notes'}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                {/each}
+                            </tbody>
+                        </table>
+                    </div>
+                {/if}
+            </div>
+        </div>
+    {/if}
   {/if}
 </div>
 
@@ -684,4 +864,44 @@
       </div>
     </div>
   {/if}
+</DrillDownModal>
+
+<!-- TA Notes Modal -->
+<DrillDownModal
+    isOpen={showNotesModal}
+    title="Institutional Support Notes"
+    onClose={() => showNotesModal = false}
+>
+    {#if selectedTA}
+        {@const school = schools.find(s => s.id === selectedTA?.school_id)}
+        <div class="space-y-6">
+            <div class="bg-gov-blue/5 p-4 rounded-xl border border-gov-blue/10">
+                <p class="text-[10px] font-bold text-gov-blue uppercase tracking-widest mb-1">Institution</p>
+                <p class="text-sm font-bold text-text-primary">{school?.name}</p>
+                <p class="text-[10px] text-text-muted mt-1 uppercase">Support Type: {selectedTA.support_type}</p>
+            </div>
+
+            <div>
+                <label for="ta-notes" class="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">
+                    Supervisor Insights & Coaching Notes
+                </label>
+                <textarea
+                    id="ta-notes"
+                    bind:value={taNotes}
+                    placeholder="Describe the institutional hurdles, training provided, and agreed next steps..."
+                    class="w-full h-40 p-4 text-sm bg-surface-muted/30 border border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/20 outline-none transition-all"
+                ></textarea>
+                <p class="text-[9px] text-text-muted mt-2 italic text-center">
+                    Note: Finalizing notes transition the state to 'Completed'.
+                </p>
+            </div>
+
+            <button
+                onclick={saveNotes}
+                class="w-full py-3 bg-gov-blue text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-gov-blue-dark shadow-lg shadow-gov-blue/20 transition-all"
+            >
+                Save & Finalize Intervention
+            </button>
+        </div>
+    {/if}
 </DrillDownModal>
