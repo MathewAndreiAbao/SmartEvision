@@ -10,7 +10,7 @@ return {
 	assets: new Set(["apple-touch-icon.png","app_icon.png","favicon.png","icon-192.png","icon-512.png","manifest.json","robots.txt","service-worker.js"]),
 	mimeTypes: {".png":"image/png",".json":"application/json",".txt":"text/plain"},
 	_: {
-		client: {start:"_app/immutable/entry/start.CvqOL43T.js",app:"_app/immutable/entry/app.jkHQBwvq.js",imports:["_app/immutable/entry/start.CvqOL43T.js","_app/immutable/chunks/BjO35MY2.js","_app/immutable/chunks/BxPNg_MM.js","_app/immutable/chunks/BzZ387n4.js","_app/immutable/entry/app.jkHQBwvq.js","_app/immutable/chunks/PPVm8Dsz.js","_app/immutable/chunks/BxPNg_MM.js","_app/immutable/chunks/EUAg-nnf.js","_app/immutable/chunks/CbxepORg.js","_app/immutable/chunks/dHqITi-H.js","_app/immutable/chunks/Dzl8iKtY.js","_app/immutable/chunks/C_IMCELu.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:true},
+		client: null,
 		nodes: [
 			__memo(() => import('./nodes/0.js')),
 			__memo(() => import('./nodes/1.js')),

@@ -137,52 +137,56 @@
     const userProfile = $profile;
     if (!userProfile?.district_id) return;
 
-    // Fetch District Logo
-    const { data: distData } = await supabase.from('districts').select('avatar_url').eq('id', userProfile.district_id).single();
-    if (distData) districtLogoUrl = distData.avatar_url;
+    // Stage 1: Batch fetch non-dependent data
+    const [distRes, schoolsRes, calendarRes, weeksRes, taRes] = await Promise.all([
+      supabase.from('districts').select('avatar_url').eq('id', userProfile.district_id).single(),
+      supabase
+        .from("schools")
+        .select("id, name, district_id")
+        .eq("district_id", userProfile.district_id)
+        .order("name"),
+      supabase
+        .from("academic_calendar")
+        .select("*")
+        .eq("school_year", "2025-2026")
+        .order("week_number", { ascending: true }),
+      getDefinedWeeksCount(supabase),
+      getSupervisorTAWorkflow(userProfile.id)
+    ]);
 
-    // 1. Fetch District Schools
-    const { data: schoolsData } = await supabase
-      .from("schools")
-      .select("id, name, district_id")
-      .eq("district_id", userProfile.district_id)
-      .order("name");
+    if (distRes.data) districtLogoUrl = distRes.data.avatar_url;
+    const schoolsData = schoolsRes.data;
+    if (!schoolsData || schoolsData.length === 0) return;
 
-    if (!schoolsData) return;
-
+    taHistory = taRes;
+    currentDefinedWeeks = weeksRes;
     const schoolIds = schoolsData.map((s) => s.id);
 
-    // 2. Fetch submissions for all schools in district
-    const { data: subsData } = await supabase
-      .from("submissions")
-      .select(
-        `
-                id, user_id, file_name, doc_type, compliance_status, created_at, week_number,
-                profiles!inner(school_id)
-            `,
-      )
-      .in("profiles.school_id", schoolIds)
-      .order("created_at", { ascending: false });
+    // Stage 2: Batch fetch school-dependent data
+    const [subsRes, loadsRes] = await Promise.all([
+      supabase
+        .from("submissions")
+        .select(
+          `
+                  id, user_id, file_name, doc_type, compliance_status, created_at, week_number,
+                  profiles!inner(school_id)
+              `,
+        )
+        .in("profiles.school_id", schoolIds)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("teaching_loads")
+        .select("id, profiles!inner(school_id)")
+        .in("profiles.school_id", schoolIds)
+    ]);
 
-    // 3. Fetch teaching loads for all schools in district
-    const { data: loadsData } = await supabase
-      .from("teaching_loads")
-      .select("id, profiles!inner(school_id)")
-      .in("profiles.school_id", schoolIds);
-
-    // 4. Fetch Academic Calendar
-    const { data: calendarData } = await supabase
-      .from("academic_calendar")
-      .select("*")
-      .eq("school_year", "2025-2026")
-      .order("week_number", { ascending: true });
+    const subsData = subsRes.data;
+    const loadsData = loadsRes.data;
+    const calendarData = calendarRes.data;
 
     const calendar = (calendarData || []).filter(
       (c) => c.district_id === userProfile.district_id || !c.district_id,
     );
-
-    // 5. Process School Data
-    currentDefinedWeeks = await getDefinedWeeksCount(supabase);
 
     schools = schoolsData.map((school) => {
       const schoolSubmissions = (subsData || []).filter((s: any) => {
@@ -278,10 +282,7 @@
       },
     ];
 
-    // Fetch TA History
-    if (userProfile.id) {
-        taHistory = await getSupervisorTAWorkflow(userProfile.id);
-    }
+    // Post-processing finished
   }
 
   async function handleOfferSupport(school: School) {
@@ -687,25 +688,32 @@
         {@const supportNeededSchools = schools.filter(s => (s.risk || 0) > 40 || (s.rate || 0) < 70)}
         <!-- Tab 2: Institutional Support Hub -->
         <div in:fade={{ duration: 400 }}>
-            <!-- Header Summary -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-                <div class="lg:col-span-2 gov-card-static p-8 border-l-4 border-gov-blue bg-gradient-to-r from-gov-blue/5 to-transparent">
-                    <div class="flex items-start gap-4">
-                        <div class="p-3 bg-gov-blue text-white rounded-2xl shadow-lg">
-                            <HelpingHand size={28} />
+            <!-- Header Summary: Premium District Workstation -->
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-10">
+                <div class="lg:col-span-3 gov-card-static p-8 border-l-4 border-gov-blue bg-gradient-to-r from-gov-blue/5 to-transparent relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-8 opacity-10 rotate-12">
+                        <HelpingHand size={120} />
+                    </div>
+                    <div class="flex items-start gap-6 relative z-10">
+                        <div class="p-4 bg-gov-blue text-white rounded-2xl shadow-xl shadow-gov-blue/20">
+                            <HelpingHand size={32} />
                         </div>
                         <div>
-                            <h2 class="text-xl font-bold text-text-primary">Institutional Support Hub</h2>
-                            <p class="text-sm text-text-secondary mt-2 leading-relaxed max-w-xl">
-                                Monitoring institutional health across the district. Use this dashboard to plan and record physical technical assistance sessions for school heads.
+                            <h2 class="text-2xl font-bold text-text-primary tracking-tight">Institutional Support Hub</h2>
+                            <p class="text-base text-text-secondary mt-2 leading-relaxed max-w-2xl font-medium">
+                                District-wide technical assistance workstation. Monitor institutional health across the district 
+                                and record strategic TA sessions aimed at improving school compliance maturity.
                             </p>
                         </div>
                     </div>
                 </div>
-                <div class="gov-card-static p-6 flex flex-col justify-center items-center text-center">
-                    <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Logged Interventions</p>
-                    <p class="text-4xl font-bold text-gov-blue tracking-tight">{taHistory.length}</p>
-                    <p class="text-[10px] text-text-secondary mt-2 font-medium">Historical records for this district</p>
+                <div class="gov-card-static p-6 flex flex-col justify-center items-center text-center bg-white border-dashed border-2 border-gov-blue/20">
+                    <div class="w-12 h-12 rounded-full bg-gov-blue/10 flex items-center justify-center mb-3 text-gov-blue">
+                        <TrendingUp size={20} />
+                    </div>
+                    <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1">Total Interventions</p>
+                    <p class="text-4xl font-black text-gov-blue tracking-tighter">{taHistory.length}</p>
+                    <p class="text-[10px] text-text-secondary mt-2 font-bold uppercase tracking-tight">District Logged Records</p>
                 </div>
             </div>
 
@@ -726,14 +734,19 @@
                         {#each supportNeededSchools as school}
                             {@const lastSupport = getSupportStatus(school.id)}
                             <div class="gov-card p-6 flex flex-col border-l-4 {(school.risk || 0) > 60 ? 'border-l-gov-red' : 'border-l-gov-gold'}">
-                                <div class="flex justify-between items-start mb-4">
-                                    <h4 class="font-bold text-sm text-text-primary truncate max-w-[70%]">{school.name}</h4>
+                                <div class="flex justify-between items-start mb-6">
+                                    <div class="max-w-[70%]">
+                                        <h4 class="font-bold text-sm text-text-primary truncate">{school.name}</h4>
+                                        <p class="text-[10px] text-text-muted mt-1 font-bold uppercase tracking-tight">Institutional Diagnostic</p>
+                                    </div>
                                     <div class="flex flex-col items-end gap-1">
                                         <span class="px-2 py-0.5 rounded text-[9px] font-bold {(school.risk || 0) > 60 ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}">
                                             {(school.risk || 0) > 60 ? 'Critical' : 'Moderate'}
                                         </span>
                                         {#if lastSupport}
-                                            <span class="text-[8px] font-bold text-gov-blue uppercase">Contacted</span>
+                                            <span class="flex items-center gap-1 text-[8px] font-bold text-gov-blue uppercase">
+                                                <CheckCircle2 size={8} /> Support Logged
+                                            </span>
                                         {/if}
                                     </div>
                                 </div>

@@ -160,37 +160,34 @@
         const userProfile = $profile;
         if (!userProfile?.school_id) return;
 
-        // Fetch School Logo
-        const { data: schoolData } = await supabase.from('schools').select('avatar_url').eq('id', userProfile.school_id).single();
-        if (schoolData) schoolLogoUrl = schoolData.avatar_url;
-
-        // Batch fetch: teachers + all submissions + all teaching loads + academic calendar
-        const [teachersRes, subsRes, loadsRes, calendarRes] = await Promise.all(
-            [
-                supabase
-                    .from("profiles")
-                    .select("id, full_name, email, role, district_id")
-                    .eq("school_id", userProfile.school_id)
-                    .eq("role", "Teacher")
-                    .order("full_name"),
-                supabase
-                    .from("submissions")
-                    .select(
-                        "id, user_id, file_name, doc_type, compliance_status, created_at, week_number, profiles!inner(school_id), teaching_loads(subject, grade_level)",
-                    )
-                    .eq("profiles.school_id", userProfile.school_id)
-                    .order("created_at", { ascending: false }),
-                supabase
-                    .from("teaching_loads")
-                    .select("id, user_id, profiles!inner(school_id)")
-                    .eq("profiles.school_id", userProfile.school_id),
-                supabase
-                    .from("academic_calendar")
-                    .select("*")
-                    .eq("school_year", "2025-2026")
-                    .order("week_number", { ascending: true }),
-            ],
-        );
+        // Batch fetch: logo + teachers + submissions + loads + calendar + defined weeks + ta history
+        const [schoolRes, teachersRes, subsRes, loadsRes, calendarRes, weeksRes, taRes] = await Promise.all([
+            supabase.from('schools').select('avatar_url').eq('id', userProfile.school_id).single(),
+            supabase
+                .from("profiles")
+                .select("id, full_name, email, role, district_id")
+                .eq("school_id", userProfile.school_id)
+                .eq("role", "Teacher")
+                .order("full_name"),
+            supabase
+                .from("submissions")
+                .select(
+                    "id, user_id, file_name, doc_type, compliance_status, created_at, week_number, profiles!inner(school_id), teaching_loads(subject, grade_level)",
+                )
+                .eq("profiles.school_id", userProfile.school_id)
+                .order("created_at", { ascending: false }),
+            supabase
+                .from("teaching_loads")
+                .select("id, user_id, profiles!inner(school_id)")
+                .eq("profiles.school_id", userProfile.school_id),
+            supabase
+                .from("academic_calendar")
+                .select("*")
+                .eq("school_year", "2025-2026")
+                .order("week_number", { ascending: true }),
+            getDefinedWeeksCount(supabase),
+            getSupervisorTAWorkflow(userProfile.id)
+        ]);
 
         teachers = (teachersRes.data || []).map((t: any) => t as Teacher);
         const schoolLoads = loadsRes.data || [];
@@ -203,7 +200,9 @@
             );
         }
 
-        currentDefinedWeeks = await getDefinedWeeksCount(supabase);
+        if (schoolRes.data) schoolLogoUrl = schoolRes.data.avatar_url;
+        currentDefinedWeeks = weeksRes;
+        taHistory = taRes;
 
         // Attach load count to each teacher
         teachers = teachers.map((t: Teacher) => ({
@@ -286,10 +285,7 @@
             },
         ];
 
-        // Fetch TA History
-        if (userProfile.id) {
-            taHistory = await getSupervisorTAWorkflow(userProfile.id);
-        }
+        // Post-processing finished
     }
 
     async function handleOfferSupport(teacher: Teacher) {
@@ -752,26 +748,34 @@
             {@const supportCandidates = teachers.filter(t => t.risk && (t.risk.label === 'Critical' || t.risk.label === 'At-Risk'))}
             <!-- Tab 2: Instructional Support Hub Content -->
             <div in:fade={{ duration: 400 }}>
-                <!-- Summary Card -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-                    <div class="lg:col-span-2 gov-card-static p-8 border-l-4 border-gov-blue bg-gradient-to-r from-gov-blue/5 to-transparent">
-                        <div class="flex items-start gap-4">
-                            <div class="p-3 bg-gov-blue text-white rounded-2xl shadow-lg shadow-gov-blue/20">
-                                <HelpingHand size={28} />
+                <!-- Summary Card: High Fidelity Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-10">
+                    <div class="lg:col-span-3 gov-card-static p-8 border-l-4 border-gov-blue bg-gradient-to-r from-gov-blue/5 to-transparent relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-8 opacity-10 rotate-12">
+                            <HelpingHand size={120} />
+                        </div>
+                        <div class="flex items-start gap-6 relative z-10">
+                            <div class="p-4 bg-gov-blue text-white rounded-2xl shadow-xl shadow-gov-blue/20">
+                                <HelpingHand size={32} />
                             </div>
                             <div>
-                                <h2 class="text-xl font-bold text-text-primary">Support Referral Hub</h2>
-                                <p class="text-sm text-text-secondary mt-2 leading-relaxed max-w-xl">
-                                    The AI engine has identified candidates who may benefit from Technical Assistance (TA). 
-                                    Outreach tracked here informs your longitudinal coaching history.
+                                <h2 class="text-2xl font-bold text-text-primary tracking-tight">Instructional Support Hub</h2>
+                                <p class="text-base text-text-secondary mt-2 leading-relaxed max-w-2xl font-medium">
+                                    Strategic technical assistance (TA) workstation. Analyze system-generated support leads 
+                                    and record longitudinal coaching interventions to foster professional growth.
                                 </p>
                             </div>
                         </div>
                     </div>
-                    <div class="gov-card-static p-6 flex flex-col justify-center items-center text-center">
-                        <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Active Interventions</p>
-                        <p class="text-4xl font-bold text-gov-blue tracking-tight">{taHistory.filter(h => h.status === 'Offered').length}</p>
-                        <p class="text-[10px] text-text-secondary mt-2 font-medium">Outreach records created this period</p>
+                    <div class="gov-card-static p-6 flex flex-col justify-center items-center text-center bg-white border-dashed border-2 border-gov-blue/20">
+                        <div class="w-12 h-12 rounded-full bg-gov-blue/10 flex items-center justify-center mb-3 text-gov-blue">
+                            <History size={20} />
+                        </div>
+                        <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1">Active Leads</p>
+                        <p class="text-4xl font-black text-gov-blue tracking-tighter">
+                            {taHistory.filter(h => h.status === 'Offered').length}
+                        </p>
+                        <p class="text-[10px] text-text-secondary mt-2 font-bold uppercase tracking-tight">Pending Contact</p>
                     </div>
                 </div>
 
@@ -848,9 +852,12 @@
                                         </button>
                                     </div>
                                     {#if lastSupport}
-                                        <p class="text-[8px] text-text-muted mt-3 text-center italic">
-                                            Last outreach recorded on {formatDate(lastSupport.offered_at)}
-                                        </p>
+                                        <div class="mt-4 px-4 py-2 bg-gov-blue/5 rounded-lg border border-gov-blue/10 flex items-center justify-between">
+                                            <p class="text-[9px] font-bold text-gov-blue uppercase">Recent Outreach</p>
+                                            <p class="text-[9px] text-text-muted font-medium italic">
+                                                {formatDate(lastSupport.offered_at)}
+                                            </p>
+                                        </div>
                                     {/if}
                                 </div>
                             {/each}
