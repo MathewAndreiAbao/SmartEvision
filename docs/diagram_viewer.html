@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart E-VISION | System Architecture Diagrams</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0c0e12;
+            --surface-color: rgba(23, 27, 34, 0.7);
+            --accent-blue: #3b82f6;
+            --accent-orange: #f97316;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --glass-bg: rgba(30, 41, 59, 0.4);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            padding: 40px 60px;
+            background: linear-gradient(to bottom, rgba(12, 14, 18, 1), transparent);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-left p {
+            color: var(--text-secondary);
+            margin-top: 4px;
+            font-size: 0.95rem;
+        }
+
+        .container {
+            flex: 1;
+            padding: 40px 60px;
+            display: flex;
+            flex-direction: column;
+            gap: 60px;
+        }
+
+        .diagram-section {
+            background: var(--glass-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .section-header {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 20px;
+        }
+
+        .section-header h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            color: var(--accent-blue);
+            margin-bottom: 8px;
+        }
+
+        .section-header p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .mermaid-container {
+            background: #fff; /* Dark mode diagrams often look better on light bg in papers, but we use styling */
+            border-radius: 12px;
+            padding: 30px;
+            display: flex;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .legend-item {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .legend-name {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--accent-blue);
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .legend-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        footer {
+            padding: 40px 60px;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        /* Custom Mermaid Styling Override */
+        .mermaid svg {
+            max-width: 100% !important;
+            height: auto !important;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <h1>System Architecture Diagrams</h1>
+            <p>Logical Design for Smart E-VISION 2.0 (Chapter 3)</p>
+        </div>
+        <div>
+            <span style="font-size: 0.75rem; font-weight: 700; color: var(--accent-blue); padding: 8px 16px; border-radius: 100px; background: rgba(59, 130, 246, 0.1);">V2.0 STABLE</span>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Context Diagram -->
+        <section class="diagram-section">
+            <div class="section-header">
+                <h2>1. Context Diagram</h2>
+                <p>Illustrates the boundaries of the Smart E-VISION system and its interactions with external stakeholders.</p>
+            </div>
+            
+            <div class="mermaid-container">
+                <div class="mermaid">
+                    flowchart LR
+                        subgraph "System Boundary"
+                            S["SMART E-VISION<br/>Progressive Web App for<br/>Instructional Supervision Archiving"]
+                        end
+
+                        T["Teacher /<br/>Master Teacher"]
+                        SH["School Head /<br/>District Supervisor"]
+
+                        %% Teacher Flows
+                        T -->|"Login Credentials"| S
+                        T -->|"Profile information"| S
+                        T -->|"Instructional documents (DLLs, ISPs, ISRs)"| S
+                        T -->|"Monitoring Queries"| S
+                        
+                        S -->|"Submission Status / Confirmation"| T
+                        S -->|"Document Verification status (QR/Hash)"| T
+                        S -->|"Personal Compliance Overview"| T
+                        S -->|"Technical Assistant Data"| T
+
+                        %% Supervision Flows
+                        SH -->|"Login Credentials"| S
+                        SH -->|"Report Requests"| S
+                        SH -->|"Monitoring Parameters"| S
+                        SH -->|"Monitoring Queries"| S
+
+                        S -->|"District Wide Compliance Report"| SH
+                        S -->|"AI-generated metadata & analytics"| SH
+                        S -->|"Predictive risk indicators (K-Means)"| SH
+
+                        style S fill:#0f172a,stroke:#3b82f6,stroke-width:4px,color:#fff
+                        style T fill:#f8fafc,stroke:#64748b,stroke-width:2px
+                        style SH fill:#f8fafc,stroke:#64748b,stroke-width:2px
+                </div>
+            </div>
+
+            <div class="legend-grid">
+                <div class="legend-item">
+                    <span class="legend-name">Teacher / Master Teacher</span>
+                    <span class="legend-desc">Providers of instructional documents (DLLs, ISPs, ISRs) and recipients of compliance validation and technical assistant data.</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-name">School Head / District Supervisor</span>
+                    <span class="legend-desc">Overseers who configure monitoring parameters, request reports, and receive AI-generated analytics and K-Means risk indicators.</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-name">System Boundary</span>
+                    <span class="legend-desc">The Smart E-VISION core which processes input documents, extracts OCR metadata, and manages the SHA-256 verification cycle.</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- DFD Diagram 0 -->
+        <section class="diagram-section">
+            <div class="section-header">
+                <h2>2. Data Flow Diagram (Level 0)</h2>
+                <p>Decomposes the system into its primary technical processes and major data stores.</p>
+            </div>
+            
+            <div class="mermaid-container">
+                <div class="mermaid">
+                    flowchart TB
+                        %% External Entities
+                        T[Teacher]
+                        SH[School Head]
+                        DS[Division Supervisor]
+                        PUB[Guest/Public]
+
+                        %% Processes
+                        P1((1.0 Administer<br/>Auth & RBAC))
+                        P2((2.0 Execute<br/>Intelligent Archival))
+                        P3((3.0 Process<br/>Advanced Analytics))
+                        P4((4.0 Coordinate<br/>Timeline & Alerts))
+                        P5((5.0 Facilitate<br/>Public Verification))
+
+                        %% Data Stores
+                        D1[(D1: User Profiles)]
+                        D2[(D2: Submissions)]
+                        D3[(D3: Academic Calendar)]
+                        D4[(D4: Audit & Notifications)]
+
+                        %% Flow: Process 1.0
+                        T -->|Login Request| P1
+                        DS -->|User Activation| P1
+                        P1 <-->|Read/Write Profile| D1
+
+                        %% Flow: Process 2.0
+                        T -->|Doc Submission| P2
+                        P2 -->|OCR/QR Result| D2
+                        P2 -->|File Metadata| D2
+                        D2 -->|Archived Docs| P5
+
+                        %% Flow: Process 3.0
+                        D2 -->|Submission Trends| P3
+                        P3 -->|Behavioral Scores| D2
+                        P3 -->|Risk Alerts| D4
+                        P3 -->|Heatmap Data| SH
+                        P3 -->|Cluster Results| DS
+
+                        %% Flow: Process 4.0
+                        DS -->|Deadline Config| P4
+                        P4 <-->|Schedule Data| D3
+                        P4 -->|System Alerts| D4
+                        D4 -->|Feedback| T
+
+                        %% Flow: Process 5.0
+                        PUB -->|Hash Query| P5
+                        P5 <-->|Integrity Match| D2
+                        P5 -->|Verification Result| PUB
+
+                        %% Styling
+                        style P1 fill:#eff6ff,stroke:#3b82f6
+                        style P2 fill:#eff6ff,stroke:#3b82f6
+                        style P3 fill:#eff6ff,stroke:#3b82f6
+                        style P4 fill:#eff6ff,stroke:#3b82f6
+                        style P5 fill:#eff6ff,stroke:#3b82f6
+                        
+                        style D1 fill:#fff7ed,stroke:#f97316
+                        style D2 fill:#fff7ed,stroke:#f97316
+                        style D3 fill:#fff7ed,stroke:#f97316
+                        style D4 fill:#fff7ed,stroke:#f97316
+                </div>
+            </div>
+
+            <div class="legend-grid">
+                <div class="legend-item">
+                    <span class="legend-name">D1: User Profiles</span>
+                    <span class="legend-desc">Stores user roles, institutional hierarchy, and push notification tokens.</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-name">P2.0: Intelligent Archival</span>
+                    <span class="legend-desc">Handles OCR extraction (Tesseract.js), QR stamping, and SHA-256 integrity hashing.</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-name">P3.0: Advanced Analytics</span>
+                    <span class="legend-desc">Generates Risk Scores and K-Means Clustering segments from historical submission data.</span>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 Smart E-VISION Project | System Architecture Documentation</p>
+    </footer>
+
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#3b82f6',
+                primaryTextColor: '#fff',
+                primaryBorderColor: '#2563eb',
+                lineColor: '#64748b',
+                secondaryColor: '#f97316',
+                tertiaryColor: '#fff'
+            }
+        });
+    </script>
+</body>
+</html>

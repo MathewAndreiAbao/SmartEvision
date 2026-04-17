@@ -436,52 +436,7 @@
                     color="from-gov-red to-red-700"
                 />
             </div>
-            <div in:fly={{ y: 20, duration: 400, delay: 400 }}>
-                <div
-                    class="gov-card-static p-6 h-full flex flex-col justify-between overflow-hidden relative"
-                >
-                    <div
-                        class="absolute -top-4 -right-4 w-20 h-20 bg-gov-blue/5 rounded-full blur-xl"
-                    ></div>
-                    <div>
-                        <div class="flex items-center justify-between mb-4">
-                            <h3
-                                class="text-[10px] font-semibold text-text-muted uppercase tracking-wide"
-                            >
-                                AI Forecast
-                            </h3>
-                            {#if riskPrediction}
-                                <span
-                                    class="px-2 py-0.5 rounded-full text-[9px] font-bold {riskPrediction.label ===
-                                    'On-Track'
-                                        ? 'bg-gov-green/10 text-gov-green'
-                                        : riskPrediction.label === 'At-Risk'
-                                          ? 'bg-gov-gold/10 text-gov-gold'
-                                          : 'bg-gov-red/10 text-gov-red'}"
-                                >
-                                    {riskPrediction.trend}
-                                </span>
-                            {/if}
-                        </div>
-                        {#if riskPrediction}
-                            <p
-                                class="text-2xl font-semibold text-text-primary tracking-tight"
-                            >
-                                {riskPrediction.label}
-                            </p>
-                            <p
-                                class="text-[11px] text-text-secondary mt-2 leading-relaxed font-medium"
-                            >
-                                {riskPrediction.message}
-                            </p>
-                        {:else}
-                            <p class="text-lg font-bold text-text-muted">
-                                Awaiting Data
-                            </p>
-                        {/if}
-                    </div>
-                </div>
-            </div>
+            <!-- Hide AI Forecast for Teachers per user request to avoid performance anxiety -->
         </div>
 
         <!-- Quick Actions -->
@@ -797,8 +752,8 @@
     {:else}
         <!-- ========== SUPERVISOR DASHBOARD ========== -->
 
-        <!-- Urgent Patterns (AI Alerts) -->
-        {#if alerts.length > 0}
+        <!-- Urgent Patterns (AI Alerts) - Hidden for Master Teachers -->
+        {#if alerts.length > 0 && ($profile?.role === "School Head" || $profile?.role === "District Supervisor")}
             <AlertBanner {alerts} />
         {/if}
 
@@ -843,22 +798,24 @@
                     color="gov-red"
                 />
             </div>
-            <div in:fly={{ y: 20, duration: 400, delay: 300 }}>
-                <StatCard
-                    icon="Activity"
-                    value="{districtRisk}%"
-                    label="DISTRICT RISK"
-                    color={districtRisk > 60
-                        ? "gov-red"
-                        : districtRisk > 30
-                          ? "gov-gold"
-                          : "gov-green"}
-                />
-            </div>
+            {#if $profile?.role === "School Head" || $profile?.role === "District Supervisor"}
+                <div in:fly={{ y: 20, duration: 400, delay: 300 }}>
+                    <StatCard
+                        icon="Activity"
+                        value="{districtRisk}%"
+                        label="INSTITUTIONAL RISK"
+                        color={districtRisk > 60
+                            ? "gov-red"
+                            : districtRisk > 30
+                            ? "gov-gold"
+                            : "gov-green"}
+                    />
+                </div>
+            {/if}
         </div>
 
-        <!-- Behavioral Clusters (K-Means) -->
-        {#if clusterResults.length > 0}
+        <!-- Behavioral Clusters (K-Means) - Internal Supervisor Oversight Only -->
+        {#if clusterResults.length > 0 && ($profile?.role === "School Head" || $profile?.role === "District Supervisor")}
             <div class="mb-10" in:fly={{ y: 20, duration: 600, delay: 500 }}>
                 <h2
                     class="text-sm font-bold text-text-muted uppercase tracking-widest mb-6 flex items-center gap-2"

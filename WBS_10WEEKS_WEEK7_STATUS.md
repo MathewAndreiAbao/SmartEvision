@@ -531,11 +531,11 @@ This document provides:
 | **5** | Teacher Upload & Dashboard | ✅ | 100% |
 | **6** | Supervisor Monitoring & Archive | ✅ | 100% |
 | **7** | Verification & Calendar | 🔄 | 90% |
-| **8** | Advanced Analytics & NLP | ❌ | 0% |
+| **8** | Advanced Analytics & NLP | ✅ | 90% |
 | **9** | Peer Review & Settings | ❌ | 0% |
 | **10** | Mobile Scanner, Export, Polish | ❌ | 0% |
 
-**Overall Project Progress:** **70% Complete**
+**Overall Project Progress:** **80% Complete**
 
 ---
 

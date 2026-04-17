@@ -96,7 +96,7 @@
 			href: "/dashboard/analytics",
 			label: "Analytics",
 			icon: TrendingUp,
-			roles: ["School Head", "Master Teacher", "District Supervisor"],
+			roles: ["School Head", "District Supervisor"],
 		},
 		{
 			href: "/dashboard/settings",

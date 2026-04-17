@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Smart E-VISION 2.0 - Database Schema</title>
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #0f172a;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .table-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .table-header {
+            background: #0f172a;
+            color: white;
+            padding: 10px 15px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        th {
+            text-align: left;
+            background: #f1f5f9;
+            padding: 8px 15px;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 8px 15px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .pk {
+            color: #e11d48;
+            font-weight: bold;
+        }
+
+        .fk {
+            color: #2563eb;
+            font-weight: bold;
+        }
+
+        .type {
+            color: #71717a;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .table-card {
+                break-inside: avoid;
+                box-shadow: none;
+                border: 1px solid #000;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Smart E-VISION 2.0 Database Schema</h1>
+        <div class="grid" id="content"></div>
+    </div>
+
+    <script>
+        const schema = [
+            { name: "profiles", cols: [["id", "UUID (PK)"], ["full_name", "TEXT"], ["role", "TEXT"], ["school_id", "UUID (FK)"], ["district_id", "UUID (FK)"], ["email", "TEXT"], ["push_subscription", "JSONB"]] },
+            { name: "submissions", cols: [["id", "UUID (PK)"], ["user_id", "UUID (FK)"], ["file_hash", "TEXT (UNIQUE)"], ["doc_type", "TEXT"], ["compliance_status", "TEXT"], ["calendar_id", "UUID (FK)"], ["teaching_load_id", "UUID (FK)"], ["ai_analysis", "JSONB"]] },
+            { name: "academic_calendar", cols: [["id", "UUID (PK)"], ["district_id", "UUID (FK)"], ["school_year", "TEXT"], ["week_number", "INT"], ["deadline_date", "TIMESTAMPTZ"]] },
+            { name: "districts", cols: [["id", "UUID (PK)"], ["division_id", "UUID (FK)"], ["name", "TEXT"], ["avatar_url", "TEXT"]] },
+            { name: "schools", cols: [["id", "UUID (PK)"], ["district_id", "UUID (FK)"], ["name", "TEXT"], ["address", "TEXT"]] },
+            { name: "audit_logs", cols: [["id", "UUID (PK)"], ["user_id", "UUID (FK)"], ["action", "TEXT"], ["prev_hash", "TEXT"], ["current_hash", "TEXT"]] },
+            { name: "notifications", cols: [["id", "UUID (PK)"], ["user_id", "UUID (FK)"], ["title", "TEXT"], ["message", "TEXT"], ["read", "BOOLEAN"]] },
+            { name: "system_settings", cols: [["id", "UUID (PK)"], ["key", "TEXT (UNIQUE)"], ["value", "TEXT"], ["updated_by", "UUID (FK)"]] }
+        ];
+
+        const container = document.getElementById('content');
+        schema.forEach(table => {
+            let html = `<div class="table-card"><div class="table-header">${table.name}</div><table><tr><th>Column</th><th>Type / Constraint</th></tr>`;
+            table.cols.forEach(col => {
+                const isPk = col[1].includes("PK");
+                const isFk = col[1].includes("FK");
+                html += `<tr><td class="${isPk ? 'pk' : (isFk ? 'fk' : '')}">${col[0]}</td><td class="type">${col[1]}</td></tr>`;
+            });
+            html += `</table></div>`;
+            container.innerHTML += html;
+        });
+    </script>
+</body>
+
+</html>

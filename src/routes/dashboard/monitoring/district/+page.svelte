@@ -22,6 +22,11 @@
     getSubmissionWeek,
     getDefinedWeeksCount,
   } from "$lib/utils/useDashboardData";
+  import { 
+    analyzeComplianceRisk,
+    calculateDistrictRisk
+  } from "$lib/utils/predictiveAnalytics";
+  import { Activity } from "lucide-svelte";
 
   // Data Interfaces
   interface School {
@@ -34,6 +39,7 @@
     Late?: number;
     NonCompliant?: number;
     loadCount?: number;
+    risk?: number;
   }
 
   interface Submission {
@@ -173,10 +179,19 @@
         (schoolLoadsCount || 0) * currentDefinedWeeks,
       );
 
+      // School Risk Level (Diagnostic)
+      const teacherMap = new Map<string, any[]>();
+      schoolSubmissions.forEach(s => {
+        if (!teacherMap.has(s.user_id)) teacherMap.set(s.user_id, []);
+        teacherMap.get(s.user_id)!.push(s);
+      });
+      const schoolRisk = calculateDistrictRisk(teacherMap);
+
       return {
         ...school,
         ...stats,
         loadCount: schoolLoadsCount,
+        risk: schoolRisk
       };
     });
 
@@ -390,16 +405,66 @@
           color="from-gov-gold to-gov-gold-dark"
         />
       </div>
-
-      <div in:fly={{ y: 20, duration: 400, delay: 300 }}>
-        <StatCard
-          icon="ShieldAlert"
-          value={kpi.atRiskCount}
-          label="Alert Schools"
-          color="from-gov-red to-red-700"
-        />
-      </div>
     </div>
+
+    <!-- Institutional Support Referrals (Support Focus) -->
+    {@const supportNeededSchools = schools.filter(s => (s.risk || 0) > 40 || (s.rate || 0) < 70)}
+    {#if supportNeededSchools.length > 0}
+      <div 
+        class="gov-card-static p-6 border-l-4 border-gov-blue"
+        in:fly={{ y: 20, duration: 500, delay: 350 }}
+      >
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h3 class="text-xs font-bold text-gov-blue uppercase tracking-widest">
+                    District Instructional Support Referrals
+                </h3>
+                <p class="text-[10px] text-text-muted font-medium mt-1">
+                    Institutions identified for proactive technical assistance and coaching based on current performance trajectories.
+                </p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {#each supportNeededSchools as school}
+                <div class="bg-surface-muted/30 border border-border-subtle rounded-xl p-5 flex flex-col h-full group">
+                    <div class="flex justify-between items-start mb-4">
+                        <h4 class="font-bold text-sm text-text-primary group-hover:text-gov-blue transition-colors leading-tight">
+                            {school.name}
+                        </h4>
+                        <span class="px-2 py-0.5 rounded text-[9px] font-bold {(school.risk || 0) > 60 ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}">
+                            {(school.risk || 0) > 60 ? 'Critical Attention' : 'Actionable Support'}
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-2 mb-6 text-[10px] font-bold text-text-muted uppercase">
+                        <span>Compliance: {school.rate}%</span>
+                        <span class="w-1 h-1 bg-gray-300 rounded-full"></span>
+                        <span>Support Score: {school.risk}%</span>
+                    </div>
+                    <div class="mt-auto space-y-3">
+                        <p class="text-[10px] text-text-secondary leading-relaxed">
+                            Recommended physical intervention to revisit archival workflows and document verification standards.
+                        </p>
+                        <div class="flex items-center gap-2">
+                            <button 
+                                onclick={() => openDrillDown(school)}
+                                class="flex-1 py-2 bg-gov-blue text-white rounded-lg text-xs font-bold text-center uppercase tracking-widest hover:bg-gov-blue-dark transition-all"
+                            >
+                                Plan TA Session
+                            </button>
+                            <button 
+                                onclick={() => openDrillDown(school)}
+                                class="p-2 px-3 rounded-lg border border-border-subtle text-text-muted hover:text-gov-blue transition-all"
+                            >
+                                <Activity size={14} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            {/each}
+        </div>
+      </div>
+    {/if}
 
     <!-- Charts -->
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">

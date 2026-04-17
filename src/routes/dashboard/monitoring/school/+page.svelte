@@ -9,7 +9,7 @@
     import ProfileUploader from "$lib/components/ProfileUploader.svelte";
     import { onMount, onDestroy } from "svelte";
     import { fly, fade } from "svelte/transition";
-    import { School as SchoolIcon } from "lucide-svelte";
+    import { School as SchoolIcon, Activity } from "lucide-svelte";
     import { addToast } from "$lib/stores/toast";
     import {
         calculateCompliance,
@@ -22,11 +22,16 @@
         getWeekNumber,
         getDefinedWeeksCount,
     } from "$lib/utils/useDashboardData";
+    import {
+        analyzeComplianceRisk,
+        type PredictionResult,
+    } from "$lib/utils/predictiveAnalytics";
 
     // Data
     interface Teacher {
         id: string;
         full_name: string;
+        email?: string;
         role: string;
         district_id: string;
         loadCount?: number;
@@ -35,6 +40,7 @@
         Compliant?: number;
         Late?: number;
         NonCompliant?: number;
+        risk?: PredictionResult;
     }
 
     interface Submission {
@@ -142,7 +148,7 @@
             [
                 supabase
                     .from("profiles")
-                    .select("id, full_name, role, district_id")
+                    .select("id, full_name, email, role, district_id")
                     .eq("school_id", userProfile.school_id)
                     .eq("role", "Teacher")
                     .order("full_name"),
@@ -208,11 +214,15 @@
         kpi.overallRate = overallStats.rate;
         kpi.lateCount = overallStats.Late;
 
-        // At-risk: teachers with <70% compliance
+        // At-risk: teachers with <70% compliance (Diagnostic)
         kpi.atRiskCount = teachers.filter((t: Teacher) => {
             const subs = allSubmissions.filter(
                 (s: Submission) => s.user_id === t.id,
             );
+            
+            // Apply Predictive Analytics for each teacher
+            t.risk = analyzeComplianceRisk(subs);
+            
             const stats = calculateCompliance(subs, t.loadCount);
             return stats.rate < 70 && subs.length > 0;
         }).length;
@@ -455,17 +465,75 @@
             </div>
         </div>
 
-        <!-- Alerts -->
-        {#if alertTeachers().length > 0}
+        <!-- Proactive Technical Assistance Referral (Support Focus) - School Head Only -->
+        {#if $profile?.role === "School Head"}
+            {@const supportCandidates = teachers.filter(t => t.risk && (t.risk.label === 'Critical' || t.risk.label === 'At-Risk'))}
+            {#if supportCandidates.length > 0}
+                <div
+                    class="gov-card-static p-6 mb-10 border-l-4 border-gov-blue"
+                    in:fly={{ y: 20, duration: 500, delay: 400 }}
+                >
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 class="text-sm font-bold text-gov-blue uppercase tracking-widest">
+                                Instructional Support Referrals
+                            </h3>
+                            <p class="text-[10px] text-text-muted font-medium mt-1">
+                                Identified candidates for proactive technical assistance based on longitudinal data.
+                            </p>
+                        </div>
+                        <div class="px-3 py-1 bg-gov-blue/10 text-gov-blue rounded-full text-[10px] font-bold">
+                            {supportCandidates.length} Candidates
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {#each supportCandidates as teacher}
+                            <div class="bg-surface-muted/30 border border-border-subtle rounded-xl p-5 flex flex-col group">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div>
+                                        <h4 class="font-bold text-sm text-text-primary group-hover:text-gov-blue transition-colors">
+                                            {teacher.full_name}
+                                        </h4>
+                                        <p class="text-[9px] font-bold text-text-muted uppercase mt-0.5">
+                                            {teacher.risk?.trend} Performance
+                                        </p>
+                                    </div>
+                                    <span class="px-2 py-0.5 rounded text-[9px] font-bold {teacher.risk?.label === 'Critical' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}">
+                                        {teacher.risk?.label}
+                                    </span>
+                                </div>
+                                <p class="text-[11px] text-text-secondary leading-relaxed mb-6">
+                                    {teacher.risk?.message.replace('Risk', 'Support Need')}
+                                </p>
+                                <div class="mt-auto flex items-center gap-3">
+                                    <a
+                                        href="mailto:{teacher.email}?subject=Instructional Support Schedule&body=Hello {teacher.full_name}, I was reviewing the recent system insights and wanted to schedule a brief session to provide some technical assistance on your archival submissions. Let me know when you're available."
+                                        class="flex-1 py-2 bg-gov-blue text-white rounded-lg text-xs font-bold text-center uppercase tracking-widest hover:bg-gov-blue-dark transition-all shadow-sm"
+                                    >
+                                        Offer Support
+                                    </a>
+                                    <button 
+                                        onclick={() => openDrillDown(teacher)}
+                                        class="p-2.5 rounded-lg border border-border-subtle text-text-muted hover:bg-white hover:text-gov-blue transition-all"
+                                        title="Analyze Data"
+                                    >
+                                        <Activity size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+            {/if}
+        {:else if alertTeachers().length > 0}
+            <!-- Fallback Alert for Master Teachers (General Alerts only) -->
             <div
                 class="gov-card-static p-5 mb-8 border-l-4 border-gov-gold"
                 in:fade={{ duration: 500, delay: 400 }}
             >
                 <h3 class="text-sm font-bold text-gov-gold-dark mb-2">
-                    Attention: {alertTeachers().length} teacher{alertTeachers()
-                        .length > 1
-                        ? "s"
-                        : ""} with ≥2 late submissions
+                    Observation: {alertTeachers().length} teacher{alertTeachers().length > 1 ? "s" : ""} with multiple late submissions
                 </h3>
                 <div class="flex flex-wrap gap-2">
                     {#each alertTeachers() as teacher}

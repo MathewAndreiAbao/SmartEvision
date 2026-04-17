@@ -3,6 +3,7 @@
     import { profile } from "$lib/utils/auth";
     import { onMount, onDestroy, tick } from "svelte";
     import { fly, fade } from "svelte/transition";
+    import { goto } from "$app/navigation";
     import {
         RefreshCw,
         Download,
@@ -62,6 +63,11 @@
     $effect(() => {
         const user = $profile;
         if (user && ChartClass && loading) {
+            // Role Gate: Only Supervisors and School Heads should see deep analytics
+            if (user.role === 'Teacher' || user.role === 'Master Teacher') {
+                goto('/dashboard');
+                return;
+            }
             initAnalytics();
         }
     });
@@ -626,7 +632,7 @@
                 <p
                     class="text-[10px] font-semibold uppercase tracking-wide text-text-muted opacity-50"
                 >
-                    Predictive Compliance Forecast
+                    Predictive Support Forecast
                 </p>
             </div>
         </div>
