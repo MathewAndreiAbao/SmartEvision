@@ -175,19 +175,19 @@ export function getWeekNumber(date: Date = new Date()): number {
 }
 
 export function getComplianceColor(rate: number): string {
-  if (rate >= 80) return '#008751'; // green
+  if (rate >= 100) return '#008751'; // green
   if (rate >= 50) return '#FCD116'; // yellow
   return '#CE1126'; // red
 }
 
 export function getComplianceClass(rate: number): string {
-  if (rate >= 80) return 'text-gov-green';
+  if (rate >= 100) return 'text-gov-green';
   if (rate >= 50) return 'text-gov-gold-dark';
   return 'text-gov-red';
 }
 
 export function getComplianceBgClass(rate: number): string {
-  if (rate >= 80) return 'bg-gov-green/15';
+  if (rate >= 100) return 'bg-gov-green/15';
   if (rate >= 50) return 'bg-gov-gold/15';
   return 'bg-gov-red/15';
 }

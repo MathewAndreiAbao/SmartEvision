@@ -34,7 +34,7 @@
 
     let trendCanvas = $state<HTMLCanvasElement>();
     let barCanvas = $state<HTMLCanvasElement>();
-    const OPERATIONAL_TARGET = 80; // WBS 11.2 Standard
+    const OPERATIONAL_TARGET = 100; // 100% Target Standard
     let loading = $state(true);
     let period = $state<"quarter" | "semester" | "year">("quarter");
     let ChartClass: any = null;

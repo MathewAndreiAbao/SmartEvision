@@ -235,8 +235,8 @@
         color: "#0038A8",
       },
       {
-        label: "80% Target",
-        data: weeklyData.map(() => 80),
+        label: "100% Target",
+        data: weeklyData.map(() => 100),
         color: "#CE1126",
         dashed: true,
       },

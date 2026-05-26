@@ -24,14 +24,14 @@
   }
 
   function getCellBg(rate: number): string {
-    if (rate >= 80) return "bg-gov-green/70";
+    if (rate >= 100) return "bg-gov-green/70";
     if (rate >= 50) return "bg-gov-gold/60";
     if (rate > 0) return "bg-gov-red/50";
     return "bg-gray-100";
   }
 
   function getCellText(rate: number): string {
-    if (rate >= 80) return "text-white";
+    if (rate >= 100) return "text-white";
     if (rate >= 50) return "text-gray-800";
     if (rate > 0) return "text-white";
     return "text-gray-400";
@@ -98,10 +98,10 @@
   class="flex items-center gap-6 mt-4 px-3 text-[10px] font-bold text-text-muted uppercase tracking-wider"
 >
   <span class="flex items-center gap-2">
-    <span class="w-2.5 h-2.5 rounded-sm bg-gov-green/70"></span> ≥80%
+    <span class="w-2.5 h-2.5 rounded-sm bg-gov-green/70"></span> 100%
   </span>
   <span class="flex items-center gap-2">
-    <span class="w-2.5 h-2.5 rounded-sm bg-gov-gold/60"></span> 50-79%
+    <span class="w-2.5 h-2.5 rounded-sm bg-gov-gold/60"></span> 50-99%
   </span>
   <span class="flex items-center gap-2">
     <span class="w-2.5 h-2.5 rounded-sm bg-gov-red/50"></span> &lt;50%
