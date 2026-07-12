@@ -54,8 +54,7 @@ export async function transcodeToPdf(file: File): Promise<TranscodeResult> {
         }
 
         const pdfBytes = await googleConvertToPdf(file);
-        return { pdfBytes };
-    }
+        return { pdfBytes };    }
 
     throw new Error(`Unsupported file type: .${ext}. Only .pdf, .docx, and .doc files are accepted.`);
 }

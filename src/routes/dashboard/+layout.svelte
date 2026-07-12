@@ -10,25 +10,7 @@
         prefetchOfflineMetadata,
     } from "$lib/utils/offline";
     import { settings } from "$lib/stores/settings";
-    import { theme } from "$lib/stores/theme";
-    import { goto } from "$app/navigation";
-    import { onMount } from "svelte";
-
-    let { children } = $props();
-
-    // Auth guard
-    $effect(() => {
-        if (!$authLoading && !$user) {
-            goto("/auth/login");
-        }
-    });
-
-    // WBS 20.3 & 20.4 — Proactive caching for full offline functionality
-    let prefetchDone = false;
-
-    onMount(() => {
-        theme.init(); // Apply saved theme
-        settings.init(); // Initialize real-time settings
+    import { theme } from "$lib/stores/theme";        settings.init(); // Initialize real-time settings
     });
 
     // Reactive prefetch: triggers as soon as profile is available
@@ -56,8 +38,7 @@
 </script>
 
 <svelte:head>
-    <title>CEDIMS — Dashboard</title>
-</svelte:head>
+    <title>CEDIMS — Dashboard</title></svelte:head>
 
 <!-- WBS 21.2 — Accessibility: Skip to Content Link -->
 <a
@@ -77,8 +58,7 @@
         <div class="text-center">
             <img
                 src="/app_icon.png"
-                alt="CEDIMS"
-                class="w-14 h-14 mx-auto rounded-md shadow-sm mb-4 animate-pulse"
+                alt="CEDIMS"                class="w-14 h-14 mx-auto rounded-md shadow-sm mb-4 animate-pulse"
             />
             <p
                 class="text-sm font-medium text-text-muted uppercase tracking-wide"
@@ -99,8 +79,7 @@
         >
             <TopBar />
 
-            <div class="p-3 sm:p-4 lg:p-6 pb-24 sm:pb-20 lg:pb-6 flex-1">
-                {@render children()}
+            <div class="p-3 sm:p-4 lg:p-6 pb-24 sm:pb-20 lg:pb-6 flex-1">                {@render children()}
             </div>
         </main>
 

@@ -1,6 +1,7 @@
 <script lang="ts">
     import FileDropZone from "$lib/components/FileDropZone.svelte";
     import UploadProgress from "$lib/components/UploadProgress.svelte";
+    import CopilotPanel from "$lib/components/CopilotPanel.svelte";
     import {
         runPipeline,
         type PipelinePhase,
@@ -13,8 +14,7 @@
         cacheMetadata,
         getCachedMetadata,
     } from "$lib/utils/offline";
-    import {
-        syncLedgerFromServer,
+    import {        syncLedgerFromServer,
         type LedgerEntry,
     } from "$lib/utils/offlineSubmissionLedger";
     import { profile, type Profile } from "$lib/utils/auth";
@@ -31,7 +31,6 @@
         getUploadGuidance,
         requiresTeachingLoadSelection,
     } from "$lib/utils/documentPermissions";
-
     import type { PageData } from "./$types";
 
     let { data } = $props<{ data: PageData }>();
@@ -44,20 +43,7 @@
 
     let selectedFile = $state<File | null>(null);
     let docType = $state("DLL");
-    let allowedDocTypes = $state<string[]>([]);
-    let subject = $state("");
-    let weekNumber = $state<number | undefined>();
-    let teachingLoadId = $state<string>("");
-    let teachingLoads = $state<TeachingLoad[]>([]);
-    let loadingTeachingLoads = $state(true);
-    let currentPhase = $state<PipelinePhase>("transcoding");
-    let progress = $state(0);
-    let message = $state("");
-    let processing = $state(false);
-    let result = $state<PipelineResult | null>(null);
-    let mismatchAlert = $state<any>(null);
-    let queueCount = $state(0);
-    let currentDeadline = $state<any>(null);
+    let allowedDocTypes = $state<string[]>([]);    let currentDeadline = $state<any>(null);
     let submissionAlreadyExists = $state(false);
     let submissionBlockReason = $state("");
     let ocrConfidence = $state<number | null>(null);
@@ -72,7 +58,6 @@
     );
     let pendingItems = $state<any[]>([]);
     let showPendingPanel = $state(false);
-
     // Selection Pickers
     let showLoadPicker = $state(false);
     let showWeekPicker = $state(false);
@@ -121,8 +106,7 @@
 
         // No slot uniqueness check â€” multiple uploads per week are allowed.
         // Only hash deduplication (above) is enforced.
-        submissionAlreadyExists = false;
-    }
+        submissionAlreadyExists = false;    }
 
     // Watch weekNumber and fetch deadline
     $effect(() => {
@@ -176,8 +160,7 @@
                     "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js";
                 console.log("[upload] PDF.js loaded.");
             };
-            document.head.appendChild(script);
-        }
+            document.head.appendChild(script);        }
 
         // 2. Tesseract.js (Dynamic import)
         try {
@@ -289,53 +272,6 @@
             subject = "";
         }
     });
-
-    async function fetchInitialData(userProfile: Profile) {
-        loadingTeachingLoads = true;
-
-        // 1. Fetch teaching loads
-        let loads: TeachingLoad[] = [];
-        if (navigator.onLine) {
-            const { data, error } = await supabase
-                .from("teaching_loads")
-                .select("id, subject, grade_level")
-                .eq("user_id", userProfile.id)
-                .eq("is_active", true)
-                .order("subject, grade_level");
-
-            if (!error && data) {
-                loads = data;
-                cacheMetadata(`teaching_loads_${userProfile.id}`, data);
-            } else if (error) {
-                console.error(
-                    "[upload] Online fetch teaching loads error:",
-                    error.message,
-                );
-            }
-        }
-
-        if (loads.length === 0) {
-            const cached = await getCachedMetadata(
-                `teaching_loads_${userProfile.id}`,
-            );
-            if (cached?.data) {
-                loads = cached.data;
-                console.log("[upload] Using cached teaching loads");
-            }
-        }
-
-        if (loads.length > 0) {
-            teachingLoads = loads;
-            if (!teachingLoadId) {
-                teachingLoadId = teachingLoads[0].id;
-            }
-        } else {
-            teachingLoads = [];
-            teachingLoadId = "";
-            weekNumber = undefined;
-            if (navigator.onLine) {
-                addToast("error", "No teaching loads were found for your account. Please contact your administrator.");
-            }
         }
 
         // 2. Fetch academic weeks / calendar
@@ -377,8 +313,7 @@
                 teachingLoads.length > 0 &&
                 calendarEntries.length > 0 &&
                 !weekNumber
-            ) {
-                const today = new Date();
+            ) {                const today = new Date();
                 today.setHours(0, 0, 0, 0);
 
                 const sorted = [...calendarEntries]
@@ -411,7 +346,6 @@
                 console.warn("[upload] Sync context fetch error:", err);
             }
         }
-
         loadingTeachingLoads = false;
     }
 
@@ -551,8 +485,7 @@
                     }
                 }
             }
-            const metadata = await extractMetadata(ocrTarget);
-            console.log("[upload] OCR metadata result:", metadata);
+            const metadata = await extractMetadata(ocrTarget);            console.log("[upload] OCR metadata result:", metadata);
             detectedMetadata = metadata;
 
             if (metadata.docType !== "Unknown") {
@@ -582,13 +515,11 @@
                 const mappedId =
                     predictLoad(metadata.rawText, teachingLoads) ||
                     mapTeachingLoad(metadata);
-                if (mappedId) teachingLoadId = mappedId;
-            }
+                if (mappedId) teachingLoadId = mappedId;            }
 
             if (metadata.confidence) {
                 ocrConfidence = metadata.confidence;
             }
-
             // Check for initial mismatch
             if (teachingLoadId) {
                 mismatchAlert = validateSelection(
@@ -666,8 +597,7 @@
             return;
         }
 
-        if (requiresTeachingLoadSelection($profile?.role || '', docType) && !teachingLoadId) {
-            addToast("error", "Please select a teaching load before uploading");
+        if (requiresTeachingLoadSelection($profile?.role || '', docType) && !teachingLoadId) {            addToast("error", "Please select a teaching load before uploading");
             showLoadPicker = true;
             return;
         }
@@ -700,13 +630,12 @@
         };
 
         const pipeline = runPipeline(selectedFile, pipelineOptions);
-
         for await (const event of pipeline) {
             currentPhase = event.phase;
             progress = event.progress;
             message = event.message;
 
-            if (event.metadata) {
+           if (event.metadata) {
                 if (event.metadata.docType !== "Unknown")
                     docType = event.metadata.docType;
                 if (event.metadata.weekNumber)
@@ -755,8 +684,7 @@
 </script>
 
 <svelte:head>
-    <title>Upload Document â€” CEDIMS</title>
-</svelte:head>
+    <title>Upload Document â€” CEDIMS</title></svelte:head>
 
 <div>
     <!-- Header -->
@@ -792,8 +720,7 @@
                         year: "numeric",
                     })}
                     {#if currentDeadline.week_number}
-                        Â· Week {currentDeadline.week_number}
-                    {/if}
+                        Â· Week {currentDeadline.week_number}                    {/if}
                 </div>
             {/if}
         </div>
@@ -854,8 +781,7 @@
                     >
                         {#each pendingItems as item}
                             <div
-                                class="flex items-center justify-between py-2 px-3 bg-surface-muted rounded-lg text-xs"
-                            >
+                                class="flex items-center justify-between py-2 px-3 bg-surface-muted rounded-lg text-xs"                            >
                                 <div class="min-w-0">
                                     <p
                                         class="font-semibold text-text-primary truncate"
@@ -864,8 +790,7 @@
                                     </p>
                                     <p class="text-text-muted">
                                         {item.docType} Â· Week {item.weekNumber ||
-                                            "?"} Â· {new Date(
-                                            item.timestamp,
+                                            "?"} Â· {new Date(                                            item.timestamp,
                                         ).toLocaleTimeString([], {
                                             hour: "2-digit",
                                             minute: "2-digit",
@@ -924,8 +849,7 @@
                                 Document Review
                             </h3>
                             <p class="text-[10px] text-text-muted font-medium">
-                                Review the detected load and week before submission
-                            </p>
+                                Review the detected load and week before submission                            </p>
                         </div>
                         {#if detectingMetadata}
                             <div
@@ -950,14 +874,12 @@
                                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                                     ></path>
                                 </svg>
-                                Scanning...
-                            </div>
+                                Scanning...                            </div>
                         {:else}
                             <div
                                 class="text-[10px] font-bold text-gov-green bg-gov-green/5 px-2 py-1 rounded-md border border-gov-green/10"
                             >
-                                Ready
-                            </div>
+                                Ready                            </div>
                         {/if}
                     </div>
 
@@ -971,8 +893,7 @@
                                     class="h-20 bg-surface-muted rounded-xl animate-pulse"
                                 ></div>
                                 <div
-                                    class="h-20 bg-surface-muted rounded-xl animate-pulse"
-                                ></div>
+                                    class="h-20 bg-surface-muted rounded-xl animate-pulse"                                ></div>
                             </div>
                         </div>
                     {:else}
@@ -1012,58 +933,7 @@
                                 </div>
                             {/if}
 
-                            {#if docType === "DLL"}
-                            <!-- Matched Teaching Load -->
-                            <div class="space-y-2">
-                                <span
-                                    class="text-[10px] font-bold text-text-muted uppercase tracking-wide ml-1"
-                                    >Teaching Load</span
-                                >
-                                <button
-                                    onclick={() => (showLoadPicker = true)}
-                                    class="w-full p-5 rounded-md transition-all border-2 text-left flex items-center justify-between group {teachingLoadId
-                                        ? 'bg-gov-blue/5 border-gov-blue/20 hover:border-gov-blue/40'
-                                        : 'bg-gov-red/5 border-gov-red/20 border-dashed animate-pulse'}"
-                                >
-                                    <div>
-                                        {#if teachingLoadId}
-                                            <p
-                                                class="text-[10px] font-semibold text-gov-blue uppercase tracking-normal mb-1"
-                                            >
-                                                Detected Load
-                                            </p>
-                                            <p
-                                                class="text-xl font-semibold text-text-primary leading-tight"
-                                            >
-                                                {teachingLoads.find(
-                                                    (l) =>
-                                                        l.id === teachingLoadId,
-                                                )?.subject || "Unknown"}
-                                            </p>
-                                            <p
-                                                class="text-xs font-bold text-text-secondary mt-0.5"
-                                            >
-                                                Grade {teachingLoads.find(
-                                                    (l) =>
-                                                        l.id === teachingLoadId,
-                                                )?.grade_level || ""}
-                                            </p>
-                                        {:else}
-                                            <p
-                                                class="text-lg font-semibold text-gov-red"
-                                            >
-                                                Tap to Select Load
-                                            </p>
-                                            <p
-                                                class="text-xs font-medium text-gov-red/60 uppercase"
-                                            >
-                                                Manual selection required
-                                            </p>
-                                        {/if}
-                                    </div>
-                                    <div
-                                        class="p-2 rounded-xl bg-surface-white shadow-sm border border-border-subtle group-hover:scale-110 transition-transform"
-                                    >
+                            {#if docType === "DLL"}                                    >
                                         <svg
                                             class="w-5 h-5 text-gov-blue"
                                             fill="none"
@@ -1080,25 +950,11 @@
                                     </div>
                                 </button>
                             </div>
-                            {/if}
-
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                <!-- Doc Type -->
-                                <div class="space-y-2">
-                                    <span
-                                        class="text-[10px] font-bold text-text-muted uppercase tracking-wide ml-1"
-                                        >Document Type</span
-                                    >
-                                    <div
-                                        class="flex p-1.5 bg-surface-muted border border-border-subtle rounded-md"
-                                    >
-                                        {#each allowedDocTypes as type}
-                                            <button
+                            {/if}                                            <button
                                                 onclick={() => (docType = type)}
                                                 class="flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all {docType ===
                                                 type
-                                                    ? 'bg-surface-white text-gov-blue shadow-sm'
-                                                    : 'text-text-muted hover:text-text-primary'}"
+                                                    ? 'bg-surface-white text-gov-blue shadow-sm'                                                    : 'text-text-muted hover:text-text-primary'}"
                                             >
                                                 {type}
                                             </button>
@@ -1111,8 +967,7 @@
                                     </div>
                                 </div>
 
-                                {#if docType === "DLL"}
-                                <!-- Week -->
+                                {#if docType === "DLL"}                                <!-- Week -->
                                 <div class="space-y-2">
                                     <span
                                         class="text-[10px] font-bold text-text-muted uppercase tracking-wide ml-1"
@@ -1140,8 +995,7 @@
                                                 >
                                                     Load data is required before selecting a week.
                                                 </p>
-                                            {:else if weekNumber}
-                                                <p
+                                            {:else if weekNumber}                                                <p
                                                     class="text-xs font-semibold text-gov-blue/60 uppercase tracking-normal mb-0.5"
                                                 >
                                                     Selected
@@ -1168,15 +1022,13 @@
                                         </div>
                                     </button>
                                 </div>
-                                {/if}
-                            </div>
+                                {/if}                            </div>
                         </div>
                     {/if}
 
                     {#if ocrConfidence !== null && !detectingMetadata}
                         <div
-                            class="mt-6 p-4 rounded-md bg-surface-white border border-border-subtle flex items-center justify-between shadow-sm"
-                        >
+                            class="mt-6 p-4 rounded-md bg-surface-white border border-border-subtle flex items-center justify-between shadow-sm"                        >
                             <div class="flex items-center gap-3">
                                 <div
                                     class="w-2.5 h-2.5 rounded-full {ocrConfidence >
@@ -1238,15 +1090,13 @@
                             <p
                                 class="mt-2 text-[10px] text-text-muted text-center uppercase tracking-widest font-bold"
                             >
-                                This exact file has already been uploaded.
-                            </p>
+                                This exact file has already been uploaded.                            </p>
                         {:else}
                             <button
                                 onclick={handleUpload}
                                 disabled={!canUploadDocument($profile?.role || '', docType) ||
                                     (requiresTeachingLoadSelection($profile?.role || '', docType) && !teachingLoadId) ||
-                                    (docType === "DLL" && !weekNumber) ||
-                                    processing}
+                                    (docType === "DLL" && !weekNumber) ||                                    processing}
                                 class="mt-6 w-full py-4 bg-gradient-to-r {isOnline
                                     ? 'from-gov-blue to-gov-blue-dark'
                                     : 'from-gov-gold-dark to-gov-gold'} text-white text-lg font-extrabold rounded-md shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:grayscale transition-all duration-300 min-h-[60px] flex items-center justify-center gap-3 uppercase tracking-wide"
@@ -1298,7 +1148,6 @@
             <!-- Processing Progress -->
             <div class="animate-fade-in">
                 <UploadProgress {currentPhase} {progress} {message} />
-
             </div>
 
             <!-- Result -->
@@ -1354,8 +1203,7 @@
                         <span class="w-7 h-7 rounded-full bg-gov-blue/10 text-gov-blue text-xs font-bold flex items-center justify-center flex-shrink-0">3</span>
                         <span>Wait for metadata detection to finish before uploading.</span>
                     </li>
-                </ul>
-            </div>
+                </ul>            </div>
 
             <div class="gov-card-static p-6 border-l-4 border-gov-gold">
                 <h3 class="text-lg font-bold text-text-primary mb-3">
@@ -1386,7 +1234,6 @@
                     </li>
                 </ul>
             </div>
-
         </div>
     </div>
 </div>
@@ -1401,23 +1248,20 @@
         transition:fade={{ duration: 200 }}
     >
         <div
-            class="w-full max-w-lg bg-surface-white rounded-t-3xl sm:rounded-3xl shadow-sm overflow-hidden animate-slide-up sm:animate-scale-in"
-            onclick={(e) => e.stopPropagation()}
+            class="w-full max-w-lg bg-surface-white rounded-t-3xl sm:rounded-3xl shadow-sm overflow-hidden animate-slide-up sm:animate-scale-in"            onclick={(e) => e.stopPropagation()}
             onkeydown={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
             tabindex="0"
         >
             <div
-                class="p-6 border-b border-border-subtle flex items-center justify-between"
-            >
+                class="p-6 border-b border-border-subtle flex items-center justify-between"            >
                 <h3 class="text-xl font-semibold text-text-primary">
                     Select Teaching Load
                 </h3>
                 <button
                     onclick={() => (showLoadPicker = false)}
-                    class="p-2 hover:bg-surface-muted rounded-full text-text-muted"
-                    aria-label="Close"
+                    class="p-2 hover:bg-surface-muted rounded-full text-text-muted"                    aria-label="Close"
                 >
                     <svg
                         class="w-6 h-6"
@@ -1526,23 +1370,20 @@
         transition:fade={{ duration: 200 }}
     >
         <div
-            class="w-full max-w-sm bg-surface-white rounded-t-3xl sm:rounded-3xl shadow-sm overflow-hidden animate-slide-up sm:animate-scale-in"
-            onclick={(e) => e.stopPropagation()}
+            class="w-full max-w-sm bg-surface-white rounded-t-3xl sm:rounded-3xl shadow-sm overflow-hidden animate-slide-up sm:animate-scale-in"            onclick={(e) => e.stopPropagation()}
             onkeydown={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
             tabindex="0"
         >
             <div
-                class="p-6 border-b border-border-subtle flex items-center justify-between"
-            >
+                class="p-6 border-b border-border-subtle flex items-center justify-between"            >
                 <h3 class="text-xl font-semibold text-text-primary">
                     Select Week
                 </h3>
                 <button
                     onclick={() => (showWeekPicker = false)}
-                    class="p-2 hover:bg-surface-muted rounded-full text-text-muted"
-                    aria-label="Close"
+                    class="p-2 hover:bg-surface-muted rounded-full text-text-muted"                    aria-label="Close"
                 >
                     <svg
                         class="w-6 h-6"
@@ -1586,8 +1427,7 @@
                     <div class="col-span-2 text-center py-10 text-text-muted">
                         <p class="text-sm font-medium">No calendar weeks configured</p>
                         <p class="text-xs mt-1">Contact your district supervisor to set up the academic calendar.</p>
-                    </div>
-                {/each}
+                    </div>                {/each}
             </div>
         </div>
     </div>

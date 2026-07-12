@@ -24,8 +24,7 @@
                 : 'border-l-gov-gold'}"
         >
             <button
-                class="w-full flex items-center justify-between p-3 sm:p-4 cursor-pointer text-left hover:bg-surface-muted transition-colors"
-                onclick={() => (expanded = !expanded)}
+                class="w-full flex items-center justify-between p-3 sm:p-4 cursor-pointer text-left hover:bg-surface-muted transition-colors"                onclick={() => (expanded = !expanded)}
                 aria-expanded={expanded}
             >
                 <div class="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
@@ -73,8 +72,7 @@
                             ? '180deg'
                             : '0deg'})"
                     >
-                        â–¼
-                    </span>
+                        â–¼                    </span>
                 </div>
             </button>
 
@@ -85,8 +83,7 @@
                     >
                         {#each alerts as alert}
                             <div
-                                class="p-2 sm:p-3 rounded-md bg-surface-muted border border-border-subtle"
-                            >
+                                class="p-2 sm:p-3 rounded-md bg-surface-muted border border-border-subtle"                            >
                                 <div
                                     class="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-3"
                                 >
@@ -126,8 +123,7 @@
                                             <button
                                                 class="text-[11px] sm:text-xs font-medium text-gov-blue hover:text-gov-blue-dark transition-colors flex items-center gap-1"
                                             >
-                                                Intervene <span>â†’</span>
-                                            </button>
+                                                Intervene <span>â†’</span>                                            </button>
                                         </div>
                                     </div>
                                 </div>

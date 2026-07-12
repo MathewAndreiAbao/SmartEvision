@@ -154,8 +154,7 @@ self.addEventListener('push', (event: any) => {
     const options = {
         body: data.body || 'You have a new notification',
         icon: '/app_icon.png',
-        badge: '/app_icon.png',
-        tag: data.tag || 'default',
+        badge: '/app_icon.png',        tag: data.tag || 'default',
         data: { url: data.url || '/dashboard' },
         actions: data.actions || [],
         vibrate: [100, 50, 100]

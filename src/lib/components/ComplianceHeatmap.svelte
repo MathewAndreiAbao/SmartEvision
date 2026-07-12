@@ -27,15 +27,13 @@
     if (rate >= 100) return "bg-gov-green/70";
     if (rate >= 50) return "bg-gov-gold/60";
     if (rate > 0) return "bg-gov-red/50";
-    return "bg-surface-muted";
-  }
+    return "bg-surface-muted";  }
 
   function getCellText(rate: number): string {
     if (rate >= 100) return "text-white";
     if (rate >= 50) return "text-text-secondary";
     if (rate > 0) return "text-white";
-    return "text-text-muted";
-  }
+    return "text-text-muted";  }
 </script>
 
 <div class="overflow-x-auto">
@@ -43,8 +41,7 @@
     <thead>
       <tr class="border-b border-border-subtle bg-surface-muted">
         <th
-          class="sticky left-0 z-10 bg-surface-white/95 backdrop-blur px-3 py-3 text-left text-[10px] text-text-muted font-bold uppercase tracking-wider min-w-[140px] border-r border-border-subtle"
-        >
+          class="sticky left-0 z-10 bg-surface-white/95 backdrop-blur px-3 py-3 text-left text-[10px] text-text-muted font-bold uppercase tracking-wider min-w-[140px] border-r border-border-subtle"        >
           Institutional Units
         </th>
         {#each weeks as w}
@@ -60,8 +57,7 @@
       {#each rows as row}
         <tr class="hover:bg-surface-muted transition-colors">
           <td
-            class="sticky left-0 z-10 bg-surface-white/95 backdrop-blur px-3 py-2.5 font-bold text-[10px] text-text-primary truncate max-w-[160px] border-r border-border-subtle"
-            title={row}
+            class="sticky left-0 z-10 bg-surface-white/95 backdrop-blur px-3 py-2.5 font-bold text-[10px] text-text-primary truncate max-w-[160px] border-r border-border-subtle"            title={row}
           >
             {row}
           </td>
@@ -74,8 +70,7 @@
                 )} {getCellText(
                   cell?.rate || 0,
                 )} text-[10px] font-bold cursor-pointer"
-                title={cell?.tooltip || `${row} â€” ${w.label}: No data`}
-                onclick={() => onCellClick?.(row, w.week)}
+                title={cell?.tooltip || `${row} â€” ${w.label}: No data`}                onclick={() => onCellClick?.(row, w.week)}
               >
                 {cell ? `${cell.rate}%` : "0%"}
               </button>
@@ -107,6 +102,5 @@
     <span class="w-2.5 h-2.5 rounded-sm bg-gov-red/50"></span> &lt;50%
   </span>
   <span class="flex items-center gap-2">
-    <span class="w-2.5 h-2.5 rounded-sm bg-surface-muted"></span> No data
-  </span>
+    <span class="w-2.5 h-2.5 rounded-sm bg-surface-muted"></span> No data  </span>
 </div>

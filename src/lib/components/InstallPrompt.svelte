@@ -77,8 +77,7 @@
                 </div>
                 <div class="flex-1 min-w-0">
                     <h3 class="font-bold text-text-primary text-sm">
-                        Install CEDIMS
-                    </h3>
+                        Install CEDIMS                    </h3>
                     {#if isIOS}
                         <p class="text-xs text-text-muted mt-1 leading-relaxed">
                             Tap <strong>Share</strong> (□↑) then

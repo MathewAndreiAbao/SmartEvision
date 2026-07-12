@@ -5,7 +5,6 @@
  */
 import { predictSubject, predictGradeLevel, predictDocType } from './fuzzyClassifier';
 import { createWorker } from 'tesseract.js';
-
 export interface DateRange {
     start: Date;
     end: Date;
@@ -48,22 +47,6 @@ function loadPdfJs(): Promise<void> {
         document.head.appendChild(script);
     });
 }
-
-export async function extractMetadata(file: File): Promise<DocMetadata> {
-    const ext = file.name.split('.').pop()?.toLowerCase();
-
-    // 1. Handle PDF OCR/Extraction
-    if (file.type === 'application/pdf' || ext === 'pdf') {
-        try {
-            let pdfjsLib = (window as any)['pdfjsLib'];
-            if (!pdfjsLib) {
-                console.warn('[ocr] PDF.js not loaded. Loading from CDN...');
-                await loadPdfJs();
-                pdfjsLib = (window as any)['pdfjsLib'];
-                if (!pdfjsLib) {
-                    console.warn('[ocr] Failed to load PDF.js. Using default metadata.');
-                    return createDefaultMetadata();
-                }
             }
 
             // Set worker source for pdf.js (crucial for some environments)
@@ -115,8 +98,7 @@ export async function extractMetadata(file: File): Promise<DocMetadata> {
         // As long as it's run once while online, it works offline.
         const worker = await createWorker('eng+fil', 1, {
             logger: (m: any) => console.log(m),
-            errorHandler: (err: any) => console.error('[ocr] Tesseract Worker Error:', err)
-        });
+            errorHandler: (err: any) => console.error('[ocr] Tesseract Worker Error:', err)        });
 
         try {
             // OPTIMIZATION: Manual thresholding for low-end mobile CPUs
@@ -350,7 +332,6 @@ export function parseMetadata(text: string): Omit<DocMetadata, 'confidence' | 'l
         weekNumber = weekMatch ? parseInt(weekMatch[1], 10) : null;
         weekSource = weekNumber ? 'regex' : 'none';
     }
-
     // Extract school year
     const syMatch = text.match(/S\.?Y\.?\s*(\d{4}\s*[-–]\s*\d{4})/i) ||
         text.match(/(\d{4}\s*[-–]\s*\d{4})/);
@@ -417,7 +398,6 @@ function buildSubjectPatterns(_forHeader: boolean): { name: string; regex: RegEx
         { name: 'Physical Development', regex: /PHYSICAL\s+DEVELOPMENT/i },
     ];
 }
-
 // ─── Date Range Parsing ─────────────────────────────────────────────────────
 
 const MONTH_MAP: Record<string, number> = {

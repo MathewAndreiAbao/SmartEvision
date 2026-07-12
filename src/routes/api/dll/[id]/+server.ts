@@ -1,7 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 // DLL Submission Details API — GET /api/dll/[id]
-// CEDIMS 2.0 — Get submission with review context
-// ═══════════════════════════════════════════════════════════════
+// CEDIMS 2.0 — Get submission with review context// ═══════════════════════════════════════════════════════════════
 
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { supabase } from '$lib/utils/supabase';
@@ -16,8 +15,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             return json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const submissionId = params.id!;
-        const includeAudit = url.searchParams.get('includeAudit') === 'true';
+        const submissionId = params.id!;        const includeAudit = url.searchParams.get('includeAudit') === 'true';
 
         // Get submission
         const { data: submission } = await supabase

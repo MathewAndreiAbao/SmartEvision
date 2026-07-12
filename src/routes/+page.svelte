@@ -89,7 +89,6 @@
 
     onMount(() => {
         theme.init();
-
         const unsubscribe = profile.subscribe((p) => {
             if (p) {
                 goto("/dashboard");
@@ -139,8 +138,7 @@
                         </button>
                         <button onclick={() => goto("/auth/login")} class="gov-btn-primary text-xs sm:text-sm px-3 sm:px-4 py-2 sm:py-2.5">
                             <LogIn size={14} class="sm:size-[16]" />
-                            <span class="hidden xs:inline">Access</span> Portal
-                        </button>
+                            <span class="hidden xs:inline">Access</span> Portal                        </button>
                     </div>
                 {/if}
             {/if}
@@ -343,6 +341,5 @@
                     <p class="mt-1 text-[10px] sm:text-xs text-text-muted">Built for the Department of Education</p>
                 </div>
             </div>
-        </div>
-    </footer>
+        </div>    </footer>
 </div>

@@ -1,7 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 // DLL Review Workflow — Utilities & Logic
-// CEDIMS 2.0 — Business logic layer
-// ═══════════════════════════════════════════════════════════════
+// CEDIMS 2.0 — Business logic layer// ═══════════════════════════════════════════════════════════════
 
 import { supabase } from '$lib/utils/supabase';
 import type { 
@@ -10,255 +9,7 @@ import type {
     DLLAuditLog,
     CreateAnnotationInput,
     CreateReviewInput,
-    SaveReviewCommentInput,
-    ApproveReviewInput,
-    ReturnReviewInput,
-    CreateAuditLogInput,
-} from '$lib/types/dll-review';
-// ─── ANNOTATION MANAGEMENT ───────────────────────────────────
-
-// Web Crypto helper (works in Node 18+ and browsers)
-async function hmacSha256(secret: string, data: string): Promise<string> {
-    const enc = new TextEncoder();
-    const key = await crypto.subtle.importKey(
-        'raw',
-        enc.encode(secret),
-        { name: 'HMAC', hash: 'SHA-256' },
-        false,
-        ['sign'],
-    );
-    const sig = await crypto.subtle.sign('HMAC', key, enc.encode(data));
-    return Array.from(new Uint8Array(sig))
-        .map((b) => b.toString(16).padStart(2, '0'))
-        .join('');
-}
-
-/**
- * Create a new annotation on a DLL submission
- * Validates that the user is the submission owner or assigned reviewer
- */
-export async function createAnnotation(
-    input: CreateAnnotationInput,
-    userId: string,
-): Promise<{ data?: DLLAnnotation; error?: string }> {
-    try {
-        // Verify user is submission owner or reviewer
-        const { data: submission } = await supabase
-            .from('submissions')
-            .select('user_id')
-            .eq('id', input.submission_id)
-            .single();
-
-        if (!submission) {
-            return { error: 'Submission not found' };
-        }
-
-        const { data: review } = await supabase
-            .from('dll_reviews')
-            .select('reviewer_id')
-            .eq('submission_id', input.submission_id)
-            .single();
-
-        const isOwner = submission.user_id === userId;
-        const isReviewer = review?.reviewer_id === userId;
-
-        if (!isOwner && !isReviewer) {
-            return { error: 'Unauthorized: Not submission owner or reviewer' };
-        }
-
-        // Create annotation
-        const { data, error } = await supabase
-            .from('dll_annotations')
-            .insert([
-                {
-                    submission_id: input.submission_id,
-                    annotator_id: userId,
-                    annotation_type: input.annotation_type,
-                    content: input.content,
-                    page_number: input.page_number,
-                    position: input.position,
-                    color: input.color || '#FFFF00',
-                    is_official: input.is_official || false,
-                },
-            ])
-            .select()
-            .single();
-
-        if (error) {
-            return { error: error.message };
-        }
-
-        // Log annotation action
-        await createAuditLog({
-            submission_id: input.submission_id,
-            action: 'annotated',
-            actor_id: userId,
-            actor_role: isReviewer ? 'Reviewer' : 'Teacher',
-            details: { annotation_id: data.id },
-        });
-
-        return { data };
-    } catch (err) {
-        return { error: (err as Error).message };
-    }
-}
-
-/**
- * Get all annotations for a submission
- */
-export async function getAnnotations(
-    submissionId: string,
-): Promise<DLLAnnotation[]> {
-    const { data } = await supabase
-        .from('dll_annotations')
-        .select('*')
-        .eq('submission_id', submissionId)
-        .order('created_at', { ascending: true });
-
-    return data || [];
-}
-
-// ─── REVIEW WORKFLOW ────────────────────────────────────────
-
-/**
- * Create a new review for a submission
- * Assigns a reviewer to check the DLL
- */
-export async function createReview(
-    input: CreateReviewInput,
-    reviewerId: string,
-): Promise<{ data?: DLLReview; error?: string }> {
-    try {
-        // Verify reviewer has proper role
-        const { data: reviewer } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', reviewerId)
-            .single();
-
-        if (!reviewer || !['Master Teacher', 'School Head', 'District Supervisor'].includes(reviewer.role)) {
-            return { error: 'Unauthorized: Only supervisors/master teachers can review' };
-        }
-
-        // Check if review already exists
-        const { data: existing } = await supabase
-            .from('dll_reviews')
-            .select('id')
-            .eq('submission_id', input.submission_id)
-            .single();
-
-        if (existing) {
-            return { error: 'Review already exists for this submission' };
-        }
-
-        // Get current file hash for immutable record
-        const { data: submission } = await supabase
-            .from('submissions')
-            .select('file_hash')
-            .eq('id', input.submission_id)
-            .single();
-
-        if (!submission) {
-            return { error: 'Submission not found' };
-        }
-
-        // Create review
-        const { data, error } = await supabase
-            .from('dll_reviews')
-            .insert([
-                {
-                    submission_id: input.submission_id,
-                    reviewer_id: reviewerId,
-                    status: 'needs-check',
-                    reviewer_comment: input.reviewer_comment,
-                    file_hash_at_review: submission.file_hash,
-                },
-            ])
-            .select()
-            .single();
-
-        if (error) {
-            return { error: error.message };
-        }
-
-        // Log review creation
-        await createAuditLog({
-            submission_id: input.submission_id,
-            action: 'reviewed',
-            actor_id: reviewerId,
-            actor_role: reviewer.role,
-            details: { review_id: data.id },
-        });
-
-        return { data };
-    } catch (err) {
-        return { error: (err as Error).message };
-    }
-}
-
-/**
- * Approve a submission (mark as compliant)
- */
-export async function saveReviewComment(
-    input: SaveReviewCommentInput,
-    reviewerId: string,
-): Promise<{ data?: DLLReview; error?: string }> {
-    try {
-        const { data: reviewer } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', reviewerId)
-            .single();
-
-        if (!reviewer || reviewer.role !== 'Master Teacher') {
-            return { error: 'Unauthorized: Only master teachers can add remarks' };
-        }
-
-        const { data: existing } = await supabase
-            .from('dll_reviews')
-            .select('id')
-            .eq('submission_id', input.submission_id)
-            .maybeSingle();
-
-        const reviewPayload = {
-            submission_id: input.submission_id,
-            reviewer_id: reviewerId,
-            status: 'needs-check',
-            reviewer_comment: input.reviewer_comment || null,
-        };
-
-        const { data, error } = existing
-            ? await supabase
-                .from('dll_reviews')
-                .update(reviewPayload)
-                .eq('id', existing.id)
-                .select()
-                .single()
-            : await supabase
-                .from('dll_reviews')
-                .insert([reviewPayload])
-                .select()
-                .single();
-
-        if (error) {
-            return { error: error.message };
-        }
-
-        await createAuditLog({
-            submission_id: input.submission_id,
-            action: 'reviewed',
-            actor_id: reviewerId,
-            actor_role: reviewer.role,
-            details: { review_id: data.id, reason: input.reviewer_comment },
-        });
-
-        return { data };
-    } catch (err) {
-        return { error: (err as Error).message };
-    }
-}
-
-export async function approveReview(
+    SaveReviewCommentInput,export async function approveReview(
     input: ApproveReviewInput,
     reviewerId: string,
 ): Promise<{ data?: DLLReview; error?: string }> {
@@ -295,7 +46,11 @@ export async function approveReview(
         if (error) {
             return { error: error.message };
         }
-
+        // Update submission compliance status
+        await supabase
+            .from('submissions')
+            .update({ compliance_status: 'compliant' })
+            .eq('id', review.submission_id);
         // Log approval
         await createAuditLog({
             submission_id: review.submission_id,
@@ -352,8 +107,6 @@ export async function returnReview(
         if (error) {
             return { error: error.message };
         }
-
-        // Log return
         await createAuditLog({
             submission_id: review.submission_id,
             action: 'returned',

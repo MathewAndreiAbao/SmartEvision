@@ -30,7 +30,6 @@
         canCluster,
     } from "$lib/utils/clusterAnalytics";
     import ClusterVisualization from "$lib/components/ClusterVisualization.svelte";
-
     // Data
     interface Teacher {
         id: string;
@@ -93,88 +92,6 @@
     let clusterResults = $state<any[]>([]);
     let clusterSummaries = $state<any[]>([]);
     let clusterReady = $state(false);
-
-    // Table controls
-    let sortField = $state<string>("rate");
-    let sortDir = $state<"asc" | "desc">("asc");
-    let searchQuery = $state("");
-    let currentWk = $state(1);
-
-    // Drill-down modal
-    let showModal = $state(false);
-    let selectedTeacher = $state<Teacher | null>(null);
-    let selectedSubmissions = $state<Submission[]>([]);
-
-    // Alert teachers (≥2 late submissions)
-    const alertTeachers = $derived(() => {
-        return teachers.filter((t: Teacher) => {
-            const subs = allSubmissions.filter(
-                (s: Submission) => s.user_id === t.id,
-            );
-            const late = subs.filter(
-                (s: Submission) => s.compliance_status === "late",
-            ).length;
-            return late >= 2;
-        });
-    });
-
-    let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
-
-    onMount(async () => {
-        await loadSchoolData();
-        loading = false;
-
-        // Subscribe to real-time submission changes
-        realtimeChannel = supabase
-            .channel("school-submissions")
-            .on(
-                "postgres_changes",
-                { event: "*", schema: "public", table: "submissions" },
-                () => {
-                    loadSchoolData();
-                },
-            )
-            .subscribe();
-    });
-
-    onDestroy(() => {
-        if (realtimeChannel) {
-            supabase.removeChannel(realtimeChannel);
-        }
-    });
-
-    async function loadSchoolData() {
-        const userProfile = $profile;
-        if (!userProfile?.school_id) return;
-
-        // Fetch School Logo
-        const { data: schoolData } = await supabase.from('schools').select('avatar_url').eq('id', userProfile.school_id).single();
-        if (schoolData) schoolLogoUrl = schoolData.avatar_url;
-
-        // Batch fetch: teachers + all submissions + all teaching loads + academic calendar
-        const [teachersRes, subsRes, loadsRes, calendarRes] = await Promise.all(
-            [
-                supabase
-                    .from("profiles")
-                    .select("id, full_name, role, district_id")
-                    .eq("school_id", userProfile.school_id)
-                    .eq("role", "Teacher")
-                    .order("full_name"),
-                supabase
-                    .from("submissions")
-                    .select(
-                        "id, user_id, file_name, doc_type, compliance_status, created_at, week_number, profiles!inner(school_id), teaching_loads(subject, grade_level)",
-                    )
-                    .eq("profiles.school_id", userProfile.school_id)
-                    .order("created_at", { ascending: false }),
-                supabase
-                    .from("teaching_loads")
-                    .select("id, user_id, profiles!inner(school_id)")
-                    .eq("profiles.school_id", userProfile.school_id),
-                supabase
-                    .from("academic_calendar")
-                    .select("*")
-                    .eq("school_year", getDynamicSchoolYear())
                     .order("week_number", { ascending: true }),
             ],
         );
@@ -282,126 +199,7 @@
             const output = runKMeansClustering(features, 3);
             clusterResults = output.results;
             clusterSummaries = output.summaries;
-        }
-    }
-
-    function buildHeatmap(calendar: any[] = []) {
-        const currentWeek = getWeekNumber();
-        const weekCount = 8;
-        const weeks = [];
-
-        if (calendar.length > 0) {
-            const recentCal = [...calendar]
-                .sort((a, b) => b.week_number - a.week_number)
-                .slice(0, weekCount)
-                .reverse();
-            for (const cal of recentCal) {
-                weeks.push({
-                    week: cal.week_number,
-                    label: `W${cal.week_number}`,
-                    deadline: cal.deadline_date,
-                });
-            }
-        } else {
-            for (let i = weekCount - 1; i >= 0; i--) {
-                const wk = currentWeek - i;
-                if (wk >= 1)
-                    weeks.push({ week: wk, label: `W${wk}`, deadline: null });
-            }
-        }
-
-        heatmapWeeks = weeks;
-        heatmapRows = teachers.map((t: Teacher) => t.full_name);
-
-        const cells: any[] = [];
-        for (const t of teachers) {
-            const teacherSubs = allSubmissions.filter(
-                (s: Submission) => s.user_id === t.id,
-            );
-            for (const w of weeks) {
-                const weekSubs = teacherSubs.filter(
-                    (s: Submission) => s.week_number === w.week,
-                );
-                const stats = calculateCompliance(weekSubs, t.loadCount);
-                cells.push({
-                    row: t.full_name,
-                    week: w.week,
-                    weekLabel: w.label,
-                    rate: stats.rate,
-                    count: weekSubs.length,
-                    tooltip: `${t.full_name} - ${w.label}: ${stats.rate}% (${stats.Compliant} compliant, ${stats.Late} late, ${stats.NonCompliant} non-compliant)`,
-                });
-            }
-        }
-        heatmapCells = cells;
-    }
-
-    // Teacher table with sorting + search
-    const sortedTeachers = $derived(() => {
-        let result = teachers.map((t: Teacher) => {
-            const subs = allSubmissions.filter(
-                (s: Submission) => s.user_id === t.id,
-            );
-            // We use a promise inside derived which is not ideal, but for now we'll assume definedWeeks is pre-calculated or use a local reactive state
-            // Actually, sortedTeachers is a $derived, so it should be synchronous.
-            // I'll need to pre-fetch definedWeeks in loadSchoolData.
-            const stats = calculateCompliance(
-                subs,
-                (t.loadCount || 0) * currentDefinedWeeks,
-            );
-            return { ...t, ...stats };
-        });
-
-        if (searchQuery.trim()) {
-            const q = searchQuery.toLowerCase();
-            result = result.filter((t: any) =>
-                t.full_name.toLowerCase().includes(q),
-            );
-        }
-
-        result.sort((a: any, b: any) => {
-            const aVal = a[sortField];
-            const bVal = b[sortField];
-            if (typeof aVal === "number" && typeof bVal === "number") {
-                return sortDir === "asc" ? aVal - bVal : bVal - aVal;
-            }
-            return sortDir === "asc"
-                ? String(aVal).localeCompare(String(bVal))
-                : String(bVal).localeCompare(String(aVal));
-        });
-
-        return result;
-    });
-
-    function toggleSort(field: string) {
-        if (sortField === field) sortDir = sortDir === "asc" ? "desc" : "asc";
-        else {
-            sortField = field;
-            sortDir = field === "full_name" ? "asc" : "desc";
-        }
-    }
-
-    function openDrillDown(teacher: any) {
-        selectedTeacher = teacher;
-        selectedSubmissions = allSubmissions
-            .filter((s) => s.user_id === teacher.id)
-            .slice(0, 20);
-        showModal = true;
-    }
-
-    function formatDate(dateStr: string): string {
-        return new Date(dateStr).toLocaleDateString("en-PH", {
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-        });
-    }
-</script>
-
-<svelte:head>
-    <title>School Monitoring — CEDIMS</title>
-</svelte:head>
+        }</svelte:head>
 
 <div>
     <!-- Header -->
@@ -416,8 +214,7 @@
         </div>
 
         {#if $profile?.role === 'School Head' && $profile?.school_id}
-        <div class="flex items-center gap-4 bg-surface-white p-4 rounded-2xl border border-border-subtle shadow-sm" in:fade>
-            <ProfileUploader 
+        <div class="flex items-center gap-4 bg-surface-white p-4 rounded-2xl border border-border-subtle shadow-sm" in:fade>            <ProfileUploader 
                 id={$profile.school_id}
                 bucket="avatars"
                 path="schools"
@@ -443,8 +240,7 @@
             {#each Array(4) as _}
                 <div class="gov-card-static p-6 animate-pulse">
                     <div class="h-4 bg-surface-muted rounded w-24 mb-3"></div>
-                    <div class="h-8 bg-surface-muted rounded w-16"></div>
-                </div>
+                    <div class="h-8 bg-surface-muted rounded w-16"></div>                </div>
             {/each}
         </div>
     {:else}
@@ -518,20 +314,7 @@
                 <h3 class="text-lg font-bold text-text-primary mb-4">
                     Compliance Heatmap
                 </h3>
-                <div class="overflow-x-auto touch-pan-x">
-                <ComplianceHeatmap
-                    rows={heatmapRows}
-                    weeks={heatmapWeeks}
-                    cells={heatmapCells}
-                    onCellClick={(row, week) => {
-                        const teacher = teachers.find(
-                            (t) => t.full_name === row,
-                        );
-                        if (teacher) openDrillDown(teacher);
-                    }}
-                />
-                </div>
-            </div>
+                <div class="overflow-x-auto touch-pan-x">            </div>
 
             <div
                 class="gov-card-static p-6"
@@ -562,8 +345,7 @@
             in:fade={{ duration: 500, delay: 700 }}
         >
             <div
-                class="px-6 py-4 border-b border-border-subtle flex items-center justify-between flex-wrap gap-3"
-            >
+                class="px-6 py-4 border-b border-border-subtle flex items-center justify-between flex-wrap gap-3"            >
                 <h3 class="text-lg font-bold text-text-primary">
                     Teacher Compliance
                 </h3>
@@ -571,8 +353,7 @@
                     type="text"
                     bind:value={searchQuery}
                     placeholder="Search teacher..."
-                    class="w-full sm:w-56 px-4 py-2 text-sm bg-surface-white/60 border border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/30 focus:border-gov-blue outline-none"
-                />
+                    class="w-full sm:w-56 px-4 py-2 text-sm bg-surface-white/60 border border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/30 focus:border-gov-blue outline-none"                />
             </div>
 
             {#if sortedTeachers().length === 0}
@@ -587,8 +368,7 @@
                         {#each sortedTeachers() as teacher}
                             <button
                                 type="button"
-                                class="bg-surface-white border border-border-subtle rounded-xl p-6 shadow-sm hover:shadow-md hover:border-gov-blue/20 transition-all flex flex-col group cursor-pointer text-left w-full"
-                                onclick={() => openDrillDown(teacher)}
+                                class="bg-surface-white border border-border-subtle rounded-xl p-6 shadow-sm hover:shadow-md hover:border-gov-blue/20 transition-all flex flex-col group cursor-pointer text-left w-full"                                onclick={() => openDrillDown(teacher)}
                                 in:fly={{ y: 20, duration: 400 }}
                             >
                                 <div
@@ -668,8 +448,7 @@
                                     <div
                                         class="w-full py-2 bg-gov-blue/5 text-gov-blue group-hover:bg-gov-blue group-hover:text-white rounded-lg transition-all font-bold text-[10px] uppercase tracking-widest border border-gov-blue/10 flex items-center justify-center"
                                     >
-                                        View Details
-                                    </div>
+                                        View Details                                    </div>
                                 </div>
                             </button>
                         {/each}
@@ -704,49 +483,7 @@
                     />
                 {/if}
             </div>
-        {/if}
-    {/if}
-</div>
-
-<!-- Drill-Down Modal -->
-<DrillDownModal
-    isOpen={showModal}
-    title={selectedTeacher
-        ? `Submissions: ${selectedTeacher.full_name}`
-        : "Teacher Details"}
-    onClose={() => {
-        showModal = false;
-        selectedTeacher = null;
-    }}
->
-    {#if selectedTeacher}
-        {@const stats = calculateCompliance(selectedSubmissions)}
-        <div class="grid grid-cols-3 gap-3 mb-4">
-            <div class="text-center p-3 rounded-xl bg-gov-green/10">
-                <p class="text-lg font-bold text-gov-green">
-                    {stats.Compliant}
-                </p>
-                <p class="text-xs text-text-muted">Compliant</p>
-            </div>
-            <div class="text-center p-3 rounded-xl bg-gov-gold/10">
-                <p class="text-lg font-bold text-gov-gold-dark">
-                    {stats.Late}
-                </p>
-                <p class="text-xs text-text-muted">Late</p>
-            </div>
-            <div class="text-center p-3 rounded-xl bg-gov-red/10">
-                <p class="text-lg font-bold text-gov-red">
-                    {stats.NonCompliant}
-                </p>
-                <p class="text-xs text-text-muted">Non-compliant</p>
-            </div>
-        </div>
-
-        {#if selectedSubmissions.length === 0}
-            <p class="text-center text-text-muted py-6">No submissions found</p>
-        {:else}
-            <div class="divide-y divide-border-subtle">
-                {#each selectedSubmissions as sub}
+        {/if}                {#each selectedSubmissions as sub}
                     {@const tl = Array.isArray(sub.teaching_loads)
                         ? sub.teaching_loads[0]
                         : sub.teaching_loads}
@@ -766,8 +503,7 @@
                         <div class="flex items-center gap-3 flex-shrink-0">
                             <StatusBadge
                                 status={!sub.compliance_status ||
-                                sub.compliance_status === "on-time" ||
-                                sub.compliance_status === "compliant"
+                                sub.compliance_status === "on-time" ||                                sub.compliance_status === "compliant"
                                     ? "compliant"
                                     : sub.compliance_status === "late"
                                       ? "late"
@@ -785,4 +521,3 @@
         {/if}
     {/if}
 </DrillDownModal>
-

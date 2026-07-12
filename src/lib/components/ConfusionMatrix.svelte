@@ -16,7 +16,6 @@
     // Calculate cell color based on value vs. row total
     function getCellColor(value: number, rowIndex: number) {
         if (value === 0) return "bg-surface-muted text-text-muted";
-
         const rowTotal = data.matrix[rowIndex].reduce((a, b) => a + b, 0);
         const ratio = value / rowTotal;
         const isDiagonal = value === data.matrix[rowIndex][rowIndex];
@@ -156,4 +155,3 @@
         </p>
     </div>
 </div>
-

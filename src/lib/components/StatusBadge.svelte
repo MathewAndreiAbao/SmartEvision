@@ -49,8 +49,7 @@
         pending: {
             bg: "bg-surface-muted",
             text: "text-text-secondary",
-            border: "border-border-subtle",
-            label: "Pending",
+            border: "border-border-subtle",            label: "Pending",
             icon: Loader2,
         },
         review: {

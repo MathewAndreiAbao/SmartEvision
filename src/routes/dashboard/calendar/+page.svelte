@@ -20,8 +20,7 @@
         description: string;
     }
 
-    let schoolYear = $state("2026-2027");
-    let quarter = $state(1);
+    let schoolYear = $state("2026-2027");    let quarter = $state(1);
     let deadlines = $state<Deadline[]>([]);
     let loading = $state(true);
     let saving = $state(false);
@@ -35,17 +34,7 @@
         { value: 1, label: "1st Term" },
         { value: 2, label: "2nd Term" },
         { value: 3, label: "3rd Term" },
-    ];
-
-    const isDistrictSupervisor = $derived(
-        $profile?.role === "District Supervisor",
-    );
-    const canEdit = $derived(isDistrictSupervisor);
-
-    onMount(async () => {
-        try {
-            // Resolve district ID â€” supervisors have it directly, teachers get it through their school
-            if ($profile?.district_id) {
+    ];            if ($profile?.district_id) {
                 resolvedDistrictId = $profile.district_id;
                 console.log(
                     "[v0] District ID from profile:",
@@ -174,68 +163,7 @@
         } else {
             if (data && data[0]) {
                 weekData.id = data[0].id;
-                addToast("success", `Week ${weekData.week_number} deadline saved successfully`);
-
-                // Notify all teachers in the district about the new deadline
-                const { createNotification } = await import(
-                    "$lib/utils/notificationSystem"
-                );
-                const { data: teachers } = await supabase
-                    .from("profiles")
-                    .select("id")
-                    .eq("district_id", resolvedDistrictId)
-                    .eq("role", "Teacher");
-
-                if (teachers) {
-                    await Promise.all(
-                        teachers.map((t) =>
-                            createNotification(
-                                t.id,
-                                "Deadline Updated",
-                                `The submission deadline for Week ${weekData.week_number} has been updated to ${new Date(weekData.deadline_date).toLocaleDateString()}.`,
-                                "info",
-                                "/dashboard/calendar",
-                            ),
-                        ),
-                    );
-                }
-            }
-        }
-    }
-
-    function isPast(dateStr: string): boolean {
-        if (!dateStr) return false;
-        // Deadline is end of day (11:59:59 PM)
-        const deadline = new Date(dateStr);
-        deadline.setHours(23, 59, 59, 999);
-        return new Date() > deadline;
-    }
-
-    function isUpcoming(dateStr: string): boolean {
-        if (!dateStr) return false;
-        const d = new Date(dateStr);
-        d.setHours(0, 0, 0, 0);
-
-        const now = new Date();
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const threeDays = new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000);
-        threeDays.setHours(23, 59, 59, 999);
-
-        return d >= today && d <= threeDays;
-    }
-
-    $effect(() => {
-        if (schoolYear || quarter) {
-            loadDeadlines();
-        }
-    });
-</script>
-
-<svelte:head>
-    <title>Academic Calendar â€” CEDIMS</title>
-</svelte:head>
+                addToast("success", `Week ${weekData.week_number} deadline saved successfully`);</svelte:head>
 
 <div class="max-w-4xl mx-auto">
     <!-- Header -->
@@ -330,8 +258,7 @@
                         {/each}
                     </div>
                 {/if}
-            </div>
-        </div>
+            </div>        </div>
     </div>
 
     {#if loading}
@@ -410,8 +337,7 @@
                     <div class="space-y-4">
                         <div class="relative">
                             <label
-                                class="absolute -top-2 left-3 px-1 bg-surface-white text-[10px] font-bold text-gov-blue uppercase tracking-wide z-10"
-                                for="date-{i}"
+                                class="absolute -top-2 left-3 px-1 bg-surface-white text-[10px] font-bold text-gov-blue uppercase tracking-wide z-10"                                for="date-{i}"
                             >
                                 Due Date
                             </label>
@@ -424,8 +350,7 @@
                                 />
                             {:else}
                                 <p
-                                    class="w-full px-4 py-3.5 bg-surface-muted border border-border-subtle rounded-md text-sm font-semibold text-text-primary"
-                                >
+                                    class="w-full px-4 py-3.5 bg-surface-muted border border-border-subtle rounded-md text-sm font-semibold text-text-primary"                                >
                                     {d.deadline_date
                                         ? new Date(
                                               d.deadline_date + "T00:00:00",
@@ -442,8 +367,7 @@
 
                         <div class="relative">
                             <label
-                                class="absolute -top-2 left-3 px-1 bg-surface-white text-[10px] font-bold text-text-muted uppercase tracking-wide z-10"
-                                for="desc-{i}"
+                                class="absolute -top-2 left-3 px-1 bg-surface-white text-[10px] font-bold text-text-muted uppercase tracking-wide z-10"                                for="desc-{i}"
                             >
                                 Notes / Purpose
                             </label>
@@ -459,8 +383,7 @@
                                 <p
                                     class="w-full px-4 py-3.5 bg-surface-muted border border-border-subtle rounded-md text-sm font-medium text-text-secondary"
                                 >
-                                    {d.description || "â€”"}
-                                </p>
+                                    {d.description || "â€”"}                                </p>
                             {/if}
                         </div>
                     </div>

@@ -90,8 +90,7 @@
                 />
             {:else}
                 <div
-                    class="flex h-9 w-9 items-center justify-center rounded-full border border-gov-blue/10 bg-gov-blue/10 text-[10px] font-semibold uppercase text-gov-blue"
-                >
+                    class="flex h-9 w-9 items-center justify-center rounded-full border border-gov-blue/10 bg-gov-blue/10 text-[10px] font-semibold uppercase text-gov-blue"                >
                     {$profile?.full_name?.charAt(0) || "U"}
                 </div>
             {/if}

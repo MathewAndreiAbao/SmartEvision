@@ -81,8 +81,7 @@
                 .select(
                     `
                     file_name, file_path, doc_type, compliance_status, created_at, file_size, week_number, subject, school_year, user_id,
-                    profiles:user_id ( full_name, school_id ),
-                    teaching_loads ( subject, grade_level )
+                    profiles:user_id ( full_name, school_id ),                    teaching_loads ( subject, grade_level )
                 `,
                 )
                 .eq("file_hash", hash)
@@ -102,19 +101,6 @@
                         .single();
                     schoolName = schoolData?.name || null;
                 }
-
-                const freshResult = {
-                    file_name: data.file_name,
-                    file_path: data.file_path,
-                    doc_type: data.doc_type,
-                    compliance_status: data.compliance_status,
-                    created_at: data.created_at,
-                    file_size: data.file_size,
-                    week_number: data.week_number,
-                    subject: data.subject,
-                    school_year: data.school_year,
-                    teacher_name: profileData?.full_name || null,
-                    school_name: schoolName,
                     teaching_load_subject: teachingLoadData?.subject || null,
                     teaching_load_grade: teachingLoadData?.grade_level || null,
                     uploader_id: data.user_id || null,
@@ -194,8 +180,7 @@
                 throw new Error('No URL returned');
             }
         } catch (err) {
-            console.error('[CEDIMS] Failed to open document:', err);
-            alert('Unable to open document. Please try again.');
+            console.error('[CEDIMS] Failed to open document:', err);            alert('Unable to open document. Please try again.');
         } finally {
             openingDoc = false;
         }
@@ -203,8 +188,7 @@
 </script>
 
 <svelte:head>
-    <title>Verify Document — CEDIMS</title>
-</svelte:head>
+    <title>Verify Document — CEDIMS</title></svelte:head>
 
 <!-- QR Scanner Overlay for continuous scanning -->
 {#if showScanner}
@@ -223,8 +207,7 @@
             >
                 E
             </div>
-            <h1 class="text-xl font-bold text-text-primary">CEDIMS</h1>
-            <p class="text-sm text-text-muted">Document Verification</p>
+            <h1 class="text-xl font-bold text-text-primary">CEDIMS</h1>            <p class="text-sm text-text-muted">Document Verification</p>
         </div>
 
         {#if loading}
@@ -290,8 +273,7 @@
                         <p
                             class="text-xs text-text-muted font-bold uppercase tracking-wide"
                         >
-                            Official CEDIMS Record
-                        </p>
+                            Official CEDIMS Record                        </p>
                     </div>
 
                     {#if isOfflineData}
@@ -327,8 +309,7 @@
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div class="flex items-start gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">                            <div class="flex items-start gap-4">
                                 <div
                                     class="p-2.5 rounded-xl bg-gray-50 text-text-muted"
                                 >
@@ -485,8 +466,7 @@
                 href="/dashboard"
                 class="block text-center text-sm text-text-muted hover:text-gov-blue transition-colors py-2"
             >
-                BACK TO CEDIMS
-            </a>
+                BACK TO CEDIMS            </a>
         </div>
     </div>
 </div>

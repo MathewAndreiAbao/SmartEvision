@@ -7,13 +7,14 @@
     } from "$lib/utils/auth";
     import { addToast } from "$lib/stores/toast";
     import { goto } from "$app/navigation";
-    import { Lock, ShieldCheck, ArrowLeft } from "lucide-svelte";
+    import { Lock, ShieldCheck, ArrowLeft, Eye, EyeOff } from "lucide-svelte";
 
     let email = $state("");
     let password = $state("");
     let loading = $state(false);
     let errorMsg = $state("");
-
+    let showPassword = $state(false);
+    // If already logged in, redirect
     $effect(() => {
         if (!$authLoading && $profile) {
             goto(getRoleDashboardPath($profile.role));
@@ -26,6 +27,14 @@
             errorMsg = "Please enter both email and password.";
             return;
         }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            errorMsg = "Please enter a valid email address.";
+            return;
+        }
+        if (password.length < 6) {
+            errorMsg = "Password must be at least 6 characters.";
+            return;
+        }
 
         loading = true;
         errorMsg = "";
@@ -36,8 +45,7 @@
             errorMsg = result.error;
             addToast("error", result.error);
         } else {
-            addToast("success", "Welcome to CEDIMS.");
-        }
+            addToast("success", "Welcome to CEDIMS.");        }
 
         loading = false;
     }
@@ -95,7 +103,16 @@
                     </div>
                     <div>
                         <label for="password" class="mb-1 sm:mb-1.5 block text-xs sm:text-sm font-semibold text-text-secondary">Password</label>
-                        <input id="password" type="password" bind:value={password} placeholder="Enter your password" class="w-full rounded-xl border border-border-subtle px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm outline-none focus:border-gov-blue focus:ring-2 focus:ring-gov-blue/10 transition-all" autocomplete="current-password" required />
+                        <div class="relative">
+                            <input id="password" type={showPassword ? "text" : "password"} bind:value={password} placeholder="Enter your password" class="w-full rounded-xl border border-border-subtle px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm outline-none focus:border-gov-blue focus:ring-2 focus:ring-gov-blue/10 transition-all pr-10 sm:pr-11" autocomplete="current-password" required minlength="6" />
+                            <button type="button" onclick={() => showPassword = !showPassword} class="absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors p-1" tabindex="-1" aria-label={showPassword ? "Hide password" : "Show password"}>
+                                {#if showPassword}
+                                    <EyeOff size={16} class="sm:size-[18]" />
+                                {:else}
+                                    <Eye size={16} class="sm:size-[18]" />
+                                {/if}
+                            </button>
+                        </div>
                     </div>
                     {#if errorMsg}
                         <div class="rounded-xl border border-red-200 bg-red-50 p-2.5 sm:p-3 text-xs sm:text-sm font-medium text-red-600">{errorMsg}</div>
@@ -120,4 +137,3 @@
         </div>
     </div>
 </div>
-

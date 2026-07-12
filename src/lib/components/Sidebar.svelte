@@ -24,18 +24,7 @@
 		label: string;
 		icon: any;
 		roles: string[];
-		section: string;
-		mobileNav?: boolean;
-		onClick?: (e: Event) => void;
-	}
-
-	const navItems: NavItem[] = [
-		{
-			href: "/dashboard",
-			label: "Dashboard",
-			icon: LayoutDashboard,
-			section: "Overview",
-			mobileNav: true,
+		section: string;			mobileNav: true,
 			roles: [
 				"Teacher",
 				"School Head",
@@ -47,16 +36,7 @@
 			href: "/dashboard/upload",
 			label: "Upload",
 			icon: CloudUpload,
-			section: "Management",
-			mobileNav: true,
-			roles: ["Teacher"],
-		},
-		{
-			href: "/dashboard/archive",
-			label: "Archive",
-			icon: Archive,
-			section: "Management",
-			mobileNav: true,
+			section: "Management",			mobileNav: true,
 			roles: [
 				"Teacher",
 				"School Head",
@@ -90,64 +70,23 @@
 			icon: ShieldCheck,
 			section: "Review",
 			mobileNav: true,
-			roles: ["School Head"],
-		},
+			roles: ["School Head"],		},
 		{
 			href: "/dashboard/monitoring/district",
 			label: "District Monitor",
 			icon: Map,
-			section: "Review",
-			mobileNav: true,
-			roles: ["District Supervisor"],
-		},
-		{
-			href: "/dashboard/analytics",
-			label: "Analytics",
-			icon: TrendingUp,
-			section: "Review",
-			roles: ["School Head", "District Supervisor"],
-		},
+			section: "Review",		},
 		{
 			href: "/dashboard/settings",
 			label: "Settings",
 			icon: Settings,
-			section: "System",
-			roles: [
-				"Teacher",
-				"School Head",
-				"Master Teacher",
-				"District Supervisor",
-			],
-		},
-		{
-			href: "/dashboard/admin",
-			label: "Admin Panel",
-			icon: ShieldCheck,
-			section: "System",
-			roles: ["District Supervisor"],
+			section: "System",			roles: ["District Supervisor"],
 		},
 		{
 			href: "#scan",
 			label: "Scan Document",
 			icon: QrCode,
-			section: "Tools",
-			mobileNav: true,
-			roles: [
-				"Teacher",
-				"School Head",
-				"Master Teacher",
-				"District Supervisor",
-			],
-			onClick: (e: Event) => {
-				e.preventDefault();
-				showQRScanner.set(true);
-			},
-		},
-	];
-
-	const sectionOrder = ["Overview", "Management", "Review", "Tools", "System"];
-
-	let mobileOpen = $state(false);
+			section: "Tools",	let mobileOpen = $state(false);
 
 	const filteredItems = $derived(
 		navItems.filter((item) => {
@@ -168,67 +107,6 @@
 		}
 		return groups;
 	});
-
-	const mobileNavItems = $derived(
-		filteredItems.filter((item) => item.mobileNav).slice(0, 5),
-	);
-
-	function isActive(href: string): boolean {
-		const currentPath = $page.url.pathname;
-		if (href === "/dashboard") return currentPath === "/dashboard";
-		return currentPath.startsWith(href);
-	}
-
-	// Swipe-to-open gesture
-	let touchStartX = 0;
-	let touchCurrentX = 0;
-	let isSwiping = false;
-
-	function handleTouchStart(e: TouchEvent) {
-		touchStartX = e.touches[0].clientX;
-		if (touchStartX < 30) {
-			isSwiping = true;
-		}
-	}
-
-	function handleTouchMove(e: TouchEvent) {
-		if (!isSwiping) return;
-		touchCurrentX = e.touches[0].clientX;
-	}
-
-	function handleTouchEnd() {
-		if (!isSwiping) return;
-		const swipeDistance = touchCurrentX - touchStartX;
-		if (swipeDistance > 80) {
-			mobileOpen = true;
-		}
-		isSwiping = false;
-	}
-</script>
-
-<svelte:window
-	ontouchstart={handleTouchStart}
-	ontouchmove={handleTouchMove}
-	ontouchend={handleTouchEnd}
-/>
-
-<!-- Mobile Hamburger Toggle -->
-<button
-	class="lg:hidden fixed top-3 left-3 z-50 w-10 h-10 flex items-center justify-center rounded-md bg-gov-blue text-white shadow-sm active:bg-gov-blue-dark transition-colors"
-	onclick={() => (mobileOpen = !mobileOpen)}
-	aria-label="Toggle menu"
->
-	{#if mobileOpen}
-		<X size={20} strokeWidth={1.5} />
-	{:else}
-		<Menu size={20} strokeWidth={1.5} />
-	{/if}
-</button>
-
-<!-- Backdrop -->
-{#if mobileOpen}
-	<div
-		class="lg:hidden fixed inset-0 bg-black/50 z-40 transition-opacity duration-300"
 		onclick={() => (mobileOpen = false)}
 		role="presentation"
 	></div>
@@ -236,23 +114,20 @@
 
 <!-- Sidebar -->
 <aside
-	class="fixed top-0 left-0 h-full w-64 z-50 flex flex-col bg-surface-white border-r border-border-subtle shadow-sm transition-transform duration-300 ease-smooth
-		{mobileOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0"
+	class="fixed top-0 left-0 h-full w-64 z-50 flex flex-col bg-surface-white border-r border-border-subtle shadow-sm transition-transform duration-300 ease-smooth		{mobileOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0"
 	role="navigation"
 	aria-label="Main Sidebar Navigation"
 >
 	<!-- Logo Section -->
 	<a
 		href="/dashboard"
-		class="block border-b border-border-subtle px-5 py-5 no-underline"
-		aria-label="Go to Dashboard"
+		class="block border-b border-border-subtle px-5 py-5 no-underline"		aria-label="Go to Dashboard"
 	>
 		<div class="flex items-center gap-3">
 			<img
 				src="/app_icon.png"
 				alt="CEDIMS"
-				class="h-10 w-10 rounded-lg"
-			/>
+				class="h-10 w-10 rounded-lg"			/>
 			<div>
 				<h1
 					id="dashboard-title"
@@ -263,8 +138,7 @@
 				<p
 					class="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.25em] text-gov-blue"
 				>
-					Monitoring Hub
-				</p>
+					Monitoring Hub				</p>
 			</div>
 		</div>
 	</a>
@@ -317,14 +191,12 @@
 					{/each}
 				</ul>
 			</div>
-		{/each}
-	</nav>
+		{/each}	</nav>
 
 	<!-- Footer Info -->
 	{#if $profile}
 		<div
-			class="border-t border-border-subtle px-4 py-4"
-			role="contentinfo"
+			class="border-t border-border-subtle px-4 py-4"			role="contentinfo"
 			aria-label="User Profile Summary"
 		>
 			<div class="flex items-center gap-3 mb-3">
@@ -347,8 +219,7 @@
 						{$profile.full_name}
 					</p>
 					<p
-						class="truncate text-[10px] font-semibold uppercase tracking-[0.2em] text-text-secondary"
-					>
+						class="truncate text-[10px] font-semibold uppercase tracking-[0.2em] text-text-secondary"					>
 						{$profile.role}
 					</p>
 				</div>
@@ -360,8 +231,7 @@
 
 <!-- Mobile Bottom Nav -->
 <nav
-	class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface-white border-t border-border-subtle"
-	aria-label="Mobile Navigation Bar"
+	class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface-white border-t border-border-subtle"	aria-label="Mobile Navigation Bar"
 >
 	<div class="flex items-center justify-around px-1 py-1.5">
 		{#each mobileNavItems as item}

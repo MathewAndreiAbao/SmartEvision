@@ -1,7 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 // DLL Review & Annotation System — TypeScript Types
-// CEDIMS — Type-safe workflow
-// ═══════════════════════════════════════════════════════════════
+// CEDIMS — Type-safe workflow// ═══════════════════════════════════════════════════════════════
 
 export type AnnotationType = 'highlight' | 'comment' | 'mark' | 'flag';
 export type ReviewStatus = 'submitted' | 'needs-check' | 'returned' | 'approved';
@@ -70,7 +69,6 @@ export interface SaveReviewCommentInput {
     submission_id: string;
     reviewer_comment: string;
 }
-
 export interface ApproveReviewInput {
     review_id: string;
 }

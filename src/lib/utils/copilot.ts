@@ -10,7 +10,6 @@
 
 import copilotConfig from '../models/copilot_model.json';
 import { predictSubject } from './fuzzyClassifier';
-
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type SuggestionType = 'missing' | 'recommendation' | 'deadline' | 'duplicate' | 'tip' | 'mismatch';
@@ -287,8 +286,7 @@ function generateTips(ctx: CopilotContext, startId: number): CopilotSuggestion[]
         const allCompliant = recentSubs.every(s =>
             !s.compliance_status ||
             s.compliance_status === 'compliant' ||
-            s.compliance_status === 'on-time'
-        );
+            s.compliance_status === 'on-time'        );
 
         if (allCompliant && recentSubs.length >= 3) {
             results.push({
@@ -329,8 +327,7 @@ export function predictLoad(ocrText: string, teachingLoads: any[]): string | nul
     // Match prediction (e.g., "Mathematics") to teaching loads
     const match = teachingLoads.find(l =>
         l.subject.toLowerCase().includes(prediction.value!.toLowerCase()) ||
-        prediction.value!.toLowerCase().includes(l.subject.toLowerCase())
-    );
+        prediction.value!.toLowerCase().includes(l.subject.toLowerCase())    );
 
     return match ? match.id : null;
 }
@@ -359,7 +356,6 @@ export function validateSelection(selectedLoadId: string, ocrText: string, teach
 
     const isMatch = selectedLoad.subject.toLowerCase().includes(prediction.value.toLowerCase()) ||
         prediction.value.toLowerCase().includes(selectedLoad.subject.toLowerCase());
-
     if (!isMatch) {
         return {
             id: `mismatch_${Date.now()}`,
@@ -369,8 +365,7 @@ export function validateSelection(selectedLoadId: string, ocrText: string, teach
             message: `This document looks like **${prediction.value}**, but you've selected **${selectedLoad.subject}**. Please verify.`,
             icon: '',
             action: {
-                subject: prediction.value
-            }
+                subject: prediction.value            }
         };
     }
 

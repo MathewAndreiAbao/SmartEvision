@@ -1,27 +1,13 @@
 <script lang="ts">
     import { profile } from "$lib/utils/auth";
     import { supabase } from "$lib/utils/supabase";
-    import { logAudit } from "$lib/utils/audit";
-    import { onMount } from "svelte";
-    import { fly, fade, slide } from "svelte/transition";
-    import {
-        Settings,
-        Users,
-        Shield,
-        UserCheck,
-        UserX,
-        ChevronDown,
-        Search,
-        RefreshCw,
-    } from "lucide-svelte";
-
-    // â”€â”€ Settings State â”€â”€
-    let settings = $state<any[]>([]);
+    import { logAudit } from "$lib/utils/audit";    let settings = $state<any[]>([]);
     let loading = $state(true);
     let saving = $state(false);
     let message = $state({ text: "", type: "success" });
+    let showPassword = $state(false);
 
-    // â”€â”€ User Management State (WBS 19.1) â”€â”€
+    // ── User Management State (WBS 19.1) ──
     let users = $state<any[]>([]);
     let loadingUsers = $state(true);
     let userSearch = $state("");
@@ -44,31 +30,15 @@
     let schools = $state<any[]>([]);
     let districts = $state<any[]>([]);
     let creating = $state(false);
-
-    const ROLES = [
-        "Teacher",
-        "School Head",
-        "Master Teacher",
-        "District Supervisor",
-    ];
-
-    onMount(() => {
-        if (
-            $profile?.role !== "District Supervisor" &&
-            $profile?.role !== "Admin"
-        ) {
-            // Unauthorized â€” could redirect
         }
 
         // Initial Load
         loadSettings();
-        loadSchoolsAndDistricts().then(() => loadUsers()).then(() => {
-            loading = false;
+        loadSchoolsAndDistricts().then(() => loadUsers()).then(() => {            loading = false;
             loadingUsers = false;
         });
 
-        // â”€â”€ Real-time Subscriptions (WBS 15.1/19.1) â”€â”€
-        const profileSubscription = supabase
+        // â”€â”€ Real-time Subscriptions (WBS 15.1/19.1) â”€â”€        const profileSubscription = supabase
             .channel("admin-profiles")
             .on(
                 "postgres_changes",
@@ -104,8 +74,7 @@
         };
     });
 
-    // â”€â”€ Settings Functions â”€â”€
-    async function loadSettings() {
+    // â”€â”€ Settings Functions â”€â”€    async function loadSettings() {
         const { data } = await supabase.from("system_settings").select("*");
         const dbSettings = data || [];
 
@@ -150,26 +119,18 @@
             showMessage("Failed to save setting", "error");
         } else {
             showMessage(`Setting "${key}" updated successfully`, "success");
-            logAudit($profile!.id, 'settings.updated', 'system_settings', key, { value });
-        }
-        saving = false;
-    }
-
-    // â”€â”€ User Management Functions (WBS 19.1) â”€â”€
-    async function loadUsers() {
+            logAudit($profile!.id, 'settings.updated', 'system_settings', key, { value });    async function loadUsers() {
         const { data, error } = await supabase
             .from("profiles")
             .select(
-                'id, full_name, email, role, is_active, created_at, school_id, district_id'
-            )
+                'id, full_name, email, role, is_active, created_at, school_id, district_id'            )
             .order("full_name", { ascending: true });
 
         if (!error && data) {
             users = data.map((u: any) => ({
                 ...u,
                 school_name: schools.find((s: any) => s.id === u.school_id)?.name || '—',
-                district_name: districts.find((d: any) => d.id === u.district_id)?.name || '—',
-                is_active: u.is_active !== false,
+                district_name: districts.find((d: any) => d.id === u.district_id)?.name || '—',                is_active: u.is_active !== false,
             }));
         }
     }
@@ -197,20 +158,7 @@
             logAudit($profile!.id, 'user.role_changed', 'user', roleChangeModal.user.id, {
                 previous_role: roleChangeModal.user.role,
                 new_role: roleChangeModal.newRole
-            });
-            // Update local state
-            const idx = users.findIndex(
-                (u) => u.id === roleChangeModal.user.id,
-            );
-            if (idx >= 0) users[idx].role = roleChangeModal.newRole;
-        }
-        roleChangeModal = { open: false, user: null, newRole: "" };
-        saving = false;
-    }
-
-    async function toggleUserActive(user: any) {
-        if (user.is_active && !confirm(`Deactivate user "${user.full_name}"? They will lose access to the system.`)) return;
-        saving = true;
+            });        saving = true;
         const newStatus = !user.is_active;
         const { error } = await supabase
             .from("profiles")
@@ -225,62 +173,7 @@
         } else {
             logAudit($profile!.id, newStatus ? 'user.activated' : 'user.deactivated', 'user', user.id, {
                 user_name: user.full_name
-            });
-            const idx = users.findIndex((u) => u.id === user.id);
-            if (idx >= 0) users[idx].is_active = newStatus;
-            showMessage(
-                `${user.full_name} ${newStatus ? "activated" : "deactivated"}`,
-                "success",
-            );
-        }
-        saving = false;
-    }
-
-    async function loadSchoolsAndDistricts() {
-        const [schoolRes, districtRes] = await Promise.all([
-            supabase.from('schools').select('id, name, district_id').order('name'),
-            supabase.from('districts').select('id, name').order('name')
-        ]);
-        if (!schoolRes.error) schools = schoolRes.data;
-        if (!districtRes.error) districts = districtRes.data;
-    }
-
-    async function handleCreateUser() {
-        if (!createForm.email || !createForm.password || !createForm.fullName) return;
-        creating = true;
-        try {
-            const session = await supabase.auth.getSession();
-            const token = session.data.session?.access_token;
-            if (!token) { alert('Not authenticated'); return; }
-
-            const res = await fetch('/api/admin/create-user', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({
-                    email: createForm.email,
-                    password: createForm.password,
-                    fullName: createForm.fullName,
-                    role: createForm.role,
-                    schoolId: createForm.schoolId || null,
-                    districtId: createForm.districtId || null
-                })
-            });
-            const result = await res.json();
-            if (!res.ok) throw new Error(result.message || 'Failed to create user');
-
-            showMessage(`User ${createForm.fullName} created successfully`, 'success');
-            showCreateUser = false;
-            createForm = { email: '', password: '', fullName: '', role: 'Teacher', schoolId: '', districtId: '' };
-            loadUsers();
-        } catch (err: any) {
-            showMessage(err.message, 'error');
-        } finally {
-            creating = false;
-        }
-    }
-
-    // â”€â”€ Derived â”€â”€
-    const filteredUsers = $derived(() => {
+            });    const filteredUsers = $derived(() => {
         const q = userSearch.toLowerCase().trim();
         if (!q) return users;
         return users.filter(
@@ -306,14 +199,12 @@
             case "Master Teacher":
                 return "bg-purple-100 text-purple-700";
             default:
-                return "bg-surface-muted text-text-muted";
-        }
+                return "bg-surface-muted text-text-muted";        }
     }
 </script>
 
 <svelte:head>
-    <title>Admin Config â€” CEDIMS</title>
-</svelte:head>
+    <title>Admin Config â€” CEDIMS</title></svelte:head>
 
 <div class="max-w-5xl mx-auto" role="main" aria-label="Admin Configuration">
     <div class="mb-8">
@@ -330,34 +221,29 @@
 
     <!-- Tab Navigation -->
     <div
-        class="flex gap-1 p-1 bg-surface-muted rounded-md mb-8 max-w-md"
-        role="tablist"
+        class="flex gap-1 p-1 bg-surface-muted rounded-md mb-8 max-w-md"        role="tablist"
         aria-label="Admin sections"
     >
         <button
             onclick={() => (activeTab = "settings")}
             class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold transition-all {activeTab ===
             'settings'
-                ? 'bg-surface-white text-gov-blue shadow-sm'
-                : 'text-text-muted hover:text-text-primary'}"
+                ? 'bg-surface-white text-gov-blue shadow-sm'                : 'text-text-muted hover:text-text-primary'}"
             role="tab"
             aria-selected={activeTab === "settings"}
             aria-controls="settings-panel"
         >
-            <Settings size={18} />
-        </button>
+            <Settings size={18} />        </button>
         <button
             onclick={() => (activeTab = "users")}
             class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold transition-all {activeTab ===
             'users'
-                ? 'bg-surface-white text-gov-blue shadow-sm'
-                : 'text-text-muted hover:text-text-primary'}"
+                ? 'bg-surface-white text-gov-blue shadow-sm'                : 'text-text-muted hover:text-text-primary'}"
             role="tab"
             aria-selected={activeTab === "users"}
             aria-controls="users-panel"
         >
-            <Users size={18} />
-        </button>
+            <Users size={18} />        </button>
     </div>
 
     <!-- Settings Tab -->
@@ -401,8 +287,7 @@
                                         class="w-14 h-8 rounded-full transition-all relative {s.value ===
                                         'true'
                                             ? 'bg-gov-blue'
-                                            : 'bg-surface-muted'}"
-                                        onclick={() => {
+                                            : 'bg-surface-muted'}"                                        onclick={() => {
                                             s.value =
                                                 s.value === "true"
                                                     ? "false"
@@ -415,8 +300,7 @@
                                         )}"
                                     >
                                         <div
-                                            class="absolute top-1 w-6 h-6 rounded-full bg-surface-white transition-all {s.value ===
-                                            'true'
+                                            class="absolute top-1 w-6 h-6 rounded-full bg-surface-white transition-all {s.value ===                                            'true'
                                                 ? 'left-7'
                                                 : 'left-1'}"
                                         ></div>
@@ -435,8 +319,7 @@
                                     <input
                                         type="text"
                                         bind:value={s.value}
-                                        class="bg-surface-white border border-border-subtle rounded-lg px-3 py-2 text-sm font-bold w-24 focus:ring-2 focus:ring-gov-blue/20 outline-none"
-                                        aria-label="{s.key.replace(
+                                        class="bg-surface-white border border-border-subtle rounded-lg px-3 py-2 text-sm font-bold w-24 focus:ring-2 focus:ring-gov-blue/20 outline-none"                                        aria-label="{s.key.replace(
                                             /_/g,
                                             ' ',
                                         )} value"
@@ -466,8 +349,7 @@
             aria-labelledby="users-tab"
             in:fade={{ duration: 200 }}
         >
-            <!-- Search & Refresh & Create -->
-            <div class="flex items-center gap-3 mb-6">
+            <!-- Search & Refresh & Create -->            <div class="flex items-center gap-3 mb-6">
                 <div class="relative flex-1 max-w-md">
                     <Search
                         size={16}
@@ -477,8 +359,7 @@
                         type="text"
                         bind:value={userSearch}
                         placeholder="Search by name, email, role, school..."
-                        class="w-full pl-10 pr-4 py-2.5 text-sm bg-surface-white/60 border border-border-subtle rounded-xl outline-none focus:ring-2 focus:ring-gov-blue/20 min-h-[44px]"
-                        aria-label="Search users"
+                        class="w-full pl-10 pr-4 py-2.5 text-sm bg-surface-white/60 border border-border-subtle rounded-xl outline-none focus:ring-2 focus:ring-gov-blue/20 min-h-[44px]"                        aria-label="Search users"
                     />
                 </div>
                 <button
@@ -497,8 +378,7 @@
                         loadingUsers = true;
                         loadUsers().then(() => (loadingUsers = false));
                     }}
-                    class="p-2.5 rounded-xl bg-surface-white/60 border border-border-subtle text-text-muted hover:text-gov-blue hover:border-gov-blue/30 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
-                    aria-label="Refresh user list"
+                    class="p-2.5 rounded-xl bg-surface-white/60 border border-border-subtle text-text-muted hover:text-gov-blue hover:border-gov-blue/30 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"                    aria-label="Refresh user list"
                 >
                     <RefreshCw
                         size={16}
@@ -544,8 +424,7 @@
                         >
                             <thead>
                                 <tr
-                                    class="bg-surface-muted border-b border-gray-100 text-left"
-                                >
+                                    class="bg-surface-muted border-b border-gray-100 text-left"                                >
                                     <th
                                         class="px-5 py-3 font-semibold text-text-muted text-xs uppercase tracking-wider"
                                         >Name</th
@@ -571,21 +450,18 @@
                             <tbody class="divide-y divide-border-subtle">
                                 {#each filteredUsers() as user (user.id)}
                                     <tr
-                                        class="hover:bg-surface-white/40 transition-colors {!user.is_active
-                                            ? 'opacity-50'
+                                        class="hover:bg-surface-white/40 transition-colors {!user.is_active                                            ? 'opacity-50'
                                             : ''}"
                                     >
                                         <td class="px-5 py-3.5">
                                             <p
                                                 class="font-bold text-text-primary text-sm"
                                             >
-                                                {user.full_name || "â€”"}
-                                            </p>
+                                                {user.full_name || "â€”"}                                            </p>
                                             <p
                                                 class="text-[11px] text-text-muted"
                                             >
-                                                {user.email || "â€”"}
-                                            </p>
+                                                {user.email || "â€”"}                                            </p>
                                         </td>
                                         <td class="px-4 py-3.5">
                                             <p
@@ -689,8 +565,7 @@
             role="alert"
         >
             <span
-                class="w-6 h-6 rounded-full bg-surface-white flex items-center justify-center text-[10px] shadow-sm"
-            >
+                class="w-6 h-6 rounded-full bg-surface-white flex items-center justify-center text-[10px] shadow-sm"            >
                 {message.type === "success" ? "OK" : "!!"}
             </span>
             {message.text}
@@ -708,8 +583,7 @@
         aria-label="Change user role"
     >
         <div
-            class="bg-surface-white rounded-3xl shadow-sm w-full max-w-md overflow-hidden"
-            in:fly={{ y: 30, duration: 300 }}
+            class="bg-surface-white rounded-3xl shadow-sm w-full max-w-md overflow-hidden"            in:fly={{ y: 30, duration: 300 }}
         >
             <div class="p-6 border-b border-gray-100">
                 <h3 class="text-lg font-bold text-text-primary">
@@ -732,8 +606,7 @@
                     <select
                         id="role-select"
                         bind:value={roleChangeModal.newRole}
-                        class="w-full px-4 py-3 text-sm bg-surface-muted border border-border-subtle rounded-xl font-bold focus:ring-2 focus:ring-gov-blue/20 outline-none min-h-[48px]"
-                    >
+                        class="w-full px-4 py-3 text-sm bg-surface-muted border border-border-subtle rounded-xl font-bold focus:ring-2 focus:ring-gov-blue/20 outline-none min-h-[48px]"                    >
                         {#each ROLES as role}
                             <option value={role}>{role}</option>
                         {/each}
@@ -831,15 +704,30 @@
                 </div>
                 <div>
                     <label for="create-password" class="block text-xs font-bold text-text-muted uppercase tracking-wide mb-1.5">Password</label>
-                    <input
-                        id="create-password"
-                        type="password"
-                        bind:value={createForm.password}
-                        placeholder="At least 6 characters"
-                        class="w-full px-4 py-2.5 text-sm bg-surface-muted border border-border-subtle rounded-xl outline-none focus:ring-2 focus:ring-gov-blue/20 min-h-[44px]"
-                        minlength="6"
-                        required
-                    />
+                    <div class="relative">
+                        <input
+                            id="create-password"
+                            type={showPassword ? "text" : "password"}
+                            bind:value={createForm.password}
+                            placeholder="At least 6 characters"
+                            class="w-full px-4 py-2.5 text-sm bg-surface-muted border border-border-subtle rounded-xl outline-none focus:ring-2 focus:ring-gov-blue/20 min-h-[44px] pr-10"
+                            minlength="6"
+                            required
+                        />
+                        <button
+                            type="button"
+                            onclick={() => showPassword = !showPassword}
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors p-1"
+                            tabindex="-1"
+                            aria-label={showPassword ? "Hide password" : "Show password"}
+                        >
+                            {#if showPassword}
+                                <EyeOff size={16} />
+                            {:else}
+                                <Eye size={16} />
+                            {/if}
+                        </button>
+                    </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
@@ -901,4 +789,3 @@
         </div>
     </div>
 {/if}
-

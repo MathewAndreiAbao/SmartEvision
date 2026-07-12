@@ -21,135 +21,7 @@
     getWeekNumber,
     getSubmissionWeek,
     getDefinedWeeksCount,
-    getDynamicSchoolYear,
-  } from "$lib/utils/useDashboardData";
-
-  // Data Interfaces
-  interface School {
-    id: string;
-    name: string;
-    district_id: string;
-    rate?: number;
-    total?: number;
-    Compliant?: number;
-    Late?: number;
-    NonCompliant?: number;
-    loadCount?: number;
-  }
-
-  interface Submission {
-    id: string;
-    user_id: string;
-    file_name: string;
-    doc_type: string;
-    compliance_status: string;
-    created_at: string;
-    week_number?: number;
-    school_id?: string;
-  }
-
-  interface KPI {
-    totalSchools: number;
-    overallRate: number;
-    lateCount: number;
-    atRiskCount: number;
-    previousRate: number;
-  }
-
-  // State
-  let schools = $state<School[]>([]);
-  let allSubmissions = $state<Submission[]>([]);
-  let loading = $state(true);
-  let districtLogoUrl = $state<string | null>(null);
-  let currentDefinedWeeks = $state(1);
-  let kpi = $state<KPI>({
-    totalSchools: 0,
-    overallRate: 0,
-    lateCount: 0,
-    atRiskCount: 0,
-    previousRate: 0,
-  });
-
-  // Chart State
-  let heatmapRows = $state<string[]>([]);
-  let heatmapWeeks = $state<{ week: number; label: string }[]>([]);
-  let heatmapCells = $state<any[]>([]);
-  let trendLabels = $state<string[]>([]);
-  let trendDatasets = $state<any[]>([]);
-
-  // Table State
-  let sortField = $state<string>("rate");
-  let sortDir = $state<"asc" | "desc">("desc");
-  let searchQuery = $state("");
-
-  // Modal State
-  let showModal = $state(false);
-  let selectedSchool = $state<School | null>(null);
-  let selectedSubmissions = $state<Submission[]>([]);
-
-  let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
-
-  onMount(async () => {
-    await loadDistrictData();
-    loading = false;
-
-    realtimeChannel = supabase
-      .channel("district-monitoring")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "submissions" },
-        () => loadDistrictData(),
-      )
-      .subscribe();
-  });
-
-  onDestroy(() => {
-    if (realtimeChannel) supabase.removeChannel(realtimeChannel);
-  });
-
-  async function loadDistrictData() {
-    const userProfile = $profile;
-    if (!userProfile?.district_id) return;
-
-    // Fetch District Logo
-    const { data: distData } = await supabase.from('districts').select('avatar_url').eq('id', userProfile.district_id).single();
-    if (distData) districtLogoUrl = distData.avatar_url;
-
-    // 1. Fetch District Schools
-    const { data: schoolsData } = await supabase
-      .from("schools")
-      .select("id, name, district_id")
-      .eq("district_id", userProfile.district_id)
-      .order("name");
-
-    if (!schoolsData) return;
-
-    const schoolIds = schoolsData.map((s) => s.id);
-
-    // 2. Fetch submissions for all schools in district
-    const { data: subsData } = await supabase
-      .from("submissions")
-      .select(
-        `
-                id, user_id, file_name, doc_type, compliance_status, created_at, week_number,
-                profiles!inner(school_id)
-            `,
-      )
-      .in("profiles.school_id", schoolIds)
-      .order("created_at", { ascending: false });
-
-    // 3. Fetch teaching loads for all schools in district
-    const { data: loadsData } = await supabase
-      .from("teaching_loads")
-      .select("id, profiles!inner(school_id)")
-      .in("profiles.school_id", schoolIds);
-
-    // 4. Fetch Academic Calendar
-    const { data: calendarData } = await supabase
-      .from("academic_calendar")
-      .select("*")
-      .eq("school_year", getDynamicSchoolYear())
-      .order("week_number", { ascending: true });
+    getDynamicSchoolYear,      .order("week_number", { ascending: true });
 
     const calendar = (calendarData || []).filter(
       (c) => c.district_id === userProfile.district_id || !c.district_id,
@@ -314,8 +186,7 @@
 </script>
 
 <svelte:head>
-  <title>District Monitoring â€” CEDIMS</title>
-</svelte:head>
+  <title>District Monitoring â€” CEDIMS</title></svelte:head>
 
 <div class="space-y-10">
   <!-- Header -->
@@ -332,8 +203,7 @@
     </div>
 
     {#if $profile?.role === 'District Supervisor' && $profile?.district_id}
-    <div class="flex items-center gap-4 bg-surface-white p-4 rounded-2xl border border-border-subtle shadow-sm" in:fade>
-        <ProfileUploader 
+    <div class="flex items-center gap-4 bg-surface-white p-4 rounded-2xl border border-border-subtle shadow-sm" in:fade>        <ProfileUploader 
             id={$profile.district_id}
             bucket="avatars"
             path="districts"
@@ -359,8 +229,7 @@
       {#each Array(4) as _}
         <div class="gov-card-static p-8 animate-pulse text-center">
           <div class="h-4 bg-surface-muted rounded w-24 mx-auto mb-4"></div>
-          <div class="h-10 bg-surface-muted rounded w-16 mx-auto"></div>
-        </div>
+          <div class="h-10 bg-surface-muted rounded w-16 mx-auto"></div>        </div>
       {/each}
     </div>
   {:else}
@@ -411,18 +280,7 @@
         <h3 class="text-lg font-bold text-text-primary mb-4">
           School Performance Heatmap
         </h3>
-        <div class="overflow-x-auto touch-pan-x">
-        <ComplianceHeatmap
-          rows={heatmapRows}
-          weeks={heatmapWeeks}
-          cells={heatmapCells}
-          onCellClick={(row) => {
-            const school = schools.find((s) => s.name === row);
-            if (school) openDrillDown(school);
-          }}
-        />
-        </div>
-      </div>
+        <div class="overflow-x-auto touch-pan-x">      </div>
 
       <div
         class="gov-card-static p-6"
@@ -447,8 +305,7 @@
       in:fade={{ duration: 500, delay: 600 }}
     >
       <div
-        class="px-6 py-5 border-b border-border-subtle flex items-center justify-between flex-wrap gap-4 bg-surface-muted"
-      >
+        class="px-6 py-5 border-b border-border-subtle flex items-center justify-between flex-wrap gap-4 bg-surface-muted"      >
         <div class="flex items-center gap-3">
           <div class="h-6 w-1 bg-gov-blue rounded-full"></div>
           <h3
@@ -478,8 +335,7 @@
             type="text"
             bind:value={searchQuery}
             placeholder="Search school records..."
-            class="w-full sm:w-72 pl-10 pr-4 py-2 text-[11px] font-bold bg-surface-white border border-border-subtle rounded-md outline-none focus:ring-2 focus:ring-gov-blue/20 transition-all placeholder:text-text-muted/60 uppercase tracking-tight"
-          />
+            class="w-full sm:w-72 pl-10 pr-4 py-2 text-[11px] font-bold bg-surface-white border border-border-subtle rounded-md outline-none focus:ring-2 focus:ring-gov-blue/20 transition-all placeholder:text-text-muted/60 uppercase tracking-tight"          />
         </div>
       </div>
 
@@ -488,8 +344,7 @@
           {#each sortedSchools() as school}
             <button
               type="button"
-              class="bg-surface-white border border-border-subtle rounded-xl p-6 shadow-sm hover:shadow-md hover:border-gov-blue/20 transition-all flex flex-col group cursor-pointer text-left w-full"
-              onclick={() => openDrillDown(school)}
+              class="bg-surface-white border border-border-subtle rounded-xl p-6 shadow-sm hover:shadow-md hover:border-gov-blue/20 transition-all flex flex-col group cursor-pointer text-left w-full"              onclick={() => openDrillDown(school)}
               in:fly={{ y: 20, duration: 400 }}
             >
               <div class="flex justify-between items-start mb-4">
@@ -598,8 +453,7 @@
         </div>
       </div>
 
-      <div class="divide-y divide-border-subtle">
-        {#each selectedSubmissions as sub}
+      <div class="divide-y divide-border-subtle">        {#each selectedSubmissions as sub}
           <div class="py-3 flex items-center justify-between">
             <div class="min-w-0 pr-4">
               <p class="text-sm font-medium text-text-primary truncate">
@@ -623,4 +477,3 @@
     </div>
   {/if}
 </DrillDownModal>
-

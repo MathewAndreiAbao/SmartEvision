@@ -2,42 +2,12 @@
     import { supabase } from "$lib/utils/supabase";
     import { profile } from "$lib/utils/auth";
     import { addToast } from "$lib/stores/toast";
-    import { onMount, onDestroy, tick } from "svelte";
-    import { fly, fade } from "svelte/transition";
-    import {
-        RefreshCw,
-        Download,
-        TrendingUp,
-        BarChart3,
-        Activity,
-        Target,
-        Zap,
-    } from "lucide-svelte";
-    import {
-        calculateCompliance,
-        getSubmissionWeek,
-        getWeekNumber,
-        getDefinedWeeksCount,
-    } from "$lib/utils/useDashboardData";
-
     let trendCanvas = $state<HTMLCanvasElement>();
     let barCanvas = $state<HTMLCanvasElement>();
     const OPERATIONAL_TARGET = 100; // 100% Target Standard
     let loading = $state(true);
     let period = $state<"quarter" | "semester" | "year">("quarter");
-    let exportData = $state<{ weekly: number[]; schools: any[] }>({ weekly: [], schools: [] });
-    let ChartClass: any = null;
-    let channel: any;
-    let trendChart: any = null;
-    let barChart: any = null;
-
-    let stats = $state({
-        currentCompliance: 0,
-        improvement: 0,
-        topSchools: 0,
-    });
-
-    // Reactive data fetch: Trigger as soon as profile AND ChartClass are available
+    let exportData = $state<{ weekly: number[]; schools: any[] }>({ weekly: [], schools: [] });    // Reactive data fetch: Trigger as soon as profile AND ChartClass are available
     $effect(() => {
         const user = $profile;
         if (user && ChartClass && loading) {
@@ -46,12 +16,6 @@
     });
 
     let userRefreshed = $state(false);
-
-    async function initAnalytics() {
-        const result = await fetchData();
-        if (result) {
-            const { weeklyData, schoolData } = result;
-            exportData = { weekly: weeklyData, schools: schoolData };
             loading = false;
             await tick();
             renderCharts(weeklyData, schoolData);
@@ -61,90 +25,7 @@
         if (userRefreshed) {
             addToast("success", "Analytics data refreshed");
             userRefreshed = false;
-        }
-    }
-
-    onMount(async () => {
-        const { Chart, registerables } = await import("chart.js");
-        Chart.register(...registerables);
-        ChartClass = Chart;
-        setupRealtime();
-    });
-
-    onDestroy(() => {
-        if (channel) supabase.removeChannel(channel);
-        if (trendChart) trendChart.destroy();
-        if (barChart) barChart.destroy();
-    });
-
-    function setupRealtime() {
-        channel = supabase
-            .channel("analytics-dashboard")
-            .on(
-                "postgres_changes",
-                { event: "*", schema: "public", table: "submissions" },
-                async () => {
-                    const result = await fetchData();
-                    if (result) {
-                        const { weeklyData, schoolData } = result;
-                        updateCharts(weeklyData, schoolData);
-                    }
-                },
-            )
-            .subscribe();
-    }
-
-    async function updateCharts(weeklyData: number[], schoolData: any[]) {
-        if (!trendChart || !barChart) {
-            await tick();
-            renderCharts(weeklyData, schoolData);
-            return;
-        }
-
-        // Svelte 5 Fix: Snapshot data to decouple from proxies
-        const cleanWeekly = $state.snapshot(weeklyData);
-        const cleanSchool = $state.snapshot(schoolData);
-
-        trendChart.data.datasets[0].data = cleanWeekly;
-        trendChart.update();
-
-        barChart.data.labels = cleanSchool.map((s) => s.name);
-        barChart.data.datasets[0].data = cleanSchool.map((s) => s.compliant);
-        barChart.data.datasets[1].data = cleanSchool.map((s) => s.late);
-        barChart.data.datasets[2].data = cleanSchool.map((s) => s.nonCompliant);
-        barChart.update();
-    }
-
-    async function fetchData() {
-        const userProfile = $profile;
-        if (!userProfile) return { weeklyData: [], schoolData: [] };
-
-        const isSchoolLevel =
-            userProfile.role === "School Head" ||
-            userProfile.role === "Master Teacher";
-        const schoolId = userProfile.school_id;
-
-        // 1. Fetch Trend Data (Last 8 Weeks)
-        const weeklyData = await getWeeklyCompliance(
-            isSchoolLevel ? schoolId : null,
-        );
-
-        // 2. Fetch Comparison Data
-        const schoolData = await getSchoolComparison(
-            isSchoolLevel ? schoolId : null,
-        );
-
-        // 3. Update Summary Stats
-        stats.currentCompliance = weeklyData[weeklyData.length - 1] || 0;
-        stats.improvement =
-            weeklyData.length > 0
-                ? stats.currentCompliance - (weeklyData[0] || 0)
-                : 0;
-        stats.topSchools = schoolData.filter(
-            (s: any) => s.rate >= OPERATIONAL_TARGET,
-        ).length;
-
-        return { weeklyData, schoolData };
+        }        return { weeklyData, schoolData };
     }
 
     async function getWeeklyCompliance(
@@ -411,8 +292,7 @@
 </script>
 
 <svelte:head>
-    <title>Analytics — CEDIMS</title>
-</svelte:head>
+    <title>Analytics — CEDIMS</title></svelte:head>
 
 <div in:fade={{ duration: 400 }}>
     <!-- Header -->
@@ -421,15 +301,13 @@
             <h1 class="text-2xl sm:text-3xl font-semibold text-text-primary tracking-tight">
                 Institutional Analytics
             </h1>
-            <p class="text-sm sm:text-base text-text-secondary mt-1 font-medium">
-                Longitudinal performance tracking and predictive compliance
+            <p class="text-sm sm:text-base text-text-secondary mt-1 font-medium">                Longitudinal performance tracking and predictive compliance
                 modeling
             </p>
         </div>
         <div class="flex items-center gap-3">
             <button
-                onclick={() => { userRefreshed = true; initAnalytics(); }}
-                disabled={loading}
+                onclick={() => { userRefreshed = true; initAnalytics(); }}                disabled={loading}
                 class="p-2.5 rounded-xl bg-surface-muted text-text-secondary hover:text-gov-blue transition-colors border border-border-subtle shadow-sm disabled:opacity-50"
             >
                 <RefreshCw
@@ -439,139 +317,5 @@
                 />
             </button>
             <button
-                onclick={exportAnalyticsCSV}
-                class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gov-blue text-white text-sm font-bold shadow-lg shadow-gov-blue/20 hover:bg-gov-blue-dark transition-all"
-            >
-                <Download size={18} strokeWidth={1.5} />
-                Export Data
-            </button>
-        </div>
-    </div>
-
-    {#if loading}
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div class="gov-card-static h-96 animate-pulse"></div>
-            <div class="gov-card-static h-96 animate-pulse"></div>
-        </div>
-    {:else}
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- Trend Line -->
-            <div class="gov-card-static p-8" in:fly={{ y: 20, duration: 600 }}>
-                <div class="flex items-center justify-between mb-8">
-                    <div class="flex items-center gap-3">
-                        <div
-                            class="p-2 rounded-lg bg-gov-blue/10 text-gov-blue"
-                        >
-                            <TrendingUp size={20} strokeWidth={1.5} />
-                        </div>
-                        <h3
-                            class="text-sm font-semibold text-text-primary uppercase tracking-wide"
-                        >
-                            {$profile?.role === "School Head" ||
-                            $profile?.role === "Master Teacher"
-                                ? "School Trend"
-                                : "Global Trend"}
-                        </h3>
-                    </div>
-                    <div
-                        class="px-3 py-1 bg-gov-green/10 text-gov-green rounded-full text-[10px] font-semibold uppercase tracking-wide"
-                    >
-                        8-Week Window
-                    </div>
-                </div>
-                <div class="h-72">
-                    <canvas bind:this={trendCanvas}></canvas>
-                </div>
-            </div>
-
-            <!-- Bar Comparison -->
-            <div
-                class="gov-card-static p-8"
-                in:fly={{ y: 20, duration: 600, delay: 200 }}
-            >
-                <div class="flex items-center justify-between mb-8">
-                    <div class="flex items-center gap-3">
-                        <div
-                            class="p-2 rounded-lg bg-gov-blue/10 text-gov-blue"
-                        >
-                            <BarChart3 size={20} strokeWidth={1.5} />
-                        </div>
-                        <h3
-                            class="text-sm font-semibold text-text-primary uppercase tracking-wide"
-                        >
-                            {$profile?.role === "School Head" ||
-                            $profile?.role === "Master Teacher"
-                                ? "Teacher Comparison"
-                                : "School Comparison"}
-                        </h3>
-                    </div>
-                </div>
-                <div class="h-72">
-                    <canvas bind:this={barCanvas}></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Summary Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-10">
-            <div
-                class="gov-card-static p-8 text-center group"
-                in:fly={{ y: 20, duration: 600, delay: 400 }}
-            >
-                <div
-                    class="w-16 h-16 rounded-md bg-gov-blue/5 text-gov-blue flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-500"
-                >
-                    <Activity size={32} strokeWidth={1.5} />
-                </div>
-                <p class="text-4xl font-semibold text-gov-blue tracking-normal">
-                    +{stats.improvement}%
-                </p>
-                <p
-                    class="text-xs font-bold text-text-muted mt-2 uppercase tracking-wide"
-                >
-                    Growth Since Week 1
-                </p>
-            </div>
-            <div
-                class="gov-card-static p-8 text-center group"
-                in:fly={{ y: 20, duration: 600, delay: 500 }}
-            >
-                <div
-                    class="w-16 h-16 rounded-md bg-gov-green/5 text-gov-green flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-500"
-                >
-                    <Target size={32} strokeWidth={1.5} />
-                </div>
-                <p
-                    class="text-4xl font-semibold text-gov-green tracking-normal"
-                >
-                    {OPERATIONAL_TARGET}%
-                </p>
-                <p
-                    class="text-xs font-bold text-text-muted mt-2 uppercase tracking-wide"
-                >
-                    Operational Target
-                </p>
-            </div>
-            <div
-                class="gov-card-static p-8 text-center group"
-                in:fly={{ y: 20, duration: 600, delay: 600 }}
-            >
-                <div
-                    class="w-16 h-16 rounded-md bg-gov-gold/5 text-gov-gold flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-500"
-                >
-                    <Zap size={32} strokeWidth={1.5} />
-                </div>
-                <p
-                    class="text-4xl font-semibold text-gov-gold-dark tracking-normal"
-                >
-                    {stats.topSchools}
-                </p>
-                <p
-                    class="text-xs font-bold text-text-muted mt-2 uppercase tracking-wide"
-                >
-                    Schools at Target
-                </p>
-            </div>
-        </div>
-    {/if}
+                onclick={exportAnalyticsCSV}    {/if}
 </div>

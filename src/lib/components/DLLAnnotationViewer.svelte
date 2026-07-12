@@ -224,8 +224,7 @@
             case 'highlight': return 'bg-yellow-50 border-yellow-300 text-yellow-700';
             case 'comment': return 'bg-blue-50 border-blue-300 text-blue-700';
             case 'flag': return 'bg-red-50 border-red-300 text-red-700';
-            default: return 'bg-surface-muted border-border-subtle text-text-secondary';
-        }
+            default: return 'bg-surface-muted border-border-subtle text-text-secondary';        }
     }
 
     function getIndicatorBg(type: string): string {
@@ -233,8 +232,7 @@
             case 'highlight': return 'bg-yellow-400 hover:bg-yellow-500 shadow-yellow-500/20';
             case 'comment': return 'bg-blue-500 hover:bg-blue-600 shadow-blue-500/20';
             case 'flag': return 'bg-red-500 hover:bg-red-600 shadow-red-500/20';
-            default: return 'bg-surface-muted hover:bg-surface-muted';
-        }
+            default: return 'bg-surface-muted hover:bg-surface-muted';        }
     }
 
     function showTooltip(annotation: DLLAnnotation, e: MouseEvent) {
@@ -270,14 +268,12 @@
 
         <!-- Toolbar controls -->
         {#if isPdf && pdfDoc && isReviewer}
-            <div class="flex flex-wrap items-center gap-2 bg-surface-muted p-1.5 rounded-xl border border-border-subtle">
-                <button
+            <div class="flex flex-wrap items-center gap-2 bg-surface-muted p-1.5 rounded-xl border border-border-subtle">                <button
                     onclick={() => {
                         selectedTool = selectedTool === 'highlight' ? null : 'highlight';
                         highlightColor = '#EAB308';
                     }}
-                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all {selectedTool === 'highlight' ? 'bg-yellow-500 text-white shadow-md' : 'text-text-muted hover:bg-surface-white'}"
-                >
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all {selectedTool === 'highlight' ? 'bg-yellow-500 text-white shadow-md' : 'text-text-muted hover:bg-surface-white'}"                >
                     <Highlighter size={14} />
                     Highlight
                 </button>
@@ -287,8 +283,7 @@
                         selectedTool = selectedTool === 'comment' ? null : 'comment';
                         highlightColor = '#3B82F6';
                     }}
-                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all {selectedTool === 'comment' ? 'bg-blue-500 text-white shadow-md' : 'text-text-muted hover:bg-surface-white'}"
-                >
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all {selectedTool === 'comment' ? 'bg-blue-500 text-white shadow-md' : 'text-text-muted hover:bg-surface-white'}"                >
                     <MessageSquare size={14} />
                     Comment
                 </button>
@@ -298,8 +293,7 @@
                         selectedTool = selectedTool === 'flag' ? null : 'flag';
                         highlightColor = '#EF4444';
                     }}
-                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all {selectedTool === 'flag' ? 'bg-red-500 text-white shadow-md' : 'text-text-muted hover:bg-surface-white'}"
-                >
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all {selectedTool === 'flag' ? 'bg-red-500 text-white shadow-md' : 'text-text-muted hover:bg-surface-white'}"                >
                     <AlertCircle size={14} />
                     Flag Issue
                 </button>
@@ -316,8 +310,7 @@
         <!-- Fallback standard comments view -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="md:col-span-2 space-y-4">
-                <div class="bg-surface-muted border border-border-subtle rounded-xl p-8 text-center">
-                    <FileText size={48} class="mx-auto text-text-muted/40 mb-3" />
+                <div class="bg-surface-muted border border-border-subtle rounded-xl p-8 text-center">                    <FileText size={48} class="mx-auto text-text-muted/40 mb-3" />
                     <p class="text-sm font-bold text-text-primary">Standard Annotation Mode</p>
                     <p class="text-xs text-text-muted mt-1 max-w-sm mx-auto">
                         This document does not support inline layout annotation. You can still add and view sidebar notes.
@@ -327,8 +320,7 @@
                         <div class="mt-6 max-w-md mx-auto text-left bg-surface-white border border-border-subtle rounded-xl p-4">
                             <label for="review-note" class="block text-xs font-bold text-text-muted uppercase mb-2">Add Review Note</label>
                             <textarea
-                                id="review-note"
-                                bind:value={commentText}
+                                id="review-note"                                bind:value={commentText}
                                 placeholder="Type your observation..."
                                 class="w-full p-3 border border-border-subtle rounded-lg text-sm font-medium resize-none focus:ring-2 focus:ring-gov-blue outline-none"
                                 rows="3"
@@ -336,8 +328,7 @@
                             <div class="flex justify-between items-center mt-3">
                                 <select 
                                     bind:value={selectedTool} 
-                                    class="text-xs font-semibold bg-surface-muted border border-border-subtle p-1.5 rounded-lg text-text-primary"
-                                >
+                                    class="text-xs font-semibold bg-surface-muted border border-border-subtle p-1.5 rounded-lg text-text-primary"                                >
                                     <option value="comment">Comment</option>
                                     <option value="highlight">Observation</option>
                                     <option value="flag">Critical Issue</option>
@@ -373,8 +364,7 @@
                     <p class="text-xs text-text-muted italic">No observations added yet.</p>
                 {:else}
                     {#each annotations as annotation}
-                        <div class="p-4 border rounded-xl bg-surface-white border-border-subtle flex flex-col gap-2">
-                            <div class="flex items-center justify-between">
+                        <div class="p-4 border rounded-xl bg-surface-white border-border-subtle flex flex-col gap-2">                            <div class="flex items-center justify-between">
                                 <span class="px-2 py-0.5 text-[10px] font-bold rounded uppercase {getAnnotationColor(annotation.annotation_type)}">
                                     {annotation.annotation_type}
                                 </span>
@@ -403,13 +393,11 @@
             <!-- Document View Column -->
             <div class="lg:col-span-3 flex flex-col">
                 <!-- PDF Controls Bar -->
-                <div class="flex items-center justify-between p-3 bg-surface-muted text-white rounded-t-xl">
-                    <div class="flex items-center gap-2">
+                <div class="flex items-center justify-between p-3 bg-surface-muted text-white rounded-t-xl">                    <div class="flex items-center gap-2">
                         <button
                             onclick={handlePrevPage}
                             disabled={currentPage === 1}
-                            class="p-1.5 rounded-lg hover:bg-surface-muted disabled:opacity-30 transition-colors"
-                        >
+                            class="p-1.5 rounded-lg hover:bg-surface-muted disabled:opacity-30 transition-colors"                        >
                             <ChevronLeft size={16} />
                         </button>
                         <span class="text-xs font-semibold select-none">
@@ -418,8 +406,7 @@
                         <button
                             onclick={handleNextPage}
                             disabled={currentPage === numPages}
-                            class="p-1.5 rounded-lg hover:bg-surface-muted disabled:opacity-30 transition-colors"
-                        >
+                            class="p-1.5 rounded-lg hover:bg-surface-muted disabled:opacity-30 transition-colors"                        >
                             <ChevronRight size={16} />
                         </button>
                     </div>
@@ -429,8 +416,7 @@
                         <button 
                             onclick={handleZoomOut} 
                             disabled={zoom <= 0.5}
-                            class="p-1 hover:bg-surface-muted rounded disabled:opacity-30 transition-colors"
-                        >
+                            class="p-1 hover:bg-surface-muted rounded disabled:opacity-30 transition-colors"                        >
                             <ZoomOut size={14} />
                         </button>
                         <span class="text-[11px] font-bold min-w-[40px] text-center">
@@ -439,8 +425,7 @@
                         <button 
                             onclick={handleZoomIn} 
                             disabled={zoom >= 2.5}
-                            class="p-1 hover:bg-surface-muted rounded disabled:opacity-30 transition-colors"
-                        >
+                            class="p-1 hover:bg-surface-muted rounded disabled:opacity-30 transition-colors"                        >
                             <ZoomIn size={14} />
                         </button>
                     </div>
@@ -452,8 +437,7 @@
                     class="relative flex justify-center bg-surface-muted border-x border-b border-border-subtle overflow-auto p-4 select-none min-h-[500px] max-h-[800px] rounded-b-xl"
                 >
                     <div 
-                        class="relative shadow-xl border border-border-subtle/60 bg-surface-white"
-                        style="width: {pageWidth}px; height: {pageHeight}px;"
+                        class="relative shadow-xl border border-border-subtle/60 bg-surface-white"                        style="width: {pageWidth}px; height: {pageHeight}px;"
                     >
                         <canvas bind:this={canvasEl}></canvas>
 
@@ -514,13 +498,11 @@
                         <!-- Hover Info Dialog Tooltip -->
                         {#if hoveredAnnotation}
                             <div 
-                                class="absolute z-30 pointer-events-none bg-surface-muted text-white text-xs rounded-lg p-3 shadow-xl max-w-xs flex flex-col gap-1 -translate-x-1/2"
-                                style="left: {tooltipX}px; top: {tooltipY - 60}px;"
+                                class="absolute z-30 pointer-events-none bg-surface-muted text-white text-xs rounded-lg p-3 shadow-xl max-w-xs flex flex-col gap-1 -translate-x-1/2"                                style="left: {tooltipX}px; top: {tooltipY - 60}px;"
                                 transition:fade={{ duration: 100 }}
                             >
                                 <div class="flex items-center gap-1.5">
-                                    <span class="font-bold uppercase text-[9px] px-1 bg-surface-white/20 rounded">
-                                        {hoveredAnnotation.annotation_type}
+                                    <span class="font-bold uppercase text-[9px] px-1 bg-surface-white/20 rounded">                                        {hoveredAnnotation.annotation_type}
                                     </span>
                                     <span class="opacity-50 text-[9px]">
                                         Page {hoveredAnnotation.page_number}
@@ -533,8 +515,7 @@
                         <!-- Floating Input Popup for adding comments at active click -->
                         {#if activeClick && activeClick.page === currentPage}
                             <div 
-                                class="absolute z-20 bg-surface-white border border-border-subtle shadow-2xl rounded-xl p-4 w-72 flex flex-col gap-3 -translate-x-1/2"
-                                style="left: {activeClick.x}%; top: {activeClick.y + 5}%;"
+                                class="absolute z-20 bg-surface-white border border-border-subtle shadow-2xl rounded-xl p-4 w-72 flex flex-col gap-3 -translate-x-1/2"                                style="left: {activeClick.x}%; top: {activeClick.y + 5}%;"
                                 transition:fly={{ y: 10, duration: 200 }}
                             >
                                 <div class="flex items-center justify-between">
@@ -551,7 +532,6 @@
                                     class="w-full p-2.5 border border-border-subtle rounded-lg text-xs font-medium resize-none focus:ring-2 focus:ring-gov-blue outline-none"
                                     rows="3"
                                 ></textarea>
-
                                 <div class="flex justify-end gap-1.5">
                                     <button
                                         onclick={() => {
@@ -577,8 +557,7 @@
             </div>
 
             <!-- Annotation Sidebar linking directly to document location -->
-            <div class="lg:col-span-1 flex flex-col bg-surface-white border border-border-subtle rounded-xl p-4">
-                <h4 class="text-sm font-bold text-text-primary uppercase tracking-wider mb-4 flex items-center justify-between">
+            <div class="lg:col-span-1 flex flex-col bg-surface-white border border-border-subtle rounded-xl p-4">                <h4 class="text-sm font-bold text-text-primary uppercase tracking-wider mb-4 flex items-center justify-between">
                     Observations
                     <span class="px-2 py-0.5 bg-surface-muted text-text-muted rounded-full text-xs font-bold">
                         {annotations.length}
@@ -595,8 +574,7 @@
                     {:else}
                         {#each annotations as annotation}
                             <!-- svelte-ignore a11y_no_static_element_interactions -->
-                            <div
-                                onclick={() => {
+                            <div                                onclick={() => {
                                     if (annotation.page_number) {
                                         jumpToPage(annotation.page_number);
                                     }
@@ -611,8 +589,7 @@
                                 }}
                                 role="button"
                                 tabindex="0"
-                                class="w-full text-left p-3.5 border rounded-xl bg-surface-white hover:border-gov-blue/50 hover:shadow-sm transition-all duration-200 flex flex-col gap-2 relative group cursor-pointer"
-                            >
+                                class="w-full text-left p-3.5 border rounded-xl bg-surface-white hover:border-gov-blue/50 hover:shadow-sm transition-all duration-200 flex flex-col gap-2 relative group cursor-pointer"                            >
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center gap-1.5">
                                         <span class="px-2 py-0.5 text-[9px] font-extrabold rounded uppercase tracking-wider {getAnnotationColor(annotation.annotation_type)}">
@@ -646,8 +623,7 @@
                                 <span class="text-[9px] text-text-muted/70 uppercase font-bold self-end mt-1">
                                     {new Date(annotation.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}
                                 </span>
-                            </div>
-                        {/each}
+                            </div>                        {/each}
                     {/if}
                 </div>
             </div>

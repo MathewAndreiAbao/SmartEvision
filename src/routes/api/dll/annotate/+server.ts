@@ -1,7 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 // DLL Review API — POST /api/dll/annotate
-// CEDIMS 2.0 — Add annotation to submission
-// ═══════════════════════════════════════════════════════════════
+// CEDIMS 2.0 — Add annotation to submission// ═══════════════════════════════════════════════════════════════
 
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { createAnnotation } from '$lib/utils/dllReviewWorkflow';

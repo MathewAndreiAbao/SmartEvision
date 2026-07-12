@@ -120,8 +120,7 @@ export async function generateCompliancePDF(stats: any, title: string = "Complia
             color: rgb(0, 0.22, 0.66), // DepEd Blue
         });
 
-        page.drawText('CEDIMS', { x: 50, y: height - 55, size: 24, font: boldFont, color: rgb(1, 1, 1) });
-        page.drawText(title, { x: 50, y: height - 80, size: 14, font: regularFont, color: rgb(1, 1, 1) });
+        page.drawText('CEDIMS', { x: 50, y: height - 55, size: 24, font: boldFont, color: rgb(1, 1, 1) });        page.drawText(title, { x: 50, y: height - 80, size: 14, font: regularFont, color: rgb(1, 1, 1) });
 
         // Metadata
         let y = height - 140;
@@ -145,8 +144,7 @@ export async function generateCompliancePDF(stats: any, title: string = "Complia
         drawStatLine('Total Teachers:', stats.totalTeachers || 'N/A');
 
         // Footer
-        page.drawText('Verified and Authenticated by CEDIMS Digital Archiving System', {
-            x: 50,
+        page.drawText('Verified and Authenticated by CEDIMS Digital Archiving System', {            x: 50,
             y: 50,
             size: 8,
             font: regularFont,
