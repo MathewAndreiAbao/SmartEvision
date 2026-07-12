@@ -1,0 +1,26 @@
+{
+  "training_date": "2026-07-09T21:41:52.002322",
+  "n_samples": 639,
+  "intents": [
+    "ask_compliance",
+    "calendar_info",
+    "check_deadline",
+    "find_dll",
+    "general_help",
+    "how_to_upload",
+    "school_compare",
+    "teacher_stats"
+  ],
+  "vocabulary_size": 5000,
+  "train_accuracy": 100.0,
+  "test_accuracy": 91.88,
+  "cv_mean": 95.62,
+  "cv_std": 2.01,
+  "cv_folds": [
+    95.31,
+    97.66,
+    97.66,
+    92.19,
+    95.28
+  ]
+}
