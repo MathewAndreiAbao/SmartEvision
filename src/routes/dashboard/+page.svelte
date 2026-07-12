@@ -7,7 +7,8 @@
     import AlertBanner from "$lib/components/AlertBanner.svelte";
     import { onMount, onDestroy } from "svelte";
     import { fly, fade } from "svelte/transition";
-    import { goto } from "$app/navigation";    import TeacherChecklist from "$lib/components/TeacherChecklist.svelte";
+    import { goto } from "$app/navigation";
+    import TeacherChecklist from "$lib/components/TeacherChecklist.svelte";
     import {
         calculateCompliance,
         groupSubmissionsByWeek,
@@ -19,7 +20,8 @@
     import {
         QrCode,
         CloudUpload,
-        Archive,        ShieldCheck,
+        Archive,
+        ShieldCheck,
         Zap,
         Activity,
         Clock,
@@ -30,6 +32,7 @@
         ShieldX,
     } from "lucide-svelte";
     import { showQRScanner } from "$lib/stores/ui";
+
     let submissions = $state<any[]>([]);
     let weeklyData = $state<any[]>([]);
     let complianceStats = $state({
@@ -47,7 +50,6 @@
     let stats = $state({
         totalUploads: 0,
         compliantRate: 0,
-        pendingQueue: 0,
         totalTeachers: 0,
         compliantCount: 0,
         lateCount: 0,
@@ -56,6 +58,7 @@
     let alerts = $state<any[]>([]);
     let loading = $state(true);
     let channel: any;
+
     let sortField = $state<string>("created_at");
     let sortDir = $state<"asc" | "desc">("desc");
     let filterStatus = $state("all");
@@ -66,7 +69,8 @@
             setupRealtime();
         } catch (err) {
             console.error("[dashboard] Failed to load dashboard:", err);
-        }        loading = false;
+        }
+        loading = false;
     });
 
     onDestroy(() => {
@@ -80,7 +84,8 @@
                 "postgres_changes",
                 { event: "*", schema: "public", table: "submissions" },
                 () => {
-                    loadDashboard().catch((err) => console.error("[dashboard] Realtime refresh failed:", err));                },
+                    loadDashboard().catch((err) => console.error("[dashboard] Realtime refresh failed:", err));
+                },
             )
             .subscribe();
     }
@@ -108,7 +113,8 @@
             .not("file_hash", "like", "nc_%");
 
         // Batch: fetch all submissions + teaching loads count + academic calendar in parallel
-        const results = await Promise.allSettled([            supabase
+        const results = await Promise.allSettled([
+            supabase
                 .from("submissions")
                 .select(
                     "id, file_name, doc_type, compliance_status, created_at, week_number, teaching_loads(subject, grade_level)",
@@ -131,6 +137,7 @@
         const subsResult = results[0].status === 'fulfilled' ? results[0].value : { data: [], count: 0 };
         const loadsResult = results[1].status === 'fulfilled' ? results[1].value : { data: [], count: 0 };
         const calendarResult = results[2].status === 'fulfilled' ? results[2].value : { data: [] };
+
         submissions = subsResult.data || [];
         activeTeachingLoads = loadsResult.data || [];
         teachingLoadsCount = loadsResult.count || 0;
@@ -191,11 +198,13 @@
             }
         }
         await fixQuery;
+
         // Fetch academic calendar for the school year
         const { data: calendar } = await supabase
             .from("academic_calendar")
             .select("*")
-            .eq("school_year", getDynamicSchoolYear())            .order("week_number", { ascending: true });
+            .eq("school_year", getDynamicSchoolYear())
+            .order("week_number", { ascending: true });
 
         const calendarArr = calendar || [];
 
@@ -238,12 +247,14 @@
             }
         }
 
-        const results = await Promise.allSettled([            teacherQuery,
+        const results = await Promise.allSettled([
+            teacherQuery,
             subQuery.order("created_at", { ascending: false }),
         ]);
 
         const teachers = results[0].status === 'fulfilled' ? results[0].value.data || [] : [];
         const allSubs = results[1].status === 'fulfilled' ? results[1].value.data || [] : [];
+
         const { data: loadsData } = await supabase
             .from("teaching_loads")
             .select("id, profiles!inner(school_id, district_id)")
@@ -261,7 +272,8 @@
         stats.totalUploads = subsCount;
         stats.compliantCount = allSubs.filter(
             (s) =>
-                !s.compliance_status ||                s.compliance_status === "compliant" ||
+                !s.compliance_status ||
+                s.compliance_status === "compliant" ||
                 s.compliance_status === "on-time",
         ).length;
         stats.lateCount = allSubs.filter(
@@ -277,7 +289,8 @@
         const overallStats = calculateCompliance(allSubs, totalExpected);
         stats.compliantRate = overallStats.rate;
 
-        recentActivity = allSubs.slice(0, 5);    }
+        recentActivity = allSubs.slice(0, 5);
+    }
 
 
 
@@ -286,7 +299,8 @@
         let result = [...submissions];
         if (filterStatus !== "all") {
             result = result.filter((s) => {
-                let cs = s.compliance_status || "compliant";                // Normalize for filtering
+                let cs = s.compliance_status || "compliant";
+                // Normalize for filtering
                 if (
                     cs.toLowerCase() === "on-time" ||
                     cs.toLowerCase() === "compliant"
@@ -328,14 +342,16 @@
     function getStatusBadgeType(
         s: any,
     ): "compliant" | "late" | "non-compliant" {
-        const cs = (s.compliance_status || "compliant").toLowerCase();        if (cs === "compliant" || cs === "on-time") return "compliant";
+        const cs = (s.compliance_status || "compliant").toLowerCase();
+        if (cs === "compliant" || cs === "on-time") return "compliant";
         if (cs === "late") return "late";
         return "non-compliant";
     }
 </script>
 
 <svelte:head>
-    <title>Dashboard — CEDIMS</title></svelte:head>
+    <title>Dashboard — CEDIMS</title>
+</svelte:head>
 
 <div>
     <!-- Header -->
@@ -357,7 +373,8 @@
             {#each Array(4) as _}
                 <div class="gov-card-static p-5 animate-pulse">
                     <div class="h-4 bg-surface-muted rounded w-24 mb-4"></div>
-                    <div class="h-10 bg-surface-muted rounded w-16"></div>                </div>
+                    <div class="h-10 bg-surface-muted rounded w-16"></div>
+                </div>
             {/each}
         </div>
     {:else if $profile?.role === "Teacher"}
@@ -402,7 +419,8 @@
                     value="{complianceStats.rate}%"
                     label="Compliance Snapshot"
                     color="from-gov-blue to-gov-blue-dark"
-                />            </div>
+                />
+            </div>
         </div>
 
         <!-- Quick Actions -->
@@ -515,7 +533,8 @@
             </h3>
             <p class="text-sm text-text-secondary">
                 Keep your submissions up to date and review your archive regularly so monitoring remains simple and current.
-            </p>        </div>
+            </p>
+        </div>
 
         <!-- Teacher Checklist: Interactive checkpoint hub for all active teaching loads -->
         <div class="mb-6" in:fade={{ duration: 500, delay: 600 }}>
@@ -528,12 +547,14 @@
     {:else}
         <!-- ========== SUPERVISOR DASHBOARD ========== -->
 
-        <!-- Priority alerts -->        {#if alerts.length > 0}
+        <!-- Priority alerts -->
+        {#if alerts.length > 0}
             <AlertBanner {alerts} />
         {/if}
 
         <!-- Stats Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">            <div in:fly={{ y: 20, duration: 400, delay: 0 }}>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
+            <div in:fly={{ y: 20, duration: 400, delay: 0 }}>
                 <StatCard
                     icon="Users"
                     value={stats.totalTeachers}
@@ -575,13 +596,15 @@
         </div>
 
 
+
         <!-- Recent Activity as Cards -->
         <div in:fade={{ duration: 600, delay: 600 }}>
             <h2
                 class="text-sm font-bold text-text-muted uppercase tracking-widest mb-6 flex items-center gap-2"
             >
                 <div class="h-1 w-4 bg-gov-gold"></div>
-                Recent School Activity            </h2>
+                Recent School Activity
+            </h2>
 
             {#if recentActivity.length === 0}
                 <div class="gov-card-static p-12 text-center rounded-2xl">
@@ -597,7 +620,8 @@
                 >
                     {#each recentActivity as item, i}
                         <div
-                            class="bg-surface-white border border-border-subtle rounded-xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col group relative"                            in:fly={{
+                            class="bg-surface-white border border-border-subtle rounded-xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col group relative"
+                            in:fly={{
                                 x: -20,
                                 duration: 400,
                                 delay: 700 + i * 50,
@@ -606,7 +630,8 @@
                             <div class="absolute top-4 right-4">
                                 <StatusBadge
                                     status={!item.compliance_status ||
-                                    item.compliance_status === "on-time" ||                                    item.compliance_status === "compliant"
+                                    item.compliance_status === "on-time" ||
+                                    item.compliance_status === "compliant"
                                         ? "compliant"
                                         : item.compliance_status === "late"
                                           ? "late"
@@ -624,7 +649,8 @@
                             </div>
 
                             <div
-                                class="mt-auto pt-3 border-t border-border-subtle flex items-center justify-between"                            >
+                                class="mt-auto pt-3 border-t border-border-subtle flex items-center justify-between"
+                            >
                                 <div
                                     class="flex items-center gap-2 text-text-muted"
                                 >

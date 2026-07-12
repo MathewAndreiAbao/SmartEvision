@@ -110,7 +110,8 @@ export function countSubmissionsByStatus(
   let nonCompliant = 0;
 
   for (const s of submissions) {
-    const cs = (s.compliance_status || 'compliant').toLowerCase().trim();    if (cs === 'compliant' || cs === 'on-time') {
+    const cs = (s.compliance_status || 'compliant').toLowerCase().trim();
+    if (cs === 'compliant' || cs === 'on-time') {
       compliant++;
     } else if (cs === 'late') {
       late++;
@@ -154,6 +155,7 @@ export function calculateCompliance(
 import { getCurrentSchoolYear as getDynamicSchoolYear } from './schoolYear';
 
 export { getDynamicSchoolYear };
+
 /**
  * Fallback week number calculation.
  * Calculates week number based on August 1st of the current academic year.
@@ -200,7 +202,8 @@ export function getTrendIcon(dir: 'up' | 'down' | 'stable'): string {
  * Uses academic_calendar deadlines when available, falls back to computed weeks.
  */
 export function normalizeComplianceStatus(status: string | null | undefined): string {
-  if (!status) return 'compliant';  const s = status.toLowerCase().trim();
+  if (!status) return 'compliant';
+  const s = status.toLowerCase().trim();
   if (s === 'compliant' || s === 'on-time') return 'compliant';
   if (s === 'late') return 'late';
   if (s === 'non-compliant' || s === 'missing' || s === 'non-compliant') return 'non-compliant';

@@ -54,12 +54,19 @@
     async function handleToggleVoice() {
         const { toggleVoiceGuidance } = await import("$lib/utils/voiceGuide");
         voiceEnabled = toggleVoiceGuidance();
-        addToast("success", `Voice guidance ${voiceEnabled ? "enabled" : "disabled"}`);        goto("/");
+        addToast("success", `Voice guidance ${voiceEnabled ? "enabled" : "disabled"}`);
+    }
+
+    async function handleSignOut() {
+        await signOut();
+        addToast("info", "You have been signed out");
+        goto("/");
     }
 </script>
 
 <svelte:head>
-    <title>Profile Settings â€” CEDIMS</title></svelte:head>
+    <title>Profile Settings â€” CEDIMS</title>
+</svelte:head>
 
 <div class="max-w-3xl mx-auto space-y-8 pb-12">
     <!-- Header -->
@@ -91,7 +98,8 @@
                     <p class="text-xs font-bold text-gov-blue uppercase tracking-widest mt-1">{$profile?.role || 'User'}</p>
                 </div>
 
-                <div class="mt-8 w-full space-y-3 pt-6 border-t border-border-subtle text-left">                    <div class="flex items-center gap-3 text-text-secondary">
+                <div class="mt-8 w-full space-y-3 pt-6 border-t border-border-subtle text-left">
+                    <div class="flex items-center gap-3 text-text-secondary">
                         <ShieldCheck size={14} class="text-gov-blue" />
                         <span class="text-[10px] font-bold uppercase tracking-wider">Access Secured</span>
                     </div>
@@ -116,18 +124,21 @@
                             type="text"
                             bind:value={fullName}
                             placeholder="Enter your full name"
-                            class="w-full px-4 py-3 text-sm bg-surface-muted border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none transition-all font-bold"                        />
+                            class="w-full px-4 py-3 text-sm bg-surface-muted border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none transition-all font-bold"
+                        />
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <span class="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">Official Email</span>
-                            <div class="px-4 py-3 text-sm bg-surface-muted border-border-subtle rounded-xl text-text-muted italic flex items-center min-h-[48px]">                                {$user?.email || 'Not verified'}
+                            <div class="px-4 py-3 text-sm bg-surface-muted border-border-subtle rounded-xl text-text-muted italic flex items-center min-h-[48px]">
+                                {$user?.email || 'Not verified'}
                             </div>
                         </div>
                         <div>
                             <span class="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">Connection Status</span>
-                            <div class="px-4 py-3 text-sm bg-surface-muted border-border-subtle rounded-xl text-text-muted flex items-center min-h-[48px]">                                 <LogOut size={14} class="mr-2 rotate-180 opacity-40" />
+                            <div class="px-4 py-3 text-sm bg-surface-muted border-border-subtle rounded-xl text-text-muted flex items-center min-h-[48px]">
+                                 <LogOut size={14} class="mr-2 rotate-180 opacity-40" />
                                  {queueCount > 0 ? `${queueCount} Pending Sync` : 'Synchronized'}
                             </div>
                         </div>
@@ -156,7 +167,8 @@
                     <!-- Voice Guidance -->
                     <div class="flex items-center justify-between p-4 bg-surface-muted rounded-2xl border-border-subtle">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-surface-white flex items-center justify-center text-gov-blue shadow-sm">                                <Languages size={18} />
+                            <div class="w-10 h-10 rounded-full bg-surface-white flex items-center justify-center text-gov-blue shadow-sm">
+                                <Languages size={18} />
                             </div>
                             <div>
                                 <span class="block text-sm font-bold text-text-primary">Voice Assistance</span>
@@ -168,13 +180,15 @@
                             class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-gov-blue focus:ring-offset-2 {voiceEnabled ? 'bg-gov-blue' : 'bg-surface-muted'}"
                         >
                             <span class="sr-only">Toggle voice guidance</span>
-                            <span class="inline-block h-4 w-4 transform rounded-full bg-surface-white transition-transform {voiceEnabled ? 'translate-x-6' : 'translate-x-1'}"></span>                        </button>
+                            <span class="inline-block h-4 w-4 transform rounded-full bg-surface-white transition-transform {voiceEnabled ? 'translate-x-6' : 'translate-x-1'}"></span>
+                        </button>
                     </div>
 
                     <!-- Push Notifications -->
                     <div class="flex items-center justify-between p-4 bg-surface-muted rounded-2xl border-border-subtle">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-surface-white flex items-center justify-center text-gov-green shadow-sm">                                <Bell size={18} />
+                            <div class="w-10 h-10 rounded-full bg-surface-white flex items-center justify-center text-gov-green shadow-sm">
+                                <Bell size={18} />
                             </div>
                             <div>
                                 <span class="block text-sm font-bold text-text-primary">Live Alerts</span>
@@ -201,7 +215,8 @@
                             class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-gov-blue focus:ring-offset-2 {pushEnabled ? 'bg-gov-green' : 'bg-surface-muted'}"
                         >
                             <span class="sr-only">Toggle push notifications</span>
-                            <span class="inline-block h-4 w-4 transform rounded-full bg-surface-white transition-transform {pushEnabled ? 'translate-x-6' : 'translate-x-1'}"></span>                        </button>
+                            <span class="inline-block h-4 w-4 transform rounded-full bg-surface-white transition-transform {pushEnabled ? 'translate-x-6' : 'translate-x-1'}"></span>
+                        </button>
                     </div>
                 </div>
             </div>

@@ -39,7 +39,8 @@
     $: subjects = teachingLoads.map(load => load.subject);
     $: uniqueSubjects = [...new Set(subjects)];
     
-    // Calculate expectations based on weeks Ã— teaching loads    $: expectations = calendarWeeks.flatMap(week => 
+    // Calculate expectations based on weeks Ã— teaching loads
+    $: expectations = calendarWeeks.flatMap(week => 
         uniqueSubjects.map(subject => {
             const submission = submissionMap.get(`${week.week_number}_${subject}`);
             
@@ -122,7 +123,8 @@
 </script>
 <div class="gov-card-static overflow-hidden">
     <!-- Header -->
-    <div class="px-6 py-5 border-b border-border-subtle bg-surface-white flex items-center justify-between flex-wrap gap-4">        <div class="flex items-center gap-3">
+    <div class="px-6 py-5 border-b border-border-subtle bg-surface-white flex items-center justify-between flex-wrap gap-4">
+        <div class="flex items-center gap-3">
             <div class="w-1.5 h-6 bg-gov-blue rounded-full"></div>
             <h3 class="text-sm font-bold text-text-primary uppercase tracking-wide">
                 Requirements Checklist
@@ -143,7 +145,8 @@
 
     <!-- Summary Statistics -->
     {#if statistics.total > 0}
-        <div class="px-6 py-5 bg-surface-muted border-b border-border-subtle">            <div class="grid grid-cols-5 gap-4">
+        <div class="px-6 py-5 bg-surface-muted border-b border-border-subtle">
+            <div class="grid grid-cols-5 gap-4">
                 <div>
                     <p class="text-[10px] font-bold text-text-muted uppercase tracking-tight">Total Expected</p>
                     <p class="text-2xl font-bold text-text-primary mt-1">{statistics.total}</p>
@@ -177,7 +180,8 @@
         {:else}
             <table class="w-full text-left border-collapse text-sm">
                 <thead>
-                    <tr class="bg-surface-muted border-b border-border-subtle">                        <th class="py-2 px-3 text-[10px] font-bold text-text-muted uppercase tracking-widest sticky left-0 bg-surface-muted backdrop-blur-sm z-20 min-w-[120px] border-r border-border-subtle">
+                    <tr class="bg-surface-muted border-b border-border-subtle">
+                        <th class="py-2 px-3 text-[10px] font-bold text-text-muted uppercase tracking-widest sticky left-0 bg-surface-muted backdrop-blur-sm z-20 min-w-[120px] border-r border-border-subtle">
                             Timeline
                         </th>
                         {#each uniqueSubjects as subject}
@@ -192,7 +196,8 @@
                 <tbody class="divide-y divide-border-subtle">
                     {#each calendarWeeks as week}
                         <tr class="hover:bg-gov-blue/5 transition-colors group">
-                            <td class="py-2 px-3 sticky left-0 bg-surface-white border-r border-border-subtle z-10 group-hover:bg-gov-blue/5 transition-colors">                                <div class="flex flex-col">
+                            <td class="py-2 px-3 sticky left-0 bg-surface-white border-r border-border-subtle z-10 group-hover:bg-gov-blue/5 transition-colors">
+                                <div class="flex flex-col">
                                     <span class="font-bold text-xs text-text-primary">Week {week.week_number}</span>
                                     {#if week.start_date && week.end_date}
                                         <span class="text-[9px] text-text-muted font-medium mt-0.5 whitespace-nowrap">
@@ -221,7 +226,8 @@
     </div>
 
     <!-- Legend & Notes -->
-    <div class="px-6 py-4 bg-surface-muted border-t border-border-subtle text-[10px] text-text-muted space-y-2">        <p><strong>Compliant:</strong> Submitted on time</p>
+    <div class="px-6 py-4 bg-surface-muted border-t border-border-subtle text-[10px] text-text-muted space-y-2">
+        <p><strong>Compliant:</strong> Submitted on time</p>
         <p><strong>Late:</strong> Submitted after the deadline</p>
         <p><strong>Missing:</strong> No submission recorded for this week and subject</p>
     </div>

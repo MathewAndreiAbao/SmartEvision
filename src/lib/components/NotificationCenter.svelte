@@ -29,7 +29,8 @@
 
 <div class="relative notification-container">
     <button
-        class="relative w-10 h-10 flex items-center justify-center rounded-md bg-surface-white border border-border-subtle hover:bg-surface-muted transition-all duration-200"        onclick={() => (isOpen = !isOpen)}
+        class="relative w-10 h-10 flex items-center justify-center rounded-md bg-surface-white border border-border-subtle hover:bg-surface-muted transition-all duration-200"
+        onclick={() => (isOpen = !isOpen)}
         aria-label="Open Notifications"
     >
         <Bell
@@ -47,13 +48,15 @@
 
     {#if isOpen}
         <div
-            class="fixed inset-x-4 top-20 sm:absolute sm:inset-auto sm:top-12 sm:right-0 sm:w-80 bg-surface-white border border-border-subtle rounded-xl shadow-2xl z-50 overflow-hidden max-h-[calc(100vh-8rem)] flex flex-col"            in:fly={{ y: 10, duration: 200 }}
+            class="fixed inset-x-4 top-20 sm:absolute sm:inset-auto sm:top-12 sm:right-0 sm:w-80 bg-surface-white border border-border-subtle rounded-xl shadow-2xl z-50 overflow-hidden max-h-[calc(100vh-8rem)] flex flex-col"
+            in:fly={{ y: 10, duration: 200 }}
             out:fade={{ duration: 150 }}
             role="dialog"
             aria-modal="true"
         >
             <div
-                class="px-5 py-4 border-b border-border-subtle flex items-center justify-between bg-surface-muted flex-shrink-0"            >
+                class="px-5 py-4 border-b border-border-subtle flex items-center justify-between bg-surface-muted flex-shrink-0"
+            >
                 <div class="flex flex-col">
                     <h3
                         class="text-xs font-bold text-text-primary uppercase tracking-wider"
@@ -86,13 +89,15 @@
                 {:else}
                     {#each $notifications as n}
                         <div
-                            class="p-4 border-b border-border-subtle last:border-0 hover:bg-surface-muted transition-colors flex gap-3 {n.read                                ? 'opacity-70'
+                            class="p-4 border-b border-border-subtle last:border-0 hover:bg-surface-muted transition-colors flex gap-3 {n.read
+                                ? 'opacity-70'
                                 : ''}"
                         >
                             <div class="flex-shrink-0 mt-1">
                                 <div
                                     class="w-2 h-2 rounded-full {n.read
-                                        ? 'bg-surface-muted'                                        : n.type === 'error'
+                                        ? 'bg-surface-muted'
+                                        : n.type === 'error'
                                           ? 'bg-gov-red'
                                           : n.type === 'warning'
                                             ? 'bg-gov-gold'
@@ -162,7 +167,8 @@
 
             {#if $notifications.length > 0}
                 <div
-                    class="p-3 border-t border-border-subtle bg-surface-muted text-center flex-shrink-0"                >
+                    class="p-3 border-t border-border-subtle bg-surface-muted text-center flex-shrink-0"
+                >
                     <p
                         class="text-[9px] font-bold text-text-muted uppercase tracking-widest"
                     >

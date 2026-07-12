@@ -34,7 +34,8 @@
 			role="alert"
 		>
 			<div
-				class="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-md bg-surface-white/15"			>
+				class="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-md bg-surface-white/15"
+			>
 				<svelte:component this={icons[toast.type]} size={18} />
 			</div>
 			<div class="flex-1 min-w-0">
@@ -46,7 +47,8 @@
 				</p>
 			</div>
 			<button
-				class="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-md hover:bg-surface-white/15 transition-colors"				onclick={() => toasts.remove(toast.id)}
+				class="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-md hover:bg-surface-white/15 transition-colors"
+				onclick={() => toasts.remove(toast.id)}
 				aria-label="Dismiss"
 			>
 				<X size={14} />

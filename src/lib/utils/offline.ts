@@ -8,7 +8,128 @@ import { get, set, del, keys } from 'idb-keyval';
 import { writable } from 'svelte/store';
 import { supabase } from './supabase';
 import { withTimeout } from './pipeline';
-import { getCurrentSchoolYear } from './schoolYear';            .order('created_at', { ascending: false })
+import { getCurrentSchoolYear } from './schoolYear';
+import { env } from '$env/dynamic/public';
+
+export const pendingSyncCount = writable<number>(0);
+
+const CACHE_PREFIX_DOCS = 'cached_docs_';
+const CACHE_PREFIX_HISTORY = 'cached_history_';
+const CACHE_PREFIX_METADATA = 'cached_metadata_';
+
+/**
+ * Cache a verified document hash locally for offline verification.
+ * Part of Phase 4.7 Smart Caching.
+ */
+export async function cacheVerifiedDoc(hash: string, metadata: any) {
+    await set(`${CACHE_PREFIX_DOCS}${hash}`, metadata);
+}
+
+/**
+ * Lookup a document hash in the local offline cache.
+ */
+export async function lookupOfflineDoc(hash: string) {
+    return await get(`${CACHE_PREFIX_DOCS}${hash}`);
+}
+
+/**
+ * Cache current dashboard data for offline viewing.
+ */
+export async function cacheDashboardData(userId: string, data: any) {
+    await set(`${CACHE_PREFIX_HISTORY}${userId}`, {
+        data,
+        timestamp: Date.now()
+    });
+}
+
+/**
+ * Retrieve cached dashboard data.
+ */
+export async function getCachedDashboardData(userId: string) {
+    return await get(`${CACHE_PREFIX_HISTORY}${userId}`);
+}
+
+/**
+ * Generic metadata caching for offline fallbacks.
+ */
+export async function cacheMetadata(key: string, data: any) {
+    await set(`${CACHE_PREFIX_METADATA}${key}`, {
+        data,
+        timestamp: Date.now()
+    });
+}
+
+/**
+ * Retrieve generic cached metadata.
+ */
+export async function getCachedMetadata(key: string) {
+    return await get(`${CACHE_PREFIX_METADATA}${key}`);
+}
+
+/**
+ * WBS 20.4 — Pre-fetch essential metadata for offline upload manual selection.
+ * Fetches teaching loads and academic calendar, caching them in IndexedDB.
+ */
+export async function prefetchOfflineMetadata(userId: string, districtId?: string): Promise<void> {
+    if (!navigator.onLine) return;
+
+    try {
+        console.log('[offline] Pre-fetching metadata for offline upload...');
+
+        // 1. Fetch ALL Teaching Loads for the user
+        const { data: loads, error: loadsErr } = await supabase
+            .from('teaching_loads')
+            .select(`
+                id, subject, grade_level, is_active,
+                profiles:user_id ( full_name )
+            `)
+            .eq('user_id', userId)
+            .eq('is_active', true);
+
+        if (!loadsErr && loads) {
+            await cacheMetadata(`teaching_loads_${userId}`, loads);
+            console.log(`[offline] Cached ${loads.length} teaching loads`);
+        }
+
+        // 2. Fetch ALL Academic Calendar weeks for the district (for week resolution)
+        let calendarData: any[] = [];
+        if (districtId) {
+            const { data: calendar, error: calErr } = await supabase
+                .from('academic_calendar')
+                .select('id, week_number, deadline_date, description')
+                .eq('district_id', districtId)
+                .order('week_number', { ascending: true });
+
+            if (!calErr && calendar && calendar.length > 0) {
+                calendarData = calendar;
+                await cacheMetadata(`calendar_${districtId}`, calendar);
+                console.log(`[offline] Cached ${calendar.length} calendar weeks for district ${districtId}`);
+            }
+        }
+
+        // Fallback: If no district calendar found, fetch global/common
+        if (calendarData.length === 0) {
+            const { data: globalCal, error: globalCalErr } = await supabase
+                .from('academic_calendar')
+                .select('id, week_number, deadline_date, description')
+                .order('week_number', { ascending: true });
+
+            if (!globalCalErr && globalCal) {
+                calendarData = globalCal;
+                await cacheMetadata('calendar_all', globalCal);
+                // Also cache as district-specific if possible to avoid redundant fetches
+                if (districtId) await cacheMetadata(`calendar_${districtId}`, globalCal);
+                console.log(`[offline] Cached ${globalCal.length} global calendar weeks (fallback)`);
+            }
+        }
+
+        // 3. Fetch Submission History (for Copilot context)
+        const { data: subs, error: subsErr } = await supabase
+            .from('submissions')
+            .select('teaching_load_id, week_number, doc_type, compliance_status, created_at')
+            .eq('user_id', userId)
+            .eq('school_year', getCurrentSchoolYear())
+            .order('created_at', { ascending: false })
             .limit(100);
 
         if (!subsErr && subs) {
@@ -17,7 +138,8 @@ import { getCurrentSchoolYear } from './schoolYear';            .order('created_
         }
 
         // 4. Cache current year settings
-        const currentYear = getCurrentSchoolYear();        await cacheMetadata('current_school_year', currentYear);
+        const currentYear = getCurrentSchoolYear();
+        await cacheMetadata('current_school_year', currentYear);
 
         console.log('[offline] Offline metadata pre-fetch complete.');
     } catch (err) {
@@ -86,7 +208,8 @@ export async function preloadVerificationHashes(userId?: string): Promise<number
             .select(`
                 file_hash, file_name, doc_type, compliance_status, created_at, 
                 file_size, week_number, subject, school_year,
-                profiles:user_id ( full_name ),                teaching_loads ( subject, grade_level )
+                profiles:user_id ( full_name ),
+                teaching_loads ( subject, grade_level )
             `)
             .not('file_hash', 'like', 'missing_%')
             .order('created_at', { ascending: false });
@@ -140,7 +263,175 @@ export interface QueueItem {
     fileHash: string;
     fileSize: number;
     pdfBytes: Uint8Array | Blob;
-    rawText?: string;                        .eq('doc_type', item.options.docType || 'DLL')
+    rawText?: string;
+    options: {
+        userId: string;
+        docType?: string;
+        weekNumber?: number;
+        schoolYear?: string;
+        subject?: string;
+        calendarId?: string;
+        teachingLoadId?: string;
+    };
+    timestamp: number;
+}
+
+export async function enqueue(item: QueueItem): Promise<void> {
+    // Prevent duplicate hashes in queue (Optimization: check keys instead of reading data)
+    const allKeys = await keys();
+    const shortHash = item.fileHash.slice(0, 8);
+    for (const k of allKeys) {
+        if (typeof k === 'string' && k.startsWith(QUEUE_PREFIX) && k.endsWith(shortHash)) {
+            console.info(`[offline] Duplicate hash detected in queue keys. Skipping: ${item.fileName}`);
+            return;
+        }
+    }
+
+    // Resilience: Workers often return SharedArrayBuffer which CANNOT be stored in IndexedDB.
+    // We MUST copy it to a plain Uint8Array (backed by a real ArrayBuffer) first.
+    let pdfBlobPart: any = item.pdfBytes;
+    if (!(item.pdfBytes instanceof Blob)) {
+        const fresh = new Uint8Array(item.pdfBytes.length);
+        fresh.set(item.pdfBytes);
+        pdfBlobPart = fresh;
+    }
+
+    const storeItem = {
+        ...item,
+        pdfBytes: new Blob([pdfBlobPart], { type: 'application/pdf' }),
+        options: JSON.parse(JSON.stringify(item.options))
+    };
+
+    const key = `${QUEUE_PREFIX}${item.timestamp}_${shortHash}`;
+    await set(key, storeItem);
+    await updatePendingCount();
+
+    // NOTE: No auto-sync here. The sync engine handles sync separately
+    // via initOfflineSync listeners (online event, visibility change, etc.)
+    // This prevents unnecessary sync attempts while offline.
+    console.log(`[offline] Enqueued: ${item.fileName} (sync deferred)`);
+}
+
+export async function getQueueSize(): Promise<number> {
+    const allKeys = await keys();
+    return allKeys.filter((k: any) => String(k).startsWith(QUEUE_PREFIX)).length;
+}
+
+export async function updatePendingCount(): Promise<void> {
+    const size = await getQueueSize();
+    pendingSyncCount.set(size);
+
+    // Sync to Global App Icon Badge
+    const { updateAppBadge } = await import('./badge');
+    await updateAppBadge();
+}
+
+export async function getQueueItems(): Promise<QueueItem[]> {
+    const allKeys = await keys();
+    const queueKeys = allKeys.filter((k: any) => String(k).startsWith(QUEUE_PREFIX));
+    const items: QueueItem[] = [];
+
+    for (const key of queueKeys) {
+        const item = await get<QueueItem>(key);
+        if (item) items.push(item);
+    }
+
+    return items.sort((a, b) => a.timestamp - b.timestamp);
+}
+
+import { addToast } from '$lib/stores/toast';
+
+// ... (previous imports)
+
+let isSyncing = false;
+
+// ... (getQueueSize, getQueueItems remain same)
+
+// Robust connectivity check
+// Robust connectivity check with timeout
+async function checkConnection(): Promise<boolean> {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
+
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+        // Try to reach the app itself (HEAD request is lightweight)
+        const res = await fetch(window.location.origin, {
+            method: 'HEAD',
+            cache: 'no-store',
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+        return res.ok || res.status === 405; // 405 is fine (method not allowed), just means server responded
+    } catch (e) {
+        console.warn('[offline] Connection check failed:', e);
+        return false;
+    }
+}
+
+export async function processQueue(force = false): Promise<{ success: number; failed: number }> {
+    // If not forcing, check connection status first
+    const isOnline = force ? true : await checkConnection();
+
+    if (!isOnline) {
+        return { success: 0, failed: 0 };
+    }
+
+    if (isSyncing && !force) {
+        console.log('[offline] processQueue skipped: Already syncing');
+        return { success: 0, failed: 0 };
+    }
+
+    const allKeys = await keys();
+    const queueKeys = allKeys.filter((k: any) => String(k).startsWith(QUEUE_PREFIX));
+
+    if (queueKeys.length === 0) {
+        return { success: 0, failed: 0 };
+    }
+
+    console.log(`[offline] Found ${queueKeys.length} items to sync...`);
+    isSyncing = true;
+    let success = 0;
+    let failed = 0;
+
+    // Notify start
+    addToast('info', `Syncing ${queueKeys.length} offline file(s)...`);
+
+    // Lazy-import ledger for marking synced entries
+    const { markSynced, removeLedgerEntry } = await import('./offlineSubmissionLedger');
+
+    try {
+        for (const key of queueKeys) {
+            // Re-check connection before each item
+            if (!force && !(await checkConnection())) {
+                console.log('[offline] Connection lost during sync. Pausing...');
+                break;
+            }
+
+            const item = await get<QueueItem>(key);
+
+            // Handle corrupted/missing data
+            if (!item) {
+                console.warn(`[offline] Found ghost key ${key}, removing...`);
+                await del(key);
+                continue;
+            }
+
+            try {
+                // ── Re-validate against server before upload ──
+                // (Items may have been uploaded by another device/session since queuing)
+
+                // 1. Strict Metadata Check (One per load/week/type)
+                if (item.options.teachingLoadId && item.options.weekNumber) {
+                    const metaCheckPromise = supabase
+                        .from('submissions')
+                        .select('id')
+                        .eq('teaching_load_id', item.options.teachingLoadId)
+                        .eq('week_number', item.options.weekNumber)
+                        .eq('school_year', item.options.schoolYear || getCurrentSchoolYear())
+                        .eq('doc_type', item.options.docType || 'DLL')
                         .maybeSingle();
 
                     const { data: metaMatch } = await withTimeout(
@@ -223,7 +514,8 @@ export interface QueueItem {
                 let deadlineDate: Date | undefined;
                 let calendarId = item.options.calendarId || null;
                 if (calendarId) {
-                    const { data } = await supabase.from('academic_calendar').select('deadline_date').eq('id', calendarId).single();                    if (data?.deadline_date) deadlineDate = new Date(data.deadline_date);
+                    const { data } = await supabase.from('academic_calendar').select('deadline_date').eq('id', calendarId).single();
+                    if (data?.deadline_date) deadlineDate = new Date(data.deadline_date);
                 } else if (item.options.weekNumber) {
                     const { data: profileData } = await supabase.from('profiles').select('district_id').eq('id', item.options.userId).single();
                     if (profileData?.district_id) {
@@ -236,7 +528,8 @@ export interface QueueItem {
                         if (calData) {
                             calendarId = calData.id;
                             if (calData.deadline_date) deadlineDate = new Date(calData.deadline_date);
-                        }                    }
+                        }
+                    }
                 }
 
                 // ── Insert database record ──
@@ -255,7 +548,8 @@ export interface QueueItem {
                     calendar_id: calendarId,
                     teaching_load_id: item.options.teachingLoadId || null,
                     compliance_status: complianceStatus,
-                    raw_text: item.rawText || null                });
+                    raw_text: item.rawText || null
+                });
 
                 const { error: dbError } = await withTimeout(
                     insertPromise as any,
@@ -347,7 +641,8 @@ export function calculateComplianceStatus(
     // Fallback if no supervisor deadline is set:
     // Without a deadline in the calendar, we cannot determine lateness.
     // Default to 'compliant' — uploaded means compliant.
-    return 'compliant';}
+    return 'compliant';
+}
 
 // Auto-resume when online + Periodic Check
 export function initOfflineSync(): void {

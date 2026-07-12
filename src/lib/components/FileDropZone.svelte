@@ -65,7 +65,8 @@
 		{disabled ? 'opacity-50 cursor-not-allowed border-border-subtle bg-surface-muted' : ''}
 		{dragOver
         ? 'border-gov-blue bg-gov-blue/5 scale-[1.02] shadow-lg'
-        : 'border-border-subtle hover:border-gov-blue/50 hover:bg-glass-blue'}"    ondrop={handleDrop}
+        : 'border-border-subtle hover:border-gov-blue/50 hover:bg-glass-blue'}"
+    ondrop={handleDrop}
     ondragover={handleDragOver}
     ondragleave={handleDragLeave}
     onclick={() => !disabled && inputEl.click()}
@@ -116,7 +117,8 @@
         {:else}
             <div class="animate-fade-in">
                 <div
-                    class="w-16 h-16 mx-auto mb-4 rounded-md bg-surface-muted flex items-center justify-center text-xs font-bold text-text-muted uppercase"                >
+                    class="w-16 h-16 mx-auto mb-4 rounded-md bg-surface-muted flex items-center justify-center text-xs font-bold text-text-muted uppercase"
+                >
                     File
                 </div>
                 <p class="text-lg font-bold text-text-primary">
@@ -142,3 +144,4 @@
         {/if}
     </div>
 </div>
+

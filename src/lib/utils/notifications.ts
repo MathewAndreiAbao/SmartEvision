@@ -47,6 +47,7 @@ export async function subscribeToPush() {
 
         // 4. Test Notification (Local)
         await sendLocalNotification('CEDIMS', 'Push notifications enabled! You will now receive compliance alerts.');
+
         return true;
     } catch (err) {
         console.error('Push registration failed:', err);
@@ -88,7 +89,8 @@ export async function unsubscribeFromPush() {
 export async function sendTestNotification() {
     return sendLocalNotification(
         'Test Alert',
-        'This is a real-time test of the CEDIMS notification system.'    );
+        'This is a real-time test of the CEDIMS notification system.'
+    );
 }
 
 /**
@@ -111,7 +113,8 @@ export async function sendLocalNotification(title: string, body: string) {
             await registration.showNotification(title, {
                 body,
                 icon: '/app_icon.png',
-                badge: '/app_icon.png',                vibrate: [100, 50, 100],
+                badge: '/app_icon.png',
+                vibrate: [100, 50, 100],
                 data: {
                     url: window.location.origin + '/dashboard'
                 }
@@ -121,7 +124,8 @@ export async function sendLocalNotification(title: string, body: string) {
         }
     } catch (err) {
         console.warn('[Notifications] Fallback to simple notification:', err);
-        new Notification(title, { body, icon: '/app_icon.png' });    }
+        new Notification(title, { body, icon: '/app_icon.png' });
+    }
 }
 
 function urlBase64ToUint8Array(base64String: string) {

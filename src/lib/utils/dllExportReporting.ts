@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // DLL Export & Reporting — DepEd Compliance
-// CEDIMS 2.0 — Audit-ready exports// ═══════════════════════════════════════════════════════════════
+// CEDIMS 2.0 — Audit-ready exports
+// ═══════════════════════════════════════════════════════════════
 
 import type {
     SubmissionWithReview,
@@ -173,7 +174,8 @@ export function generateComplianceReport(
 
     report.push('═══════════════════════════════════════════════════════════════');
     report.push('DLL COMPLIANCE REPORT');
-    report.push('CEDIMS 2.0 — DepEd Auditable Record');    report.push('═══════════════════════════════════════════════════════════════');
+    report.push('CEDIMS 2.0 — DepEd Auditable Record');
+    report.push('═══════════════════════════════════════════════════════════════');
     report.push('');
 
     report.push(`Scope: ${scopeName}`);

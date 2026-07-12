@@ -192,7 +192,8 @@
 
     <div class="mt-12 text-center space-y-2">
         <h3 class="text-white font-bold text-lg">Scan QR Code</h3>
-        <p class="text-text-muted text-sm">            Position the document's QR code within the frame
+        <p class="text-text-muted text-sm">
+            Position the document's QR code within the frame
         </p>
     </div>
 
@@ -201,7 +202,8 @@
             stopScanning();
             onClose?.();
         }}
-        class="mt-16 py-3 px-8 rounded-full bg-surface-white/10 border border-white/20 text-white text-xs font-semibold uppercase tracking-wide hover:bg-surface-white/20 active:scale-95 transition-all cursor-pointer"    >
+        class="mt-16 py-3 px-8 rounded-full bg-surface-white/10 border border-white/20 text-white text-xs font-semibold uppercase tracking-wide hover:bg-surface-white/20 active:scale-95 transition-all cursor-pointer"
+    >
         CLOSE
     </button>
 </div>

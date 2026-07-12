@@ -259,7 +259,8 @@ export function runKMeansClustering(
             { label: 'Consistently Meeting Standards', color: '#008751' },
             { label: 'Steadily Progressing', color: '#0038A8' },
             { label: 'Building Momentum', color: '#FCD116' },
-            { label: 'Moving Forward Together', color: '#CE1126' }        ];
+            { label: 'Moving Forward Together', color: '#CE1126' }
+        ];
         labels[cs.idx] = defs[Math.min(rank, defs.length - 1)];
     });
 

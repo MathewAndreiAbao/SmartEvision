@@ -14,7 +14,7 @@
     let loading = $state(false);
     let errorMsg = $state("");
     let showPassword = $state(false);
-    // If already logged in, redirect
+
     $effect(() => {
         if (!$authLoading && $profile) {
             goto(getRoleDashboardPath($profile.role));
@@ -45,7 +45,8 @@
             errorMsg = result.error;
             addToast("error", result.error);
         } else {
-            addToast("success", "Welcome to CEDIMS.");        }
+            addToast("success", "Welcome to CEDIMS.");
+        }
 
         loading = false;
     }
@@ -137,3 +138,4 @@
         </div>
     </div>
 </div>
+

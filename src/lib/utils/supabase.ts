@@ -1,10 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { env } from '$env/dynamic/public';
-if (!env.PUBLIC_SUPABASE_URL || !env.PUBLIC_SUPABASE_ANON_KEY) {
-    throw new Error(
-        'Missing Supabase environment variables. Please set PUBLIC_SUPABASE_URL and PUBLIC_SUPABASE_ANON_KEY.'
-    );
-}
+
 // Create a resilient storage adapter that doesn't block on locks
 class ReslientStorage implements Storage {
     private data = new Map<string, string>();
@@ -82,7 +78,8 @@ const resolvedKey = supabaseKey || 'mock-key';
 
 export const supabase = createClient(
     resolvedUrl,
-    resolvedKey,    {
+    resolvedKey,
+    {
         auth: {
             debug: false,
             autoRefreshToken: true,
@@ -90,16 +87,19 @@ export const supabase = createClient(
             detectSessionInUrl: true,
             flowType: 'pkce',
             storage: new ReslientStorage(),
-            storageKey: 'sb-auth-token-v3',            lock: (name: string, acquireTimeout: number, callback: () => Promise<any>) => {
+            storageKey: 'sb-auth-token-v3',
+            lock: (name: string, acquireTimeout: number, callback: () => Promise<any>) => {
                 return callback();
             }
         },
         global: {
             headers: {
-                'X-Client-Info': 'cedims'            }
+                'X-Client-Info': 'cedims'
+            }
         }
     }
 );
+
 /** Typed data helper — extract rows from a Supabase response with proper typing */
 export function getRows<T>(data: any): T[] {
     return (data as T[]) || [];
@@ -109,3 +109,4 @@ export function getRows<T>(data: any): T[] {
 export function getRow<T>(data: any): T | null {
     return (data as T) || null;
 }
+

@@ -20,6 +20,7 @@ import { createNotification } from './notificationSystem';
 import { getCurrentSchoolYear } from './schoolYear';
 import type { PipelineEvent, PipelineOptions } from '$lib/types/pipeline';
 export type { PipelinePhase, PipelineResult } from '$lib/types/pipeline';
+
 interface CoreResult {
     stampedBytes: Uint8Array;
     fileHash: string;
@@ -29,6 +30,74 @@ interface CoreResult {
     activeWeekNumber?: number;
     activeDocType: string;
     rawText: string;
+}
+
+// ─── Worker Helper ───────────────────────────────────────────────────────────
+
+function runWorkerTask(worker: Worker, type: string, payload: any, transfer: Transferable[] = []): Promise<any> {
+    return new Promise((resolve, reject) => {
+        const id = Math.random().toString(36).substring(7);
+        const handler = (e: MessageEvent) => {
+            if (e.data.id === id) {
+                worker.removeEventListener('message', handler);
+                if (e.data.success) resolve(e.data.payload);
+                else reject(new Error(e.data.error));
+            }
+        };
+        worker.addEventListener('message', handler);
+        worker.postMessage({ type, payload, id }, transfer);
+    });
+}
+
+// ─── Timeout Helper ──────────────────────────────────────────────────────────
+
+export async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
+    let timeoutId: any;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(errorMessage)), timeoutMs);
+    });
+
+    try {
+        const result = await Promise.race([promise, timeoutPromise]);
+        return result as T;
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
+
+// ─── Core Pipeline ───────────────────────────────────────────────────────────
+
+async function* runPipelineCore(
+    file: File,
+    options: PipelineOptions,
+    worker: Worker
+): AsyncGenerator<PipelineEvent & { _core?: CoreResult }> {
+
+    // 1. Transcode (Word to PDF)
+    yield { phase: 'transcoding', progress: 10, message: 'Converting to PDF...' };
+    let pdfBytes = file.type === 'application/pdf' ? new Uint8Array(await file.arrayBuffer()) : (await transcodeToPdf(file)).pdfBytes;
+
+    // 2. Mobile Optimization: Detect "Low-Power" or "Slow-Connection" state
+    // Skip heavy compression if the file is already small to save CPU/Battery on mobile
+    const isSlowConnection = (navigator as any).connection?.effectiveType === '2g' || (navigator as any).connection?.saveData;
+    const isSmallEnough = pdfBytes.byteLength < 2 * 1024 * 1024; // 2MB
+
+    if (isSlowConnection && isSmallEnough) {
+        console.log('[pipeline] Low-power/Slow-connection detected. Skipping non-essential compression.');
+        yield { phase: 'compressing', progress: 30, message: 'Fast-tracking small file...' };
+    } else {
+        yield { phase: 'compressing', progress: 30, message: 'Optimizing for mobile...' };
+        pdfBytes = await compressFile(pdfBytes);
+    }
+
+    // 2.5. Analyzing (OCR) - Use converted PDF bytes for OCR, not the original file
+    yield { phase: 'analyzing', progress: 30, message: 'Analyzing document content...' };
+    const { extractMetadata } = await import('./ocr');
+    const pdfBlob = new Blob([pdfBytes as BlobPart]);
+    const ocrFile = file.type === 'application/pdf' ? file : new File([pdfBlob], file.name.replace(/\.\w+$/, '.pdf'), { type: 'application/pdf' });
+    const hasPreDetected = options.preDetectedMetadata?.docType && options.preDetectedMetadata?.docType !== 'Unknown' && options.preDetectedMetadata?.rawText;
+    const detectedMetadata = hasPreDetected ? options.preDetectedMetadata : await extractMetadata(ocrFile);
+
     // 3. Compress & Hash
     yield { phase: 'compressing', progress: 50, message: 'Compressing and hashing...' };
     const { compressedBytes, fileHash } = await runWorkerTask(
@@ -51,7 +120,26 @@ interface CoreResult {
 
     const activeWeekNumber = options.weekNumber || detectedMetadata?.weekNumber;
     const activeDocType = options.docType || detectedMetadata?.docType || 'DLL';
-    const rawText = options.rawText || detectedMetadata?.rawText || '';    };
+    const rawText = options.rawText || detectedMetadata?.rawText || '';
+    const fileName = file.name.replace(/\.\w+$/, '.pdf');
+    const sanitizedFileName = (fileName || 'document').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._-]/g, '');
+    const filePath = `submissions/${options.userId}/${activeDocType}/${Date.now()}_${sanitizedFileName}`;
+
+    yield {
+        phase: 'uploading',
+        progress: 90,
+        message: 'Processing complete, ready to archive.',
+            _core: {
+                stampedBytes: new Uint8Array(stampedBytes),
+                fileHash,
+                fileName,
+                filePath,
+                detectedMetadata,
+                activeWeekNumber,
+                activeDocType,
+                rawText
+            }
+    };
 }
 
 // ─── Resilient Sub-Pipelines ─────────────────────────────────────────────────
@@ -61,6 +149,7 @@ async function* runOnlinePipelineResilient(
     options: PipelineOptions
 ): AsyncGenerator<PipelineEvent> {
     const { stampedBytes, fileHash, fileName, filePath, activeWeekNumber, activeDocType, rawText } = core;
+
     yield { phase: 'uploading', progress: 10, message: 'Verifying with server...' };
 
     const { lookupOfflineDoc, cacheVerifiedDoc, calculateComplianceStatus } = await import('./offline');
@@ -99,19 +188,10 @@ async function* runOnlinePipelineResilient(
             if (calEntry.deadline_date) deadlineDate = new Date(calEntry.deadline_date);
         }
     }
+
     // Local check
     if (await lookupOfflineDoc(fileHash)) throw new Error('Duplicate file detected (local).');
-    // Integrity check
-    if (options.teachingLoadId && activeWeekNumber) {
-        const integrity = await validateUploadIntegrity(
-            options.teachingLoadId,
-            activeWeekNumber,
-            options.schoolYear || '2025-2026',
-            activeDocType,
-            fileHash
-        );
-        if (!integrity.allowed) throw new Error(integrity.reason || 'Integrity block.');
-    }
+
     // Server check
     const { data: hashMatch } = await withTimeout(
         supabase.from('submissions').select('file_name, week_number').eq('file_hash', fileHash).maybeSingle() as any,
@@ -154,7 +234,8 @@ async function* runOnlinePipelineResilient(
 
     // DB Record
     yield { phase: 'uploading', progress: 80, message: 'Finalizing cloud record...' };
-    const complianceStatus = calculateComplianceStatus(new Date(), deadlineDate);    const { error: dbError } = await withTimeout(
+    const complianceStatus = calculateComplianceStatus(new Date(), deadlineDate);
+    const { error: dbError } = await withTimeout(
         supabase.from('submissions').insert({
             user_id: options.userId,
             file_name: fileName,
@@ -168,7 +249,8 @@ async function* runOnlinePipelineResilient(
             calendar_id: calendarId,
             teaching_load_id: options.teachingLoadId || null,
             compliance_status: complianceStatus,
-            raw_text: rawText || null        }) as any,
+            raw_text: rawText || null
+        }) as any,
         30000,
         'Database record timed out.'
     ) as { error: any };
@@ -179,7 +261,8 @@ async function* runOnlinePipelineResilient(
         await recordSubmission({
             teachingLoadId: options.teachingLoadId,
             weekNumber: activeWeekNumber,
-            schoolYear: options.schoolYear || getCurrentSchoolYear(),            docType: activeDocType,
+            schoolYear: options.schoolYear || getCurrentSchoolYear(),
+            docType: activeDocType,
             fileHash,
             fileName,
             timestamp: Date.now(),
@@ -202,7 +285,8 @@ async function* runOfflinePipelineResilient(
     core: CoreResult,
     options: PipelineOptions
 ): AsyncGenerator<PipelineEvent> {
-    const { stampedBytes, fileHash, fileName, filePath, activeWeekNumber, activeDocType, rawText } = core;    yield { phase: 'uploading', progress: 50, message: 'Saving to offline vault...' };
+    const { stampedBytes, fileHash, fileName, filePath, activeWeekNumber, activeDocType, rawText } = core;
+    yield { phase: 'uploading', progress: 50, message: 'Saving to offline vault...' };
 
     const { enqueue, cacheVerifiedDoc } = await import('./offline');
     const { recordSubmission } = await import('./offlineSubmissionLedger');
@@ -235,13 +319,22 @@ async function* runOfflinePipelineResilient(
             calendarId = calEntry.id;
         }
     }
+
+    await enqueue({
+        fileName,
+        filePath,
+        fileHash,
+        fileSize: stampedBytes.byteLength,
+        pdfBytes: stampedBytes,
+        rawText: rawText || undefined,
         options: {
             userId: options.userId,
             docType: activeDocType,
             weekNumber: activeWeekNumber,
             schoolYear: options.schoolYear || getCurrentSchoolYear(),
             subject: options.subject,
-            calendarId: calendarId ?? undefined,            teachingLoadId: options.teachingLoadId
+            calendarId: calendarId ?? undefined,
+            teachingLoadId: options.teachingLoadId
         },
         timestamp: Date.now()
     });
@@ -250,7 +343,8 @@ async function* runOfflinePipelineResilient(
         await recordSubmission({
             teachingLoadId: options.teachingLoadId,
             weekNumber: activeWeekNumber,
-            schoolYear: options.schoolYear || getCurrentSchoolYear(),            docType: activeDocType,
+            schoolYear: options.schoolYear || getCurrentSchoolYear(),
+            docType: activeDocType,
             fileHash,
             fileName,
             timestamp: Date.now(),

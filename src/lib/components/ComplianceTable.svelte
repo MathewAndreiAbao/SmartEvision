@@ -79,11 +79,13 @@
 </script>
 
 {#if searchable}
-  <div class="px-6 py-3 border-b border-border-subtle">    <input
+  <div class="px-6 py-3 border-b border-border-subtle">
+    <input
       type="text"
       bind:value={searchQuery}
       placeholder={searchPlaceholder}
-      class="w-full px-4 py-2.5 text-sm bg-surface-white/60 border border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/30 focus:border-gov-blue outline-none"    />
+      class="w-full px-4 py-2.5 text-sm bg-surface-white/60 border border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/30 focus:border-gov-blue outline-none"
+    />
   </div>
 {/if}
 
@@ -96,7 +98,8 @@
   <div class="overflow-x-auto">
     <table class="w-full">
       <thead>
-        <tr class="border-b border-border-subtle">          {#each columns as col}
+        <tr class="border-b border-border-subtle">
+          {#each columns as col}
             <th
               class="px-6 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider {getAlignClass(
                 col.align,
@@ -124,7 +127,8 @@
       <tbody class="divide-y divide-border-subtle">
         {#each filteredRows() as row}
           <tr
-            class="hover:bg-surface-white/40 transition-colors {onRowClick              ? 'cursor-pointer'
+            class="hover:bg-surface-white/40 transition-colors {onRowClick
+              ? 'cursor-pointer'
               : ''}"
             onclick={() => onRowClick?.(row)}
           >
@@ -146,3 +150,4 @@
     </table>
   </div>
 {/if}
+

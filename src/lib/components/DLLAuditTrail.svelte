@@ -37,7 +37,8 @@
             returned: 'from-gov-red to-red-700',
             exported: 'from-purple-600 to-purple-700',
         };
-        return colors[action] || 'from-surface-muted to-border-strong';    }
+        return colors[action] || 'from-surface-muted to-border-strong';
+    }
 
     function formatDate(dateStr: string): string {
         return new Date(dateStr).toLocaleDateString('en-PH', {
@@ -53,7 +54,8 @@
 <div class="w-full">
     <div class="bg-surface-white border border-border-subtle rounded-lg overflow-hidden">
         <!-- Header -->
-        <div class="px-6 py-4 border-b border-border-subtle bg-surface-muted">            <div class="flex items-center gap-3">
+        <div class="px-6 py-4 border-b border-border-subtle bg-surface-muted">
+            <div class="flex items-center gap-3">
                 <div class="w-1.5 h-6 bg-gov-blue rounded-full"></div>
                 <h3 class="text-sm font-bold text-text-primary uppercase tracking-wide">
                     Audit Trail (Immutable Record)
@@ -135,7 +137,8 @@
 
                                 <!-- File Hash -->
                                 {#if log.file_hash}
-                                    <div class="mt-3 p-2 bg-surface-muted rounded border border-border-subtle">                                        <p class="text-[8px] font-mono text-text-muted break-all">
+                                    <div class="mt-3 p-2 bg-surface-muted rounded border border-border-subtle">
+                                        <p class="text-[8px] font-mono text-text-muted break-all">
                                             SHA256: {log.file_hash.substring(0, 32)}...
                                         </p>
                                     </div>
@@ -150,7 +153,9 @@
         <!-- Footer -->
         <div class="px-6 py-4 bg-surface-muted border-t border-border-subtle">
             <p class="text-[10px] text-text-muted font-medium">
-                âœ“ All entries are immutable and cryptographically signed. Tampering can be detected.            </p>
+                âœ“ All entries are immutable and cryptographically signed. Tampering can be detected.
+            </p>
         </div>
     </div>
 </div>
+

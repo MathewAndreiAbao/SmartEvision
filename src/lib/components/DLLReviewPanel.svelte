@@ -27,7 +27,8 @@
         if (!newComment.trim()) return;
         onSaveRemark(newComment);
         newComment = '';
-        showCommentForm = false;    }
+        showCommentForm = false;
+    }
 
     function getStatusLabel(status: string): string {
         const labels: Record<string, string> = {
@@ -79,7 +80,8 @@
                 <p class="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted">Review Status</p>
             </div>
             {#if review}
-                <div class="flex items-center gap-2 rounded-xl border px-3 py-2 {getStatusColor(review.status)}">                    {#if review.status === 'approved'}
+                <div class="flex items-center gap-2 rounded-xl border px-3 py-2 {getStatusColor(review.status)}">
+                    {#if review.status === 'approved'}
                         <CheckCircle size={18} />
                     {:else if review.status === 'returned'}
                         <XCircle size={18} />
@@ -171,7 +173,9 @@
         {#if !review && comments.length === 0 && !canComment}
             <div class="py-6 text-center">
                 <MessageSquare size={28} class="mx-auto mb-3 text-text-muted" />
-                <p class="text-sm text-text-muted">Waiting for reviewer feedback</p>            </div>
+                <p class="text-sm text-text-muted">Waiting for reviewer feedback</p>
+            </div>
         {/if}
     </div>
 </div>
+

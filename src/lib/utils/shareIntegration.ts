@@ -51,7 +51,8 @@ export async function shareVerification(hash: string, fileName: string) {
     const url = `${origin}/verify/${hash}`;
 
     return shareContent({
-        title: 'CEDIMS: Verified Document',        text: `Official Record: ${fileName}\nIntegrity Hash: ${hash}\n\nVerify this document at:`,
+        title: 'CEDIMS: Verified Document',
+        text: `Official Record: ${fileName}\nIntegrity Hash: ${hash}\n\nVerify this document at:`,
         url
     });
 }

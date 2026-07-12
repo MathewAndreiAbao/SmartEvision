@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // SvelteKit Server Hook — hooks.server.ts
-// CEDIMS — Calapan East District Instructional Monitoring System// ═══════════════════════════════════════════════════════════════
+// CEDIMS — Calapan East District Instructional Monitoring System
+// ═══════════════════════════════════════════════════════════════
 
 import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
@@ -34,7 +35,8 @@ export const handle: Handle = async ({ event, resolve }) => {
             }
         } catch (e) {
             // Network issues should not crash the request;
-            // endpoint handlers will re-verify tokens if needed.        }
+            // endpoint handlers will re-verify tokens if needed.
+        }
     }
 
     return resolve(event);

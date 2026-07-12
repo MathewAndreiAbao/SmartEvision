@@ -8,7 +8,8 @@
     import { canViewArchivedDocument } from "$lib/utils/documentPermissions";
     import { addToast } from "$lib/stores/toast";
     import { fly, fade } from "svelte/transition";
-    import {        FolderOpen,
+    import {
+        FolderOpen,
         FileText,
         ChevronRight,
         Home,
@@ -20,7 +21,8 @@
         ArrowLeft,
     } from "lucide-svelte";
 
-    // â”€â”€ Types â”€â”€    interface Submission {
+    // â”€â”€ Types â”€â”€
+    interface Submission {
         id: string;
         user_id: string;
         file_name: string;
@@ -30,7 +32,22 @@
         compliance_status: string;
         week_number: number | null;
         subject: string | null;
-        teaching_load_id: string | null;        id: string;
+        teaching_load_id: string | null;
+        created_at: string;
+        file_path: string;
+        uploader?: {
+            full_name: string;
+            school_id: string | null;
+            district_id: string | null;
+            avatar_url?: string | null;
+        };
+        school_name?: string;
+        school_avatar?: string | null;
+    }
+
+    interface PathSegment {
+        type: "root" | "docType" | "school" | "teacher" | "subject" | "week";
+        id: string;
         label: string;
     }
 
@@ -38,18 +55,21 @@
         id: string;
         label: string;
         count: number;
-        type: "docType" | "school" | "teacher" | "subject" | "week";        icon?: string;
+        type: "docType" | "school" | "teacher" | "subject" | "week";
+        icon?: string;
         avatar_url?: string | null;
     }
 
-    // â”€â”€ State â”€â”€    let allSubmissions = $state<Submission[]>([]);
+    // â”€â”€ State â”€â”€
+    let allSubmissions = $state<Submission[]>([]);
     let schoolsMap = $state<Record<string, { label: string; avatar_url: string | null }>>({});
     let teachersMap = $state<Record<string, { label: string; avatar_url: string | null }>>({});
     let loading = $state(true);
     let loadError = $state<string | null>(null);
     let searchQuery = $state("");
     let currentPage = $state(1);
-    const pageSize = 10;    let currentPath = $state<PathSegment[]>([
+    const pageSize = 10;
+    let currentPath = $state<PathSegment[]>([
         { type: "root", id: "root", label: "Archive" },
     ]);
 
@@ -95,28 +115,32 @@
         }
     }
 
-    // â”€â”€ Lifecycle â”€â”€    onMount(async () => {
+    // â”€â”€ Lifecycle â”€â”€
+    onMount(async () => {
         await loadData();
         loading = false;
     });
 
     // â”€â”€ Data Fetching â”€â”€
     async function loadData() {
-        loadError = null;        const userProfile = $profile;
+        loadError = null;
+        const userProfile = $profile;
         if (!userProfile) return;
 
         const role = userProfile.role;
 
         try {
 
-        if (role === "Teacher") {            const { data } = await supabase
+        if (role === "Teacher") {
+            const { data } = await supabase
                 .from("submissions")
                 .select("*")
                 .eq("user_id", userProfile.id)
                 .eq("doc_type", "DLL")
                 .order("created_at", { ascending: false });
             allSubmissions = getRows<Submission>(data);
-        } else if (role === "Master Teacher") {            if (!userProfile.school_id) return;
+        } else if (role === "Master Teacher") {
+            if (!userProfile.school_id) return;
 
             const { data } = await supabase
                 .from("submissions")
@@ -142,7 +166,8 @@
                 .order("created_at", { ascending: false });
 
             allSubmissions = getRows<Submission>(data);
-            teachersMap = buildTeachersMap(allSubmissions);        } else if (role === "District Supervisor") {
+            teachersMap = buildTeachersMap(allSubmissions);
+        } else if (role === "District Supervisor") {
             // District-scoped: fetch submissions from all schools in district
             if (!userProfile.district_id) return;
 
@@ -175,7 +200,8 @@
                 .in("doc_type", ["DLL", "ISP", "ISR"])
                 .order("created_at", { ascending: false });
 
-            allSubmissions = getRows<Submission>(data).map((s) => {                const schoolInfo = sMap[s.uploader?.school_id || ""];
+            allSubmissions = getRows<Submission>(data).map((s) => {
+                const schoolInfo = sMap[s.uploader?.school_id || ""];
                 return {
                     ...s,
                     uploader: s.uploader,
@@ -302,7 +328,8 @@
         }
     }
 
-    // â”€â”€ Navigation â”€â”€    function navigateTo(segment: PathSegment) {
+    // â”€â”€ Navigation â”€â”€
+    function navigateTo(segment: PathSegment) {
         currentPath = [...currentPath, segment];
     }
 
@@ -316,11 +343,13 @@
         }
     }
 
-    // â”€â”€ Current Level & Filtering â”€â”€    const currentLevel = $derived(currentPath[currentPath.length - 1]);
+    // â”€â”€ Current Level & Filtering â”€â”€
+    const currentLevel = $derived(currentPath[currentPath.length - 1]);
 
     // Get submissions filtered by the current path
     const filteredByPath = $derived.by(() => {
-        let filtered = allSubmissions.filter((s) => canViewArchivedDocument($profile?.role || '', s.doc_type));        for (const seg of currentPath) {
+        let filtered = allSubmissions.filter((s) => canViewArchivedDocument($profile?.role || '', s.doc_type));
+        for (const seg of currentPath) {
             if (seg.type === "docType") {
                 filtered = filtered.filter((s) => s.doc_type === seg.id);
             } else if (seg.type === "school") {
@@ -330,7 +359,32 @@
             } else if (seg.type === "teacher") {
                 filtered = filtered.filter((s) => s.user_id === seg.id);
             } else if (seg.type === "subject") {
-                filtered = filtered.filter((s) => (s.subject || (s.doc_type === "DLL" ? "Unassigned" : s.doc_type)) === seg.id);        return filtered;
+                filtered = filtered.filter((s) => (s.subject || (s.doc_type === "DLL" ? "Unassigned" : s.doc_type)) === seg.id);
+            } else if (seg.type === "week") {
+                filtered = filtered.filter(
+                    (s) => String(s.week_number) === seg.id,
+                );
+            }
+        }
+        // Apply search
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            filtered = filtered.filter(
+                (s) =>
+                    s.file_name.toLowerCase().includes(q) ||
+                    s.doc_type?.toLowerCase().includes(q) ||
+                    s.uploader?.full_name?.toLowerCase().includes(q) ||
+                    s.file_hash?.toLowerCase().includes(q),
+            );
+        }
+        // Status filter (for DLL review status)
+        if (statusFilter !== "all") {
+            filtered = filtered.filter((s) => {
+                const hasReview = !!reviewsMap[s.id];
+                return statusFilter === "checked" ? hasReview : !hasReview;
+            });
+        }
+        return filtered;
     });
 
     // Determine what folders to show at the current level
@@ -354,7 +408,8 @@
                 return [];
             }
             if (depth === 5) return getWeekFolders(filteredByPath);
-            return [];        }
+            return [];
+        }
 
         return [];
     });
@@ -376,7 +431,8 @@
         currentPage = 1;
     });
 
-    // â”€â”€ Folder Generators â”€â”€    function getDocTypeFolders(subs: Submission[]): FolderItem[] {
+    // â”€â”€ Folder Generators â”€â”€
+    function getDocTypeFolders(subs: Submission[]): FolderItem[] {
         const grouped = new Map<string, number>();
         for (const s of subs) {
             const dt = s.doc_type || "Other";
@@ -459,7 +515,8 @@
         const grouped = new Map<string, number>();
         for (const s of subs) {
             if (s.doc_type !== "DLL") continue;
-            const wk = String(s.week_number);            grouped.set(wk, (grouped.get(wk) || 0) + 1);
+            const wk = String(s.week_number);
+            grouped.set(wk, (grouped.get(wk) || 0) + 1);
         }
         return Array.from(grouped.entries())
             .sort(([a], [b]) => {
@@ -478,7 +535,8 @@
             }));
     }
 
-    // â”€â”€ File Helpers â”€â”€    function formatDate(dateStr: string): string {
+    // â”€â”€ File Helpers â”€â”€
+    function formatDate(dateStr: string): string {
         return new Date(dateStr).toLocaleDateString("en-PH", {
             year: "numeric",
             month: "short",
@@ -487,7 +545,8 @@
     }
 
     function formatSize(bytes: number): string {
-        if (!bytes) return "â€”";        if (bytes < 1024) return bytes + " B";
+        if (!bytes) return "â€”";
+        if (bytes < 1024) return bytes + " B";
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
         return (bytes / (1024 * 1024)).toFixed(1) + " MB";
     }
@@ -519,7 +578,8 @@
         if (url) {
             window.open(url, "_blank");
         } else {
-            addToast("error", "Could not retrieve file. Please try again.");        }
+            addToast("error", "Could not retrieve file. Please try again.");
+        }
     }
 
     async function handleDownload(sub: Submission) {
@@ -527,7 +587,8 @@
         const url = await getSignedUrl(path);
         
         if (!url) {
-            addToast("error", "Download failed: could not generate secure link.");            return;
+            addToast("error", "Download failed: could not generate secure link.");
+            return;
         }
 
         try {
@@ -580,7 +641,8 @@
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        addToast("success", `Exported ${subs.length} records as CSV`);    }
+        addToast("success", `Exported ${subs.length} records as CSV`);
+    }
 
     function getSubtitle(): string {
         const role = $profile?.role;
@@ -593,7 +655,8 @@
 </script>
 
 <svelte:head>
-    <title>Archive â€” CEDIMS</title></svelte:head>
+    <title>Archive â€” CEDIMS</title>
+</svelte:head>
 
 <div>
     <!-- Header -->
@@ -611,7 +674,8 @@
             {#if currentPath.length > 1}
                 <button
                     onclick={goBack}
-                    class="p-2 rounded-lg hover:bg-surface-muted text-text-muted hover:text-text-primary transition-colors flex-shrink-0"                    title="Go back"
+                    class="p-2 rounded-lg hover:bg-surface-muted text-text-muted hover:text-text-primary transition-colors flex-shrink-0"
+                    title="Go back"
                 >
                     <ArrowLeft size={18} />
                 </button>
@@ -628,7 +692,8 @@
                     class="text-sm font-medium px-2 py-1 rounded-md transition-colors whitespace-nowrap flex-shrink-0
                         {i === currentPath.length - 1
                         ? 'text-gov-blue bg-gov-blue/5 font-bold'
-                        : 'text-text-muted hover:text-text-primary hover:bg-surface-muted'}"                >
+                        : 'text-text-muted hover:text-text-primary hover:bg-surface-muted'}"
+                >
                     {#if i === 0}
                         <span class="flex items-center gap-1.5">
                             <Home size={14} />
@@ -695,7 +760,8 @@
                 Try Again
             </button>
         </div>
-    {:else if loading}        <div
+    {:else if loading}
+        <div
             class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
         >
             {#each Array(10) as _}
@@ -706,7 +772,8 @@
                     <div
                         class="h-3 bg-surface-muted rounded w-3/4 mx-auto mb-2"
                     ></div>
-                    <div class="h-2 bg-surface-muted rounded w-1/2 mx-auto"></div>                </div>
+                    <div class="h-2 bg-surface-muted rounded w-1/2 mx-auto"></div>
+                </div>
             {/each}
         </div>
     {:else if !isFileLevel && currentFolders.length > 0}
@@ -723,13 +790,15 @@
                     avatar_url={folder.avatar_url}
                     onclick={() => navigateTo({ type: folder.type, id: folder.id, label: folder.label })}
                     transitionDelay={i * 40}
-                />            {/each}
+                />
+            {/each}
         </div>
     {:else if filteredByPath.length === 0}
         <!-- Empty State -->
         <div class="text-center py-20" in:fade={{ duration: 300 }}>
             <div
-                class="w-16 h-16 rounded-md bg-surface-muted flex items-center justify-center mx-auto mb-4"            >
+                class="w-16 h-16 rounded-md bg-surface-muted flex items-center justify-center mx-auto mb-4"
+            >
                 <FolderOpen size={28} class="text-text-muted" />
             </div>
             <p class="text-lg font-semibold text-text-primary">
@@ -748,7 +817,8 @@
             class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
             in:fade={{ duration: 200 }}
         >
-            {#each paginatedData as sub, i (sub.id)}                <div
+            {#each paginatedData as sub, i (sub.id)}
+                <div
                     class="gov-card p-0 overflow-hidden flex flex-col group h-[220px]"
                     in:fly={{ y: 12, duration: 250, delay: i * 30 }}
                 >
@@ -795,7 +865,16 @@
                                         For Checking
                                     </span>
                                 {/if}
-                            {/if}                                >
+                            {/if}
+                            <span
+                                class="px-2 py-0.5 bg-gov-blue/5 text-gov-blue text-[10px] font-bold rounded uppercase tracking-wider"
+                            >
+                                {sub.doc_type}
+                            </span>
+                            {#if sub.week_number != null}
+                                <span
+                                    class="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 text-[10px] font-bold rounded uppercase tracking-wider"
+                                >
                                     W{sub.week_number}
                                 </span>
                             {/if}
@@ -804,7 +883,8 @@
 
                     <!-- Card Footer: Metadata & Actions -->
                     <div
-                        class="px-4 py-3 bg-surface-muted border-t border-border-subtle flex items-center justify-between"                    >
+                        class="px-4 py-3 bg-surface-muted border-t border-border-subtle flex items-center justify-between"
+                    >
                         <div class="flex flex-col">
                             <span
                                 class="text-[10px] font-semibold text-text-muted uppercase tracking-tight"
@@ -845,3 +925,138 @@
                             <button
                                 onclick={(e) => {
                                     e.stopPropagation();
+                                    handleDownload(sub);
+                                }}
+                                class="p-2 text-text-muted hover:text-gov-blue hover:bg-gov-blue/10 rounded-lg transition-all"
+                                title="Download File"
+                            >
+                                <Download size={16} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            {/each}
+        </div>
+
+        <!-- Pagination -->
+        <div class="flex items-center justify-between mt-6">
+            <p class="text-sm text-text-muted">
+                Showing {(currentPage - 1) * pageSize + 1}&ndash;{Math.min(currentPage * pageSize, filteredByPath.length)} of {filteredByPath.length} files
+            </p>
+            <div class="flex items-center gap-2">
+                <button
+                    onclick={() => { if (currentPage > 1) currentPage--; }}
+                    disabled={currentPage <= 1}
+                    class="px-4 py-2 text-sm font-bold rounded-xl transition-all {currentPage <= 1 ? 'bg-surface-muted text-text-muted/50 cursor-not-allowed' : 'bg-surface-muted text-text-primary hover:bg-surface-muted'}"
+                >
+                    Previous
+                </button>
+                <span class="px-3 py-1.5 text-sm font-bold text-gov-blue bg-gov-blue/5 rounded-lg">
+                    {currentPage} / {totalPages}
+                </span>
+                <button
+                    onclick={() => { if (currentPage < totalPages) currentPage++; }}
+                    disabled={currentPage >= totalPages}
+                    class="px-4 py-2 text-sm font-bold rounded-xl transition-all {currentPage >= totalPages ? 'bg-surface-muted text-text-muted/50 cursor-not-allowed' : 'bg-surface-muted text-text-primary hover:bg-surface-muted'}"
+                >
+                    Next
+                </button>
+            </div>
+        </div>
+    {/if}
+</div>
+
+<!-- Remarks Modal -->
+{#if remarkModalOpen && remarkTarget}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+        onclick={closeRemarkModal}
+        onkeydown={(e) => { if (e.key === 'Escape') closeRemarkModal(); }}
+        role="presentation"
+        tabindex="-1"
+    >
+        <div
+            class="bg-surface-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden"
+            onclick={(e) => e.stopPropagation()}
+            onkeydown={(e) => { if (e.key === 'Escape') closeRemarkModal(); }}
+            role="dialog"
+            aria-modal="true"
+            tabindex="-1"
+        >
+            <div class="flex items-center justify-between px-6 py-4 border-b border-border-subtle">
+                <h3 class="text-lg font-bold text-text-primary">
+                    {#if existingRemark}
+                        Remark
+                    {:else if $profile?.role === 'Master Teacher'}
+                        Add Remark
+                    {:else}
+                        Remark
+                    {/if}
+                </h3>
+                <button
+                    onclick={closeRemarkModal}
+                    class="p-1 text-text-muted hover:text-text-primary hover:bg-surface-muted rounded-lg transition-all"
+                >
+                    <X size={18} />
+                </button>
+            </div>
+
+            <div class="px-6 py-4">
+                {#if existingRemark}
+                    <!-- View existing remark (everyone, including Master Teacher) -->
+                    <div class="p-4 bg-gov-gold/5 border border-gov-gold/20 rounded-xl">
+                        <p class="text-sm text-text-primary leading-relaxed">{existingRemark}</p>
+                        <p class="text-[10px] text-text-muted mt-2 font-medium">Reviewed by Master Teacher</p>
+                    </div>
+                    <div class="flex justify-end mt-4">
+                        <button
+                            onclick={closeRemarkModal}
+                            class="px-5 py-2 bg-surface-muted text-text-primary text-sm font-bold rounded-xl hover:bg-surface-muted transition-all"
+                        >
+                            Close
+                        </button>
+                    </div>
+                {:else}
+                    {#if $profile?.role === 'Master Teacher'}
+                        <!-- Add new remark -->
+                        <textarea
+                            bind:value={remarkText}
+                            placeholder="Enter your remarks for this DLL..."
+                            rows="4"
+                            class="w-full p-3 border border-border-subtle rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-gov-blue/30"
+                        ></textarea>
+                        <div class="flex justify-end gap-2 mt-4">
+                            <button
+                                onclick={closeRemarkModal}
+                                class="px-4 py-2 text-sm font-semibold text-text-muted hover:text-text-primary transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onclick={saveRemark}
+                                disabled={!remarkText.trim() || savingRemark}
+                                class="px-5 py-2 bg-gov-gold-dark text-white text-sm font-bold rounded-xl hover:bg-gov-gold-dark/90 disabled:opacity-50 transition-all"
+                            >
+                                {savingRemark ? "Saving..." : "Save Remark"}
+                            </button>
+                        </div>
+                    {:else}
+                        <div class="text-center py-8 text-text-muted">
+                            <MessageSquare size={32} class="mx-auto mb-2 opacity-40" />
+                            <p class="text-sm font-medium">No remarks yet</p>
+                        </div>
+                        <div class="flex justify-end mt-4">
+                            <button
+                                onclick={closeRemarkModal}
+                                class="px-5 py-2 bg-surface-muted text-text-primary text-sm font-bold rounded-xl hover:bg-surface-muted transition-all"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    {/if}
+                {/if}
+            </div>
+        </div>
+    </div>
+{/if}

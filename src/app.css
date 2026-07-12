@@ -1,6 +1,5 @@
 @import "tailwindcss";
 
-<<<<<<< HEAD
 /* ── Class-Based Dark Mode ── */
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -37,10 +36,6 @@
   /* Custom breakpoint for very small screens */
   --breakpoint-xs: 475px;
 
-=======
-/* ── Government-Grade Design System Tokens ── */
-@theme {
->>>>>>> fe3ad22969dcc6a5148b0fbe95c89c86ad4626b6
   /* Brand Colors — Institutional Navy & Formal Palette */
   --color-gov-blue: #1a3a5c;
   --color-gov-blue-light: #2d5986;
@@ -69,7 +64,6 @@
   --color-border-strong: #cbd5e0;
   --color-border-accent: rgba(26, 58, 92, 0.15);
 
-<<<<<<< HEAD
   /* Shadow System — Clean Elevations */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
@@ -78,16 +72,6 @@
   --shadow-elevated: 0 4px 6px -2px rgba(0, 0, 0, 0.08);
 
   /* Typography — Inter */
-=======
-  /* Shadow System — Minimal Institutional Elevations */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 4px 8px -2px rgba(0, 0, 0, 0.06);
-  --shadow-xl: 0 4px 8px -2px rgba(0, 0, 0, 0.06);
-  --shadow-elevated: 0 4px 8px -2px rgba(0, 0, 0, 0.08);
-
-  /* Typography — Inter only, no extrabold */
->>>>>>> fe3ad22969dcc6a5148b0fbe95c89c86ad4626b6
   --font-family-sans: "Inter", system-ui, -apple-system, sans-serif;
   --font-size-base: 0.875rem;
   --font-size-sm: 0.8125rem;

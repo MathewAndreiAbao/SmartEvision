@@ -110,7 +110,8 @@
         <button 
             type="button"
             onclick={triggerFileInput}
-            class="relative {sizeClasses[size ?? 'md']} rounded-full overflow-hidden border-2 border-border-subtle bg-surface-muted flex items-center justify-center transition-all hover:border-gov-blue/50 focus:outline-none focus:ring-2 focus:ring-gov-blue/20"            disabled={uploading}
+            class="relative {sizeClasses[size ?? 'md']} rounded-full overflow-hidden border-2 border-border-subtle bg-surface-muted flex items-center justify-center transition-all hover:border-gov-blue/50 focus:outline-none focus:ring-2 focus:ring-gov-blue/20"
+            disabled={uploading}
             aria-label="Change {label}"
         >
             {#if url}
@@ -128,7 +129,8 @@
 
             <!-- Loading Spinner -->
             {#if uploading}
-                <div class="absolute inset-0 bg-surface-white/80 flex items-center justify-center" in:fade>                    <Loader2 size={iconSizes[size ?? 'md'] / 1.5} class="text-gov-blue animate-spin" />
+                <div class="absolute inset-0 bg-surface-white/80 flex items-center justify-center" in:fade>
+                    <Loader2 size={iconSizes[size ?? 'md'] / 1.5} class="text-gov-blue animate-spin" />
                 </div>
             {/if}
         </button>

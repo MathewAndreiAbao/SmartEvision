@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // DLL Pending Reviews API — GET /api/dll/pending
-// CEDIMS 2.0 — Fetch submissions awaiting review// ═══════════════════════════════════════════════════════════════
+// CEDIMS 2.0 — Fetch submissions awaiting review
+// ═══════════════════════════════════════════════════════════════
 
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { supabase } from '$lib/utils/supabase';

@@ -6,11 +6,13 @@ export async function updateAppBadge(notifCount?: number) {
 
     try {
         const unread = notifCount ?? 0;
+
         const QUEUE_PREFIX = 'sync_queue_';
         const allKeys = await keys();
         const syncCount = allKeys.filter((k: any) => String(k).startsWith(QUEUE_PREFIX)).length;
 
         const total = unread + syncCount;
+
         if (total > 0) {
             (navigator as any).setAppBadge(total).catch(() => { });
         } else {

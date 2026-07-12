@@ -53,7 +53,8 @@ function createNotificationStore() {
                         const { createNotification } = await import('$lib/utils/notificationSystem');
                         const success = await createNotification(
                             userId,
-                            'Welcome to CEDIMS',                            'Your instructional supervision dashboard is ready. All your archivals and alerts will appear here.',
+                            'Welcome to CEDIMS',
+                            'Your instructional supervision dashboard is ready. All your archivals and alerts will appear here.',
                             'info'
                         );
                         if (success) {
@@ -167,5 +168,6 @@ export const notifications = createNotificationStore();
 
 export const unreadCount = derived(notifications, ($notifications) => {
     const unread = $notifications.filter(n => !n.read).length;
-    import('$lib/utils/badge').then(m => m.updateAppBadge(unread));    return unread;
+    import('$lib/utils/badge').then(m => m.updateAppBadge(unread));
+    return unread;
 });

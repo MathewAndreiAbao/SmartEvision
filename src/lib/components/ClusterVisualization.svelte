@@ -254,12 +254,14 @@
             </div>
         </div>
         <div
-            class="flex p-1 bg-surface-muted border border-border-subtle rounded-xl"        >
+            class="flex p-1 bg-surface-muted border border-border-subtle rounded-xl"
+        >
             <button
                 onclick={() => (activeTab = "scatter")}
                 class="px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wide transition-all {activeTab ===
                 'scatter'
-                    ? 'bg-surface-white text-gov-blue shadow-sm'                    : 'text-text-muted hover:text-text-primary'}"
+                    ? 'bg-surface-white text-gov-blue shadow-sm'
+                    : 'text-text-muted hover:text-text-primary'}"
             >
                 Scatter
             </button>
@@ -267,7 +269,8 @@
                 onclick={() => (activeTab = "radar")}
                 class="px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wide transition-all {activeTab ===
                 'radar'
-                    ? 'bg-surface-white text-gov-blue shadow-sm'                    : 'text-text-muted hover:text-text-primary'}"
+                    ? 'bg-surface-white text-gov-blue shadow-sm'
+                    : 'text-text-muted hover:text-text-primary'}"
             >
                 Radar
             </button>
@@ -340,7 +343,8 @@
                     <span
                         class="text-text-muted opacity-0 group-hover/card:opacity-100 transition-opacity text-[10px]"
                     >
-                        Review â†’                    </span>
+                        Review â†’
+                    </span>
                 </div>
                 <p
                     class="text-2xl font-semibold tracking-normal"
@@ -395,7 +399,8 @@
             in:fly={{ y: 40, duration: 500 }}
         >
             <div
-                class="p-6 border-b border-border-subtle flex items-center justify-between"                style="background: {selectedCluster.color}05"
+                class="p-6 border-b border-border-subtle flex items-center justify-between"
+                style="background: {selectedCluster.color}05"
             >
                 <div class="flex items-center gap-3">
                     <div
@@ -451,7 +456,8 @@
                 <div class="space-y-3">
                     {#each membersInCluster as member}
                         <div
-                            class="p-4 rounded-md bg-surface-muted border border-border-subtle flex items-center justify-between group hover:bg-surface-white hover:shadow-md transition-all"                        >
+                            class="p-4 rounded-md bg-surface-muted border border-border-subtle flex items-center justify-between group hover:bg-surface-white hover:shadow-md transition-all"
+                        >
                             <div>
                                 <p class="text-sm font-bold text-text-primary">
                                     {member.teacher.teacherName}
@@ -515,7 +521,8 @@
             >
                 <button
                     onclick={() => (showDrillDown = false)}
-                    class="px-6 py-2.5 bg-surface-white border border-border-strong rounded-xl text-xs font-bold text-text-primary hover:border-gov-blue transition-all"                >
+                    class="px-6 py-2.5 bg-surface-white border border-border-strong rounded-xl text-xs font-bold text-text-primary hover:border-gov-blue transition-all"
+                >
                     Close Analysis
                 </button>
             </div>

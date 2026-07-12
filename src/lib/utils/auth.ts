@@ -171,7 +171,8 @@ export function getRoleDashboardPath(role: string): string {
         case 'School Head':
             return '/dashboard/monitoring/school';
         case 'Master Teacher':
-            return '/dashboard';        default:
+            return '/dashboard';
+        default:
             return '/dashboard';
     }
 }

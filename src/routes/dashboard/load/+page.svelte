@@ -24,7 +24,8 @@
     let subjects = $state<string[]>([]);
     let availableSubjects = $state<string[]>([]);
 
-    const gradeLevels = [        "Grade 1",
+    const gradeLevels = [
+        "Grade 1",
         "Grade 2",
         "Grade 3",
         "Grade 4",
@@ -43,7 +44,8 @@
 
     onMount(async () => {
         await loadTeachingLoads();
-        await loadSubjectsByGrade("Grade 1");        loading = false;
+        await loadSubjectsByGrade("Grade 1");
+        loading = false;
     });
 
     async function loadTeachingLoads() {
@@ -65,7 +67,18 @@
         subject = "";
         gradeOpen = false;
         subjectOpen = false;
-        loadSubjectsByGrade("Grade 1");        showModal = true;
+        loadSubjectsByGrade("Grade 1");
+        showModal = true;
+    }
+
+    function openEdit(load: TeachingLoad) {
+        editingId = load.id;
+        gradeLevel = load.grade_level;
+        subject = load.subject;
+        gradeOpen = false;
+        subjectOpen = false;
+        loadSubjectsByGrade(load.grade_level);
+        showModal = true;
     }
 
     async function handleSave() {
@@ -104,7 +117,21 @@
 
         showModal = false;
         gradeOpen = false;
-        subjectOpen = false;        await loadTeachingLoads();
+        subjectOpen = false;
+        await loadTeachingLoads();
+    }
+
+    async function toggleActive(load: TeachingLoad) {
+        const { error } = await supabase
+            .from("teaching_loads")
+            .update({ is_active: !load.is_active })
+            .eq("id", load.id);
+        if (error) {
+            addToast("error", `Failed to update teaching load: ${error.message}`);
+            return;
+        }
+        addToast("success", `${load.subject} is now ${!load.is_active ? "active" : "inactive"}`);
+        await loadTeachingLoads();
     }
 
     async function handleDelete(id: string) {
@@ -117,7 +144,8 @@
 </script>
 
 <svelte:head>
-    <title>Teaching Load â€” CEDIMS</title></svelte:head>
+    <title>Teaching Load â€” CEDIMS</title>
+</svelte:head>
 
 <div class="space-y-8">
     <!-- Header -->
@@ -149,12 +177,14 @@
             {#each Array(3) as _}
                 <div class="gov-card-static p-8 animate-pulse">
                     <div class="h-6 bg-surface-muted rounded-full w-24 mb-6"></div>
-                    <div class="h-8 bg-surface-muted rounded w-3/4 mb-4"></div>                </div>
+                    <div class="h-8 bg-surface-muted rounded w-3/4 mb-4"></div>
+                </div>
             {/each}
         </div>
     {:else if loads.length === 0}
         <div
-            class="bg-surface-muted backdrop-blur-md border border-dashed border-border-strong rounded-3xl p-20 text-center"        >
+            class="bg-surface-muted backdrop-blur-md border border-dashed border-border-strong rounded-3xl p-20 text-center"
+        >
             <div
                 class="w-16 h-16 bg-gov-blue/10 text-gov-blue rounded-2xl flex items-center justify-center mx-auto mb-6"
             >
@@ -181,7 +211,8 @@
         >
             {#each loads as load}
                 <div
-                    class="bg-surface-white border border-border-subtle rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-gov-blue/20 transition-all group relative flex flex-col h-full"                    in:fly={{ y: 20, duration: 400 }}
+                    class="bg-surface-white border border-border-subtle rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-gov-blue/20 transition-all group relative flex flex-col h-full"
+                    in:fly={{ y: 20, duration: 400 }}
                 >
                     <!-- Status Badge -->
                     <div class="absolute top-6 right-6">
@@ -189,11 +220,13 @@
                             onclick={() => toggleActive(load)}
                             class="w-10 h-5.5 rounded-full relative transition-all shadow-inner {load.is_active
                                 ? 'bg-gov-green'
-                                : 'bg-surface-muted'}"                            aria-label="Toggle active status"
+                                : 'bg-surface-muted'}"
+                            aria-label="Toggle active status"
                             title={load.is_active ? "Active" : "Inactive"}
                         >
                             <span
-                                class="absolute top-0.5 transition-all w-4.5 h-4.5 rounded-full bg-surface-white shadow-sm {load.is_active                                    ? 'translate-x-5'
+                                class="absolute top-0.5 transition-all w-4.5 h-4.5 rounded-full bg-surface-white shadow-sm {load.is_active
+                                    ? 'translate-x-5'
                                     : 'translate-x-0.5'}"
                             ></span>
                         </button>
@@ -255,7 +288,8 @@
     <div
         class="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-6"
         onclick={() => { showModal = false; gradeOpen = false; subjectOpen = false; }}
-        onkeydown={(e) => { if (e.key === "Escape") { showModal = false; gradeOpen = false; subjectOpen = false; } }}        role="dialog"
+        onkeydown={(e) => { if (e.key === "Escape") { showModal = false; gradeOpen = false; subjectOpen = false; } }}
+        role="dialog"
         tabindex="-1"
     >
         <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -313,7 +347,8 @@
                                 {/each}
                             </div>
                         {/if}
-                    </div>                </div>
+                    </div>
+                </div>
 
                 <div>
                     <label
@@ -361,13 +396,15 @@
                                 {/if}
                             </div>
                         {/if}
-                    </div>                </div>
+                    </div>
+                </div>
             </div>
 
             <div class="flex gap-3 mt-8">
                 <button
                     onclick={() => { showModal = false; gradeOpen = false; subjectOpen = false; }}
-                    class="flex-1 py-3 border border-border-subtle text-text-secondary font-semibold rounded-xl min-h-[48px] hover:bg-surface-muted transition-colors"                >
+                    class="flex-1 py-3 border border-border-subtle text-text-secondary font-semibold rounded-xl min-h-[48px] hover:bg-surface-muted transition-colors"
+                >
                     Cancel
                 </button>
                 <button
@@ -380,3 +417,4 @@
         </div>
     </div>
 {/if}
+

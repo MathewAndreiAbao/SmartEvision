@@ -23,6 +23,7 @@
 				showQRScanner.set(false);
 			}
 		} else {
+			// Fallback for non-verify QR codes
 			console.log(`[QR] Scanned data:`, data);
 		}
 	}
@@ -41,19 +42,23 @@
 		window.addEventListener("error", handleModuleError);
 
 		(async () => {
+			// Initialize auth first
 			try {
 				await initAuth();
 			} catch (err) {
 				console.error("[v0] Failed to initialize auth:", err);
 			}
 
+			// Then initialize offline sync
 			initOfflineSync();
 
+			// Pre-fetch metadata if online (Phase 20.4)
 			const user = get(profile);
 			if (user && user.id) {
 				prefetchOfflineMetadata(user.id, user.district_id || undefined);
 			}
 
+			// Defer service worker registration
 			setTimeout(() => {
 				if ("serviceWorker" in navigator && import.meta.env.PROD) {
 					try {

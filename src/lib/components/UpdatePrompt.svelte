@@ -69,7 +69,8 @@
                         Update Available
                     </h3>
                     <p class="text-xs text-text-muted mt-0.5">
-                        A new version of CEDIMS is ready.                    </p>
+                        A new version of CEDIMS is ready.
+                    </p>
                 </div>
                 <button
                     onclick={dismiss}
