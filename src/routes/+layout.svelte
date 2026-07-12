@@ -2,7 +2,96 @@
 	import "../app.css";
 	import Toast from "$lib/components/Toast.svelte";
 	import QRScanner from "$lib/components/QRScanner.svelte";
-	import ChatBot from "$lib/components/ChatBot.svelte";</svelte:head>
+	import ChatBot from "$lib/components/ChatBot.svelte";
+	import { showQRScanner } from "$lib/stores/ui";
+	import { goto } from "$app/navigation";
+	import { initAuth, profile } from "$lib/utils/auth";
+	import {
+		initOfflineSync,
+		prefetchOfflineMetadata,
+	} from "$lib/utils/offline";
+	import { onMount } from "svelte";
+	import { get } from "svelte/store";
+
+	let { children } = $props();
+
+	function handleScan(data: string) {
+		if (data.includes("/verify/")) {
+			const hash = data.split("/verify/").pop();
+			if (hash) {
+				goto(`/verify/${hash}`);
+				showQRScanner.set(false);
+			}
+		} else {
+			console.log(`[QR] Scanned data:`, data);
+		}
+	}
+
+	onMount(() => {
+		const handleModuleError = (e: ErrorEvent) => {
+			if (
+				e.message?.includes(
+					"Failed to fetch dynamically imported module",
+				)
+			) {
+				console.warn("[v0] Build mismatch detected. Reloading...");
+				window.location.reload();
+			}
+		};
+		window.addEventListener("error", handleModuleError);
+
+		(async () => {
+			try {
+				await initAuth();
+			} catch (err) {
+				console.error("[v0] Failed to initialize auth:", err);
+			}
+
+			initOfflineSync();
+
+			const user = get(profile);
+			if (user && user.id) {
+				prefetchOfflineMetadata(user.id, user.district_id || undefined);
+			}
+
+			setTimeout(() => {
+				if ("serviceWorker" in navigator && import.meta.env.PROD) {
+					try {
+						navigator.serviceWorker
+							.register("/service-worker.js")
+							.then(
+								(registration) => {
+									console.log(
+										"Service Worker registered:",
+										registration,
+									);
+								},
+								(error) => {
+									console.error(
+										"Service Worker registration failed:",
+										error,
+									);
+								},
+							);
+					} catch (error) {
+						console.error(
+							"Service Worker registration error:",
+							error,
+						);
+					}
+				}
+			}, 2000);
+		})();
+
+		return () => {
+			window.removeEventListener("error", handleModuleError);
+		};
+	});
+</script>
+
+<svelte:head>
+	<title>CEDIMS</title>
+</svelte:head>
 
 <Toast />
 
@@ -11,4 +100,5 @@
 {/if}
 
 <ChatBot />
+
 {@render children()}
