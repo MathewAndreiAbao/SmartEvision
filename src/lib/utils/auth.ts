@@ -164,6 +164,47 @@ export async function signOut(): Promise<void> {
     profile.set(null);
 }
 
+export async function changePassword(currentPassword: string, newPassword: string): Promise<{ error: string | null }> {
+    try {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: (await supabase.auth.getUser()).data.user?.email || '',
+            password: currentPassword
+        });
+        if (signInError) return { error: 'Current password is incorrect.' };
+
+        const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+        if (updateError) return { error: updateError.message };
+        return { error: null };
+    } catch (err) {
+        return { error: err instanceof Error ? err.message : 'Failed to change password.' };
+    }
+}
+
+export async function resetPasswordForEmail(email: string): Promise<{ error: string | null }> {
+    try {
+        const redirectTo = typeof window !== 'undefined'
+            ? `${window.location.origin}/auth/update-password`
+            : undefined;
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo
+        });
+        if (error) return { error: error.message };
+        return { error: null };
+    } catch (err) {
+        return { error: err instanceof Error ? err.message : 'Failed to send reset email.' };
+    }
+}
+
+export async function updatePassword(newPassword: string): Promise<{ error: string | null }> {
+    try {
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) return { error: error.message };
+        return { error: null };
+    } catch (err) {
+        return { error: err instanceof Error ? err.message : 'Failed to update password.' };
+    }
+}
+
 export function getRoleDashboardPath(role: string): string {
     switch (role) {
         case 'District Supervisor':

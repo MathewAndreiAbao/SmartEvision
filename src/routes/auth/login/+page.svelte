@@ -103,7 +103,10 @@
                         <input id="email" type="email" bind:value={email} placeholder="your.email@deped.gov.ph" class="w-full rounded-xl border border-border-subtle px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm outline-none focus:border-gov-blue focus:ring-2 focus:ring-gov-blue/10 transition-all" autocomplete="email" required />
                     </div>
                     <div>
-                        <label for="password" class="mb-1 sm:mb-1.5 block text-xs sm:text-sm font-semibold text-text-secondary">Password</label>
+                        <div class="flex items-center justify-between mb-1 sm:mb-1.5">
+                            <label for="password" class="block text-xs sm:text-sm font-semibold text-text-secondary">Password</label>
+                            <a href="/auth/forgot-password" class="text-[10px] sm:text-xs font-medium text-gov-blue hover:text-gov-blue-dark transition-colors">Forgot password?</a>
+                        </div>
                         <div class="relative">
                             <input id="password" type={showPassword ? "text" : "password"} bind:value={password} placeholder="Enter your password" class="w-full rounded-xl border border-border-subtle px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm outline-none focus:border-gov-blue focus:ring-2 focus:ring-gov-blue/10 transition-all pr-10 sm:pr-11" autocomplete="current-password" required minlength="6" />
                             <button type="button" onclick={() => showPassword = !showPassword} class="absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors p-1" tabindex="-1" aria-label={showPassword ? "Hide password" : "Show password"}>

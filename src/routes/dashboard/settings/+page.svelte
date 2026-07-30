@@ -6,7 +6,7 @@
     import { getQueueSize } from "$lib/utils/offline";
     import { onMount } from "svelte";
     import ProfileUploader from "$lib/components/ProfileUploader.svelte";
-    import { User, Shield, Phone, Bell, Languages, ShieldCheck, LogOut } from "lucide-svelte";
+    import { User, Shield, Phone, Bell, Languages, ShieldCheck, LogOut, Key, Eye, EyeOff } from "lucide-svelte";
 
     let fullName = $state("");
     let avatarUrl = $state<string | null>(null);
@@ -14,6 +14,13 @@
     let queueCount = $state(0);
     let voiceEnabled = $state(false);
     let pushEnabled = $state(false);
+    let currentPassword = $state("");
+    let newPassword = $state("");
+    let confirmPassword = $state("");
+    let changingPassword = $state(false);
+    let showCurrent = $state(false);
+    let showNew = $state(false);
+    let showConfirm = $state(false);
 
     onMount(async () => {
         if ($profile) {
@@ -55,6 +62,29 @@
         const { toggleVoiceGuidance } = await import("$lib/utils/voiceGuide");
         voiceEnabled = toggleVoiceGuidance();
         addToast("success", `Voice guidance ${voiceEnabled ? "enabled" : "disabled"}`);
+    }
+
+    async function handleChangePassword() {
+        if (!newPassword || newPassword.length < 6) {
+            addToast("error", "New password must be at least 6 characters.");
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            addToast("error", "New passwords do not match.");
+            return;
+        }
+        changingPassword = true;
+        const { changePassword: changePw } = await import("$lib/utils/auth");
+        const result = await changePw(currentPassword, newPassword);
+        if (result.error) {
+            addToast("error", result.error);
+        } else {
+            addToast("success", "Password changed successfully.");
+            currentPassword = "";
+            newPassword = "";
+            confirmPassword = "";
+        }
+        changingPassword = false;
     }
 
     async function handleSignOut() {
@@ -216,6 +246,59 @@
                         >
                             <span class="sr-only">Toggle push notifications</span>
                             <span class="inline-block h-4 w-4 transform rounded-full bg-surface-white transition-transform {pushEnabled ? 'translate-x-6' : 'translate-x-1'}"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Change Password -->
+            <div class="gov-card-static p-6">
+                <div class="flex items-center gap-2 mb-6 text-gov-blue">
+                    <Key size={18} />
+                    <h2 class="text-sm font-bold uppercase tracking-widest">Change Password</h2>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label for="currentPassword" class="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">Current Password</label>
+                        <div class="relative">
+                            <input id="currentPassword" type={showCurrent ? "text" : "password"} bind:value={currentPassword} placeholder="Enter current password" class="w-full px-4 py-3 text-sm bg-surface-muted border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none transition-all font-bold pr-11" />
+                            <button type="button" onclick={() => showCurrent = !showCurrent} class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors p-1" tabindex="-1" aria-label={showCurrent ? "Hide password" : "Show password"}>
+                                {#if showCurrent}<EyeOff size={16} />{:else}<Eye size={16} />{/if}
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="newPassword" class="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">New Password</label>
+                        <div class="relative">
+                            <input id="newPassword" type={showNew ? "text" : "password"} bind:value={newPassword} placeholder="At least 6 characters" class="w-full px-4 py-3 text-sm bg-surface-muted border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none transition-all font-bold pr-11" minlength="6" />
+                            <button type="button" onclick={() => showNew = !showNew} class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors p-1" tabindex="-1" aria-label={showNew ? "Hide password" : "Show password"}>
+                                {#if showNew}<EyeOff size={16} />{:else}<Eye size={16} />{/if}
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="confirmPassword" class="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">Confirm New Password</label>
+                        <div class="relative">
+                            <input id="confirmPassword" type={showConfirm ? "text" : "password"} bind:value={confirmPassword} placeholder="Re-enter new password" class="w-full px-4 py-3 text-sm bg-surface-muted border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none transition-all font-bold pr-11" />
+                            <button type="button" onclick={() => showConfirm = !showConfirm} class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors p-1" tabindex="-1" aria-label={showConfirm ? "Hide password" : "Show password"}>
+                                {#if showConfirm}<EyeOff size={16} />{:else}<Eye size={16} />{/if}
+                            </button>
+                        </div>
+                    </div>
+                    <div class="pt-2 flex justify-end">
+                        <button
+                            onclick={handleChangePassword}
+                            disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
+                            class="px-8 py-3 bg-gov-blue text-white font-bold rounded-xl text-xs uppercase tracking-widest hover:bg-gov-blue-dark active:scale-95 transition-all disabled:opacity-50 shadow-sm flex items-center gap-2"
+                        >
+                            {#if changingPassword}
+                                <span class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                                Updating...
+                            {:else}
+                                <Key size={14} />
+                                Change Password
+                            {/if}
                         </button>
                     </div>
                 </div>
