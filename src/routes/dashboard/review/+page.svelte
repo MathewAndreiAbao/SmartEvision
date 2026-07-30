@@ -298,11 +298,7 @@
                     <!-- Review Panel -->
                     <DLLReviewPanel
                         review={submission.review || null}
-                        {submissionId}
-                        {isReviewer}
                         loading={actionLoading}
-                        onApprove={handleApprove}
-                        onReturn={handleReturn}
                     />
                 </div>
             </div>
