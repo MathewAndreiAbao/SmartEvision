@@ -14,6 +14,7 @@ export interface Profile {
 export const user = writable<User | null>(null);
 export const profile = writable<Profile | null>(null);
 export const authLoading = writable<boolean>(true);
+export const isChangingPassword = writable<boolean>(false);
 
 let authInitialized = false;
 let authInitPromise: Promise<void> | null = null;
@@ -165,6 +166,7 @@ export async function signOut(): Promise<void> {
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<{ error: string | null }> {
+    isChangingPassword.set(true);
     try {
         const { error: signInError } = await supabase.auth.signInWithPassword({
             email: (await supabase.auth.getUser()).data.user?.email || '',
@@ -177,6 +179,8 @@ export async function changePassword(currentPassword: string, newPassword: strin
         return { error: null };
     } catch (err) {
         return { error: err instanceof Error ? err.message : 'Failed to change password.' };
+    } finally {
+        isChangingPassword.set(false);
     }
 }
 

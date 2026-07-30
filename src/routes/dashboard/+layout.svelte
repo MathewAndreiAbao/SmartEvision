@@ -4,7 +4,7 @@
     import InstallPrompt from "$lib/components/InstallPrompt.svelte";
     import UpdatePrompt from "$lib/components/UpdatePrompt.svelte";
     import { notifications } from "$lib/stores/notifications";
-    import { authLoading, profile, user } from "$lib/utils/auth";
+    import { authLoading, profile, user, isChangingPassword } from "$lib/utils/auth";
     import {
         preloadVerificationHashes,
         prefetchOfflineMetadata,
@@ -16,9 +16,9 @@
 
     let { children } = $props();
 
-    // Auth guard
+    // Auth guard — skip during password change to avoid redirect when supabase temporarily signs out
     $effect(() => {
-        if (!$authLoading && !$user) {
+        if (!$authLoading && !$user && !$isChangingPassword) {
             goto("/auth/login");
         }
     });

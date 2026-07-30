@@ -74,17 +74,22 @@
             return;
         }
         changingPassword = true;
-        const { changePassword: changePw } = await import("$lib/utils/auth");
-        const result = await changePw(currentPassword, newPassword);
-        if (result.error) {
-            addToast("error", result.error);
-        } else {
-            addToast("success", "Password changed successfully.");
-            currentPassword = "";
-            newPassword = "";
-            confirmPassword = "";
+        try {
+            const { changePassword: changePw } = await import("$lib/utils/auth");
+            const result = await changePw(currentPassword, newPassword);
+            if (result.error) {
+                addToast("error", result.error);
+            } else {
+                addToast("success", "Password changed successfully.");
+                currentPassword = "";
+                newPassword = "";
+                confirmPassword = "";
+            }
+        } catch (err) {
+            addToast("error", "An unexpected error occurred.");
+        } finally {
+            changingPassword = false;
         }
-        changingPassword = false;
     }
 
     async function handleSignOut() {
