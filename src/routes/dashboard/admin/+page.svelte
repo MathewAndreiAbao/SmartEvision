@@ -35,7 +35,12 @@
         newRole: string;
     }>({ open: false, user: null, newRole: "" });
 
+    let roleOpen = $state(false);
+
     let showCreateUser = $state(false);
+    let createRoleOpen = $state(false);
+    let createDistrictOpen = $state(false);
+    let createSchoolOpen = $state(false);
     let createForm = $state({
         email: '',
         password: '',
@@ -736,15 +741,45 @@
                         class="block text-xs font-bold text-text-muted uppercase tracking-wide mb-2"
                         >Current: {roleChangeModal.user?.role}</label
                     >
-                    <select
-                        id="role-select"
-                        bind:value={roleChangeModal.newRole}
-                        class="w-full px-4 py-3 text-sm bg-surface-muted border border-border-subtle rounded-xl font-bold focus:ring-2 focus:ring-gov-blue/20 outline-none min-h-[48px]"
+                    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                    <div
+                        class="relative"
+                        onclick={(e) => e.stopPropagation()}
+                        onkeydown={() => {}}
+                        role="presentation"
                     >
-                        {#each ROLES as role}
-                            <option value={role}>{role}</option>
-                        {/each}
-                    </select>
+                        <button
+                            type="button"
+                            onclick={() => { roleOpen = !roleOpen; }}
+                            class="px-4 py-2.5 text-sm font-bold text-left bg-surface-white border border-border-subtle rounded-xl min-h-[42px] flex items-center justify-between gap-3 text-gov-blue w-full"
+                        >
+                            <span>{roleChangeModal.newRole || "Select Role"}</span>
+                            <svg class="w-4 h-4 transition-transform {roleOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                        {#if roleOpen}
+                            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                            <div
+                                class="absolute z-50 mt-1 w-full bg-surface-white border border-border-subtle rounded-xl shadow-lg overflow-hidden"
+                                onclick={(e) => e.stopPropagation()}
+                                onkeydown={() => {}}
+                                role="listbox"
+                            >
+                                {#each ROLES as r}
+                                    <button
+                                        type="button"
+                                        onclick={() => { roleChangeModal.newRole = r; roleOpen = false; }}
+                                        class="w-full text-left px-4 py-3 text-sm hover:bg-gov-blue/5 transition-colors {roleChangeModal.newRole === r ? 'bg-gov-blue/10 font-bold text-gov-blue' : 'text-text-primary'}"
+                                        role="option"
+                                        aria-selected={roleChangeModal.newRole === r}
+                                    >
+                                        {r}
+                                    </button>
+                                {/each}
+                            </div>
+                        {/if}
+                    </div>
                 </div>
 
                 {#if roleChangeModal.newRole !== roleChangeModal.user?.role}
@@ -865,43 +900,131 @@
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label for="create-role" class="block text-xs font-bold text-text-muted uppercase tracking-wide mb-1.5">Role</label>
-                        <select
-                            id="create-role"
-                            bind:value={createForm.role}
-                            class="w-full px-4 py-2.5 text-sm bg-surface-muted border border-border-subtle rounded-xl outline-none focus:ring-2 focus:ring-gov-blue/20 min-h-[44px]"
+                        <label class="block text-xs font-bold text-text-muted uppercase tracking-wide mb-1.5">Role</label>
+                        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                        <div
+                            class="relative"
+                            onclick={(e) => e.stopPropagation()}
+                            onkeydown={() => {}}
+                            role="presentation"
                         >
-                            {#each ROLES as r}
-                                <option value={r}>{r}</option>
-                            {/each}
-                        </select>
+                            <button
+                                type="button"
+                                onclick={() => { createRoleOpen = !createRoleOpen; createDistrictOpen = false; createSchoolOpen = false; }}
+                                class="px-4 py-2.5 text-sm font-bold text-left bg-surface-white border border-border-subtle rounded-xl min-h-[42px] flex items-center justify-between gap-3 text-gov-blue w-full"
+                            >
+                                <span>{createForm.role}</span>
+                                <svg class="w-4 h-4 transition-transform {createRoleOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+                            {#if createRoleOpen}
+                                <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                                <div
+                                    class="absolute z-50 mt-1 w-full bg-surface-white border border-border-subtle rounded-xl shadow-lg overflow-hidden"
+                                    onclick={(e) => e.stopPropagation()}
+                                    onkeydown={() => {}}
+                                    role="listbox"
+                                >
+                                    {#each ROLES as r}
+                                        <button
+                                            type="button"
+                                            onclick={() => { createForm.role = r; createRoleOpen = false; }}
+                                            class="w-full text-left px-4 py-3 text-sm hover:bg-gov-blue/5 transition-colors {createForm.role === r ? 'bg-gov-blue/10 font-bold text-gov-blue' : 'text-text-primary'}"
+                                            role="option"
+                                            aria-selected={createForm.role === r}
+                                        >
+                                            {r}
+                                        </button>
+                                    {/each}
+                                </div>
+                            {/if}
+                        </div>
                     </div>
                     <div>
-                        <label for="create-district" class="block text-xs font-bold text-text-muted uppercase tracking-wide mb-1.5">District</label>
-                        <select
-                            id="create-district"
-                            bind:value={createForm.districtId}
-                            class="w-full px-4 py-2.5 text-sm bg-surface-muted border border-border-subtle rounded-xl outline-none focus:ring-2 focus:ring-gov-blue/20 min-h-[44px]"
+                        <label class="block text-xs font-bold text-text-muted uppercase tracking-wide mb-1.5">District</label>
+                        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                        <div
+                            class="relative"
+                            onclick={(e) => e.stopPropagation()}
+                            onkeydown={() => {}}
+                            role="presentation"
                         >
-                            <option value="">-- Select District --</option>
-                            {#each districts as d}
-                                <option value={d.id}>{d.name}</option>
-                            {/each}
-                        </select>
+                            <button
+                                type="button"
+                                onclick={() => { createDistrictOpen = !createDistrictOpen; createRoleOpen = false; createSchoolOpen = false; }}
+                                class="px-4 py-2.5 text-sm font-bold text-left bg-surface-white border border-border-subtle rounded-xl min-h-[42px] flex items-center justify-between gap-3 text-gov-blue w-full"
+                            >
+                                <span>{createForm.districtId ? (districts.find(d => d.id === createForm.districtId)?.name || createForm.districtId) : '-- Select District --'}</span>
+                                <svg class="w-4 h-4 transition-transform {createDistrictOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+                            {#if createDistrictOpen}
+                                <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                                <div
+                                    class="absolute z-50 mt-1 w-full bg-surface-white border border-border-subtle rounded-xl shadow-lg overflow-y-auto max-h-48"
+                                    onclick={(e) => e.stopPropagation()}
+                                    onkeydown={() => {}}
+                                    role="listbox"
+                                >
+                                    {#each districts as d}
+                                        <button
+                                            type="button"
+                                            onclick={() => { createForm.districtId = d.id; createDistrictOpen = false; }}
+                                            class="w-full text-left px-4 py-3 text-sm hover:bg-gov-blue/5 transition-colors {createForm.districtId === d.id ? 'bg-gov-blue/10 font-bold text-gov-blue' : 'text-text-primary'}"
+                                            role="option"
+                                            aria-selected={createForm.districtId === d.id}
+                                        >
+                                            {d.name}
+                                        </button>
+                                    {/each}
+                                </div>
+                            {/if}
+                        </div>
                     </div>
                 </div>
                 <div>
-                    <label for="create-school" class="block text-xs font-bold text-text-muted uppercase tracking-wide mb-1.5">School</label>
-                    <select
-                        id="create-school"
-                        bind:value={createForm.schoolId}
-                        class="w-full px-4 py-2.5 text-sm bg-surface-muted border border-border-subtle rounded-xl outline-none focus:ring-2 focus:ring-gov-blue/20 min-h-[44px]"
+                    <label class="block text-xs font-bold text-text-muted uppercase tracking-wide mb-1.5">School</label>
+                    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                    <div
+                        class="relative"
+                        onclick={(e) => e.stopPropagation()}
+                        onkeydown={() => {}}
+                        role="presentation"
                     >
-                        <option value="">-- Select School --</option>
-                        {#each schools as s}
-                            <option value={s.id}>{s.name}</option>
-                        {/each}
-                    </select>
+                        <button
+                            type="button"
+                            onclick={() => { createSchoolOpen = !createSchoolOpen; createRoleOpen = false; createDistrictOpen = false; }}
+                            class="px-4 py-2.5 text-sm font-bold text-left bg-surface-white border border-border-subtle rounded-xl min-h-[42px] flex items-center justify-between gap-3 text-gov-blue w-full"
+                        >
+                            <span>{createForm.schoolId ? (schools.find(s => s.id === createForm.schoolId)?.name || createForm.schoolId) : '-- Select School --'}</span>
+                            <svg class="w-4 h-4 transition-transform {createSchoolOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                        {#if createSchoolOpen}
+                            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                            <div
+                                class="absolute z-50 mt-1 w-full bg-surface-white border border-border-subtle rounded-xl shadow-lg overflow-y-auto max-h-48"
+                                onclick={(e) => e.stopPropagation()}
+                                onkeydown={() => {}}
+                                role="listbox"
+                            >
+                                {#each schools as s}
+                                    <button
+                                        type="button"
+                                        onclick={() => { createForm.schoolId = s.id; createSchoolOpen = false; }}
+                                        class="w-full text-left px-4 py-3 text-sm hover:bg-gov-blue/5 transition-colors {createForm.schoolId === s.id ? 'bg-gov-blue/10 font-bold text-gov-blue' : 'text-text-primary'}"
+                                        role="option"
+                                        aria-selected={createForm.schoolId === s.id}
+                                    >
+                                        {s.name}
+                                    </button>
+                                {/each}
+                            </div>
+                        {/if}
+                    </div>
                 </div>
             </form>
 

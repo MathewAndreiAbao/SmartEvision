@@ -35,6 +35,7 @@
 
     // Annotation Tools State
     let selectedTool: 'highlight' | 'comment' | 'flag' | null = null;
+    let toolOpen = false;
     let highlightColor = '#EAB308'; // Default yellow/gold
     let commentText = '';
     
@@ -334,14 +335,61 @@
                                 rows="3"
                             ></textarea>
                             <div class="flex justify-between items-center mt-3">
-                                <select 
-                                    bind:value={selectedTool} 
-                                    class="text-xs font-semibold bg-surface-muted border border-border-subtle p-1.5 rounded-lg text-text-primary"
+                                <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                                <div
+                                    class="relative"
+                                    onclick={(e) => e.stopPropagation()}
+                                    onkeydown={() => {}}
+                                    role="presentation"
                                 >
-                                    <option value="comment">Comment</option>
-                                    <option value="highlight">Observation</option>
-                                    <option value="flag">Critical Issue</option>
-                                </select>
+                                    <button
+                                        type="button"
+                                        onclick={() => { toolOpen = !toolOpen; }}
+                                        class="px-3 py-1.5 text-xs font-bold text-left bg-surface-white border border-border-subtle rounded-lg min-h-[32px] flex items-center justify-between gap-2 text-gov-blue w-[160px]"
+                                    >
+                                        <span>{selectedTool === 'comment' ? 'Comment' : selectedTool === 'highlight' ? 'Observation' : selectedTool === 'flag' ? 'Critical Issue' : 'Select Type'}</span>
+                                        <svg class="w-3 h-3 transition-transform {toolOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </button>
+                                    {#if toolOpen}
+                                        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                                        <div
+                                            class="absolute z-50 mt-1 w-full bg-surface-white border border-border-subtle rounded-lg shadow-lg overflow-hidden"
+                                            onclick={(e) => e.stopPropagation()}
+                                            onkeydown={() => {}}
+                                            role="listbox"
+                                        >
+                                            <button
+                                                type="button"
+                                                onclick={() => { selectedTool = 'comment'; toolOpen = false; }}
+                                                class="w-full text-left px-3 py-2 text-xs hover:bg-gov-blue/5 transition-colors {selectedTool === 'comment' ? 'bg-gov-blue/10 font-bold text-gov-blue' : 'text-text-primary'}"
+                                                role="option"
+                                                aria-selected={selectedTool === 'comment'}
+                                            >
+                                                Comment
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onclick={() => { selectedTool = 'highlight'; toolOpen = false; }}
+                                                class="w-full text-left px-3 py-2 text-xs hover:bg-gov-blue/5 transition-colors {selectedTool === 'highlight' ? 'bg-gov-blue/10 font-bold text-gov-blue' : 'text-text-primary'}"
+                                                role="option"
+                                                aria-selected={selectedTool === 'highlight'}
+                                            >
+                                                Observation
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onclick={() => { selectedTool = 'flag'; toolOpen = false; }}
+                                                class="w-full text-left px-3 py-2 text-xs hover:bg-gov-blue/5 transition-colors {selectedTool === 'flag' ? 'bg-gov-blue/10 font-bold text-gov-blue' : 'text-text-primary'}"
+                                                role="option"
+                                                aria-selected={selectedTool === 'flag'}
+                                            >
+                                                Critical Issue
+                                            </button>
+                                        </div>
+                                    {/if}
+                                </div>
                                 <button
                                     onclick={() => {
                                         selectedTool = selectedTool || 'comment';
