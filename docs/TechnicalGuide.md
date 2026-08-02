@@ -31,8 +31,12 @@ The system uses 9 core tables with strict RLS (Row Level Security) policies.
 Smart E-VISION is optimized for **Vercel** or **Cloudflare Pages**.
 
 ### Environment Variables (.env)
+See `.env.example` for the full list. Required:
 - `PUBLIC_SUPABASE_URL`: Your Supabase Project URL.
 - `PUBLIC_SUPABASE_ANON_KEY`: Your Supabase Anon Public Key.
+- `B2_ENDPOINT`, `B2_BUCKET_NAME`, `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`: Backblaze B2 Cloud Storage.
+- `SUPABASE_SERVICE_ROLE_KEY`: Service-role key (admin operations, bypassing RLS). Get it from Supabase Dashboard > Project Settings > API.
+- `PUBLIC_GOOGLE_SCRIPT_URL`: Optional. Google Apps Script `/exec` URL for Word->PDF conversion fallback (deploy `google_apps_script.js`).
 
 ### Build Command
 ```bash
