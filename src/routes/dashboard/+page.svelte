@@ -239,9 +239,13 @@
 
 
         // Fetch teachers in the scope (School or District)
+        // NOTE: Do NOT embed `schools(name)` here — the profiles->schools FK is
+        // not visible to PostgREST in this database (PGRST200), which returns a
+        // 400 and makes the whole teacher query fail. School names are resolved
+        // separately below.
         let teacherQuery = supabase
             .from("profiles")
-            .select("*, schools(name)")
+            .select("id, full_name, role, school_id, district_id")
             .eq("role", "Teacher");
 
         // Fetch submissions in the scope
@@ -283,12 +287,34 @@
         const teachers = results[0].status === 'fulfilled' ? results[0].value.data || [] : [];
         const allSubs = results[1].status === 'fulfilled' ? results[1].value.data || [] : [];
 
+        // Resolve school names for alerts (can't use the schools() embed here)
+        const teacherSchoolIds = [...new Set(
+            (teachers as any[]).map((t) => t.school_id).filter(Boolean)
+        )];
+        let schoolNameMap: Record<string, string> = {};
+        if (teacherSchoolIds.length > 0) {
+            const { data: schData } = await supabase
+                .from("schools")
+                .select("id, name")
+                .in("id", teacherSchoolIds);
+            if (schData) {
+                for (const s of schData) {
+                    schoolNameMap[s.id] = s.name;
+                }
+            }
+        }
+        const teachersWithNames = (teachers as any[]).map((t) => ({
+            ...t,
+            school_name: t.school_id ? (schoolNameMap[t.school_id] || 'Unknown School') : 'Unknown School',
+            schools: { name: t.school_id ? (schoolNameMap[t.school_id] || 'Unknown School') : 'Unknown School' },
+        }));
+
         const { data: loadsData } = await supabase
             .from("teaching_loads")
             .select("id, profiles!inner(school_id, district_id)")
             .in(
                 "profiles.id",
-                teachers.map((t) => t.id),
+                teachersWithNames.map((t) => t.id),
             );
 
         const totalLoads = loadsData ? loadsData.length : 0;
@@ -296,7 +322,7 @@
         const totalExpected = totalLoads * definedWeeks;
 
         const subsCount = results[1].status === 'fulfilled' ? results[1].value.count || 0 : 0;
-        stats.totalTeachers = teachers.length;
+        stats.totalTeachers = teachersWithNames.length;
         stats.totalUploads = subsCount;
         stats.compliantCount = allSubs.filter(
             (s) =>
@@ -321,7 +347,7 @@
 
         // Predictive integrity alerts (pattern detection)
         const { detectPatterns } = await import("$lib/utils/patternDetection");
-        alerts = detectPatterns(allSubs, calendarArr, teachers);
+        alerts = detectPatterns(allSubs, calendarArr, teachersWithNames);
     }
 
 
