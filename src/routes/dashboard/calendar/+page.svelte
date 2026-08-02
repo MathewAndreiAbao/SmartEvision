@@ -489,7 +489,7 @@
                             >
                             icon. Deadlines are set to
                             <strong>11:59 PM</strong> of the selected date. Submissions
-                            after this will be marked as "Late" or "Non-compliant"
+                            after this will be marked as <strong>Late</strong>
                             automatically.
                         </p>
                     </div>
@@ -513,8 +513,7 @@
                             Submit your documents before the deadline to be
                             marked as
                             <strong>Compliant</strong>. Submissions after the
-                            deadline are marked as <strong>Late</strong> or
-                            <strong>Non-compliant</strong>. Contact your
+                            deadline are marked as <strong>Late</strong>. Contact your
                             supervisor if you need deadline adjustments.
                         </p>
                     </div>

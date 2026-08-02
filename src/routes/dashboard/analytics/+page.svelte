@@ -362,7 +362,7 @@
                         backgroundColor: "#FCD116",
                     },
                     {
-                        label: "Non-compliant",
+                        label: "Missing",
                         data: cleanSchool.map((s) => s.nonCompliant),
                         backgroundColor: "#CE1126",
                     },

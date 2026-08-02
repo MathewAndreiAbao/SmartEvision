@@ -738,7 +738,7 @@
                 <p class="text-lg font-bold text-gov-red">
                     {stats.NonCompliant}
                 </p>
-                <p class="text-xs text-text-muted">Non-compliant</p>
+                <p class="text-xs text-text-muted">Missing</p>
             </div>
         </div>
 

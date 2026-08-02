@@ -444,7 +444,7 @@
                 <StatCard
                     icon="ShieldAlert"
                     value={complianceStats.NonCompliant}
-                    label="Non-compliant"
+                    label="Missing"
                     color="from-gov-red to-red-700"
                 />
             </div>
