@@ -56,6 +56,7 @@
         nonCompliantCount: 0,
     });
     let alerts = $state<any[]>([]);
+    let teacherCompliance = $state<any[]>([]);
     let loading = $state(true);
     let channel: any;
 
@@ -311,14 +312,52 @@
 
         const { data: loadsData } = await supabase
             .from("teaching_loads")
-            .select("id, profiles!inner(school_id, district_id)")
+            .select("id, user_id, subject")
             .in(
-                "profiles.id",
+                "user_id",
                 teachersWithNames.map((t) => t.id),
             );
 
-        const totalLoads = loadsData ? loadsData.length : 0;
+        const loads = loadsData || [];
         const definedWeeks = calendarArr.length || 1;
+
+        // Per-teacher compliance: expected = active loads x defined weeks.
+        // Missing = expected - (compliant + late). This matches the teacher
+        // dashboard's own numbers, just summed across the supervisor's scope.
+        const loadsByTeacher: Record<string, any[]> = {};
+        for (const l of loads) {
+            (loadsByTeacher[l.user_id] ||= []).push(l);
+        }
+        teacherCompliance = teachersWithNames.map((t) => {
+            const myLoads = loadsByTeacher[t.id] || [];
+            const expected = myLoads.length * definedWeeks;
+            const mySubs = allSubs.filter((s) => s.user_id === t.id);
+            const compliant = mySubs.filter(
+                (s) =>
+                    !s.compliance_status ||
+                    s.compliance_status === "compliant" ||
+                    s.compliance_status === "on-time",
+            ).length;
+            const late = mySubs.filter(
+                (s) => s.compliance_status === "late",
+            ).length;
+            const missing = Math.max(0, expected - (compliant + late));
+            return {
+                id: t.id,
+                name: t.full_name,
+                school_name: t.school_name,
+                expected,
+                compliant,
+                late,
+                missing,
+                rate:
+                    expected > 0
+                        ? Math.round(((compliant + late) / expected) * 100)
+                        : 0,
+            };
+        });
+
+        const totalLoads = loads.length;
         const totalExpected = totalLoads * definedWeeks;
 
         const subsCount = results[1].status === 'fulfilled' ? results[1].value.count || 0 : 0;
@@ -334,9 +373,9 @@
             (s) => s.compliance_status === "late",
         ).length;
 
-        stats.nonCompliantCount = Math.max(
+        stats.nonCompliantCount = teacherCompliance.reduce(
+            (sum, t) => sum + t.missing,
             0,
-            totalExpected - (stats.compliantCount + stats.lateCount),
         );
 
         // Use the new standard calculateCompliance for the overall rate to keep display consistent with expected defaults
@@ -614,47 +653,77 @@
         {/if}
 
         <!-- Stats Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             <div in:fly={{ y: 20, duration: 400, delay: 0 }}>
                 <StatCard
                     icon="Users"
                     value={stats.totalTeachers}
-                    label="TOTAL TEACHERS"
+                    label="Teachers"
                 />
             </div>
             <div in:fly={{ y: 20, duration: 400, delay: 100 }}>
                 <StatCard
                     icon="FileText"
                     value={stats.totalUploads}
-                    label="TOTAL SUBMISSIONS"
+                    label="Submissions"
                     color="gov-blue"
                 />
             </div>
             <div in:fly={{ y: 20, duration: 400, delay: 150 }}>
                 <StatCard
                     icon="ShieldCheck"
-                    value={stats.compliantCount}
-                    label="COMPLIANT"
+                    value="{stats.compliantRate}%"
+                    label="Compliance Rate"
                     color="gov-green"
                 />
             </div>
             <div in:fly={{ y: 20, duration: 400, delay: 200 }}>
                 <StatCard
-                    icon="Clock"
-                    value={stats.lateCount}
-                    label="LATE"
-                    color="gov-gold"
-                />
-            </div>
-            <div in:fly={{ y: 20, duration: 400, delay: 250 }}>
-                <StatCard
                     icon="ShieldX"
                     value={stats.nonCompliantCount}
-                    label="MISSING"
+                    label="Missing"
                     color="gov-red"
                 />
             </div>
         </div>
+
+        <!-- Teacher Compliance Table -->
+        {#if teacherCompliance.length > 0}
+            <div class="mb-6" in:fade={{ duration: 500, delay: 300 }}>
+                <h2
+                    class="text-sm font-bold text-text-muted uppercase tracking-widest mb-4 flex items-center gap-2"
+                >
+                    <div class="h-1 w-4 bg-gov-blue"></div>
+                    Teacher Compliance
+                </h2>
+                <div class="bg-surface-white border border-border-subtle rounded-xl overflow-hidden shadow-sm">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-[10px] uppercase tracking-wider text-text-muted border-b border-border-subtle">
+                                <th class="px-4 py-3 font-bold">Teacher</th>
+                                <th class="px-4 py-3 font-bold hidden sm:table-cell">School</th>
+                                <th class="px-4 py-3 font-bold text-center">Compliant</th>
+                                <th class="px-4 py-3 font-bold text-center">Late</th>
+                                <th class="px-4 py-3 font-bold text-center">Missing</th>
+                                <th class="px-4 py-3 font-bold text-right">Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {#each teacherCompliance as tc}
+                                <tr class="border-b border-border-subtle last:border-0 hover:bg-surface-muted/40 transition-colors">
+                                    <td class="px-4 py-3 font-semibold text-text-primary">{tc.name}</td>
+                                    <td class="px-4 py-3 text-text-muted hidden sm:table-cell">{tc.school_name}</td>
+                                    <td class="px-4 py-3 text-center text-gov-green font-semibold">{tc.compliant}</td>
+                                    <td class="px-4 py-3 text-center text-gov-gold-dark font-semibold">{tc.late}</td>
+                                    <td class="px-4 py-3 text-center text-gov-red font-semibold">{tc.missing}</td>
+                                    <td class="px-4 py-3 text-right font-semibold text-text-primary">{tc.rate}%</td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {/if}
 
 
 
