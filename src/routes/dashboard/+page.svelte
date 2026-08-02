@@ -650,7 +650,7 @@
                 <StatCard
                     icon="ShieldX"
                     value={stats.nonCompliantCount}
-                    label="NON-COMPLIANT"
+                    label="MISSING"
                     color="gov-red"
                 />
             </div>
