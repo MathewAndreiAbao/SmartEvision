@@ -5,15 +5,18 @@
 
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { createAnnotation } from '$lib/utils/dllReviewWorkflow';
+import { createAuthedSupabase } from '$lib/server/authClient';
 import type { CreateAnnotationInput } from '$lib/types/dll-review';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
     try {
         // Verify authentication (user is pre-validated by hooks.server.ts)
         const user = locals.user;
-        if (!user?.id) {
+        if (!user?.id || !locals.authToken) {
             return json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        const supabase = await createAuthedSupabase(locals.authToken);
 
         const input: CreateAnnotationInput = await request.json();
 
@@ -25,7 +28,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             );
         }
 
-        const { data, error } = await createAnnotation(input, user.id);
+        const { data, error } = await createAnnotation(input, user.id, supabase);
 
         if (error) {
             return json({ error }, { status: 400 });
@@ -42,9 +45,11 @@ export const DELETE: RequestHandler = async ({ url, locals }) => {
     try {
         // Verify authentication
         const user = locals.user;
-        if (!user?.id) {
+        if (!user?.id || !locals.authToken) {
             return json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        const supabase = await createAuthedSupabase(locals.authToken);
 
         const id = url.searchParams.get('id');
         if (!id) {
@@ -52,7 +57,7 @@ export const DELETE: RequestHandler = async ({ url, locals }) => {
         }
 
         const { deleteAnnotation } = await import('$lib/utils/dllReviewWorkflow');
-        const { success, error } = await deleteAnnotation(id, user.id);
+        const { success, error } = await deleteAnnotation(id, user.id, supabase);
 
         if (!success) {
             return json({ error }, { status: 400 });

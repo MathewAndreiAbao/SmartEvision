@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { profile } from "$lib/utils/auth";
+    import { profile, resetPasswordForEmail } from "$lib/utils/auth";
     import { supabase } from "$lib/utils/supabase";
     import { logAudit } from "$lib/utils/audit";
     import { onMount } from "svelte";
@@ -33,9 +33,13 @@
         open: boolean;
         user: any;
         newRole: string;
-    }>({ open: false, user: null, newRole: "" });
+        newSchoolId: string;
+        newDistrictId: string;
+    }>({ open: false, user: null, newRole: "", newSchoolId: "", newDistrictId: "" });
 
     let roleOpen = $state(false);
+    let editSchoolOpen = $state(false);
+    let editDistrictOpen = $state(false);
 
     let showCreateUser = $state(false);
     let createRoleOpen = $state(false);
@@ -183,7 +187,13 @@
     }
 
     function openRoleChange(user: any) {
-        roleChangeModal = { open: true, user, newRole: user.role };
+        roleChangeModal = {
+            open: true,
+            user,
+            newRole: user.role,
+            newSchoolId: user.school_id || "",
+            newDistrictId: user.district_id || "",
+        };
     }
 
     async function confirmRoleChange() {
@@ -192,28 +202,60 @@
         saving = true;
         const { error } = await supabase
             .from("profiles")
-            .update({ role: roleChangeModal.newRole })
+            .update({
+                role: roleChangeModal.newRole,
+                school_id: roleChangeModal.newSchoolId || null,
+                district_id: roleChangeModal.newDistrictId || null,
+            })
             .eq("id", roleChangeModal.user.id);
 
         if (error) {
             showMessage(`Failed to update role: ${error.message}`, "error");
         } else {
             showMessage(
-                `${roleChangeModal.user.full_name} promoted to ${roleChangeModal.newRole}`,
+                `${roleChangeModal.user.full_name} updated successfully`,
                 "success",
             );
             logAudit($profile!.id, 'user.role_changed', 'user', roleChangeModal.user.id, {
                 previous_role: roleChangeModal.user.role,
-                new_role: roleChangeModal.newRole
+                new_role: roleChangeModal.newRole,
+                school_id: roleChangeModal.newSchoolId || null,
+                district_id: roleChangeModal.newDistrictId || null,
             });
             // Update local state
             const idx = users.findIndex(
                 (u) => u.id === roleChangeModal.user.id,
             );
-            if (idx >= 0) users[idx].role = roleChangeModal.newRole;
+            if (idx >= 0) {
+                users[idx].role = roleChangeModal.newRole;
+                users[idx].school_id = roleChangeModal.newSchoolId || null;
+                users[idx].district_id = roleChangeModal.newDistrictId || null;
+                users[idx].school_name = schools.find((s: any) => s.id === roleChangeModal.newSchoolId)?.name || '—';
+                users[idx].district_name = districts.find((d: any) => d.id === roleChangeModal.newDistrictId)?.name || '—';
+            }
         }
-        roleChangeModal = { open: false, user: null, newRole: "" };
+        roleChangeModal = { open: false, user: null, newRole: "", newSchoolId: "", newDistrictId: "" };
         saving = false;
+    }
+
+    async function resetUserPassword(user: any) {
+        if (!user.email) {
+            showMessage("This user has no email on file", "error");
+            return;
+        }
+        if (!confirm(`Send a password reset email to "${user.full_name}" (${user.email})?`)) return;
+        saving = true;
+        const { error } = await resetPasswordForEmail(user.email);
+        saving = false;
+        if (error) {
+            showMessage(`Failed to send reset email: ${error}`, "error");
+        } else {
+            logAudit($profile!.id, 'user.password_reset_requested', 'user', user.id, {
+                user_name: user.full_name,
+                email: user.email
+            });
+            showMessage(`Password reset email sent to ${user.email}`, "success");
+        }
     }
 
     async function toggleUserActive(user: any) {
@@ -646,9 +688,17 @@
                                                     onclick={() =>
                                                         openRoleChange(user)}
                                                     class="px-3 py-1.5 text-[10px] font-bold text-gov-blue border border-gov-blue/20 rounded-lg hover:bg-gov-blue/5 transition-colors min-h-[32px]"
-                                                    aria-label="Change role for {user.full_name}"
+                                                    aria-label="Manage {user.full_name}"
                                                 >
-                                                    Change Role
+                                                    Manage
+                                                </button>
+                                                <button
+                                                    onclick={() =>
+                                                        resetUserPassword(user)}
+                                                    class="px-3 py-1.5 text-[10px] font-bold text-gov-gold-dark border border-gov-gold/30 rounded-lg hover:bg-gov-gold/10 transition-colors min-h-[32px]"
+                                                    aria-label="Send password reset email to {user.full_name}"
+                                                >
+                                                    Reset Password
                                                 </button>
                                                 <button
                                                     onclick={() =>
@@ -717,7 +767,7 @@
         transition:fade={{ duration: 200 }}
         role="dialog"
         aria-modal="true"
-        aria-label="Change user role"
+        aria-label="Manage user"
     >
         <div
             class="bg-surface-white rounded-3xl shadow-sm w-full max-w-md overflow-hidden"
@@ -725,21 +775,21 @@
         >
             <div class="p-6 border-b border-gray-100">
                 <h3 class="text-lg font-bold text-text-primary">
-                    Change User Role
+                    Manage User
                 </h3>
                 <p class="text-sm text-text-secondary mt-1">
-                    Update role for <strong
+                    Update details for <strong
                         >{roleChangeModal.user?.full_name}</strong
                     >
                 </p>
             </div>
 
-            <div class="p-6 space-y-4">
+            <div class="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
                 <div>
                     <label
                         for="role-select"
                         class="block text-xs font-bold text-text-muted uppercase tracking-wide mb-2"
-                        >Current: {roleChangeModal.user?.role}</label
+                        >Role (current: {roleChangeModal.user?.role})</label
                     >
                     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                     <div
@@ -750,7 +800,7 @@
                     >
                         <button
                             type="button"
-                            onclick={() => { roleOpen = !roleOpen; }}
+                            onclick={() => { roleOpen = !roleOpen; editSchoolOpen = false; editDistrictOpen = false; }}
                             class="px-4 py-2.5 text-sm font-bold text-left bg-surface-white border border-border-subtle rounded-xl min-h-[42px] flex items-center justify-between gap-3 text-gov-blue w-full"
                         >
                             <span>{roleChangeModal.newRole || "Select Role"}</span>
@@ -782,6 +832,116 @@
                     </div>
                 </div>
 
+                <div>
+                    <label
+                        class="block text-xs font-bold text-text-muted uppercase tracking-wide mb-2"
+                        >District</label
+                    >
+                    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                    <div
+                        class="relative"
+                        onclick={(e) => e.stopPropagation()}
+                        onkeydown={() => {}}
+                        role="presentation"
+                    >
+                        <button
+                            type="button"
+                            onclick={() => { editDistrictOpen = !editDistrictOpen; editSchoolOpen = false; roleOpen = false; }}
+                            class="px-4 py-2.5 text-sm font-bold text-left bg-surface-white border border-border-subtle rounded-xl min-h-[42px] flex items-center justify-between gap-3 text-gov-blue w-full"
+                        >
+                            <span>{roleChangeModal.newDistrictId ? (districts.find(d => d.id === roleChangeModal.newDistrictId)?.name || roleChangeModal.newDistrictId) : '-- No District --'}</span>
+                            <svg class="w-4 h-4 transition-transform {editDistrictOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                        {#if editDistrictOpen}
+                            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                            <div
+                                class="absolute z-50 mt-1 w-full bg-surface-white border border-border-subtle rounded-xl shadow-lg overflow-y-auto max-h-48"
+                                onclick={(e) => e.stopPropagation()}
+                                onkeydown={() => {}}
+                                role="listbox"
+                            >
+                                <button
+                                    type="button"
+                                    onclick={() => { roleChangeModal.newDistrictId = ""; roleChangeModal.newSchoolId = ""; editDistrictOpen = false; }}
+                                    class="w-full text-left px-4 py-3 text-sm hover:bg-gov-blue/5 transition-colors text-text-muted"
+                                    role="option"
+                                    aria-selected={!roleChangeModal.newDistrictId}
+                                >
+                                    -- No District --
+                                </button>
+                                {#each districts as d}
+                                    <button
+                                        type="button"
+                                        onclick={() => { roleChangeModal.newDistrictId = d.id; roleChangeModal.newSchoolId = ""; editDistrictOpen = false; }}
+                                        class="w-full text-left px-4 py-3 text-sm hover:bg-gov-blue/5 transition-colors {roleChangeModal.newDistrictId === d.id ? 'bg-gov-blue/10 font-bold text-gov-blue' : 'text-text-primary'}"
+                                        role="option"
+                                        aria-selected={roleChangeModal.newDistrictId === d.id}
+                                    >
+                                        {d.name}
+                                    </button>
+                                {/each}
+                            </div>
+                        {/if}
+                    </div>
+                </div>
+
+                <div>
+                    <label
+                        class="block text-xs font-bold text-text-muted uppercase tracking-wide mb-2"
+                        >School</label
+                    >
+                    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                    <div
+                        class="relative"
+                        onclick={(e) => e.stopPropagation()}
+                        onkeydown={() => {}}
+                        role="presentation"
+                    >
+                        <button
+                            type="button"
+                            onclick={() => { editSchoolOpen = !editSchoolOpen; editDistrictOpen = false; roleOpen = false; }}
+                            class="px-4 py-2.5 text-sm font-bold text-left bg-surface-white border border-border-subtle rounded-xl min-h-[42px] flex items-center justify-between gap-3 text-gov-blue w-full"
+                        >
+                            <span>{roleChangeModal.newSchoolId ? (schools.find(s => s.id === roleChangeModal.newSchoolId)?.name || roleChangeModal.newSchoolId) : '-- No School --'}</span>
+                            <svg class="w-4 h-4 transition-transform {editSchoolOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                        {#if editSchoolOpen}
+                            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                            <div
+                                class="absolute z-50 mt-1 w-full bg-surface-white border border-border-subtle rounded-xl shadow-lg overflow-y-auto max-h-48"
+                                onclick={(e) => e.stopPropagation()}
+                                onkeydown={() => {}}
+                                role="listbox"
+                            >
+                                <button
+                                    type="button"
+                                    onclick={() => { roleChangeModal.newSchoolId = ""; editSchoolOpen = false; }}
+                                    class="w-full text-left px-4 py-3 text-sm hover:bg-gov-blue/5 transition-colors text-text-muted"
+                                    role="option"
+                                    aria-selected={!roleChangeModal.newSchoolId}
+                                >
+                                    -- No School --
+                                </button>
+                                {#each schools as s}
+                                    <button
+                                        type="button"
+                                        onclick={() => { roleChangeModal.newSchoolId = s.id; editSchoolOpen = false; }}
+                                        class="w-full text-left px-4 py-3 text-sm hover:bg-gov-blue/5 transition-colors {roleChangeModal.newSchoolId === s.id ? 'bg-gov-blue/10 font-bold text-gov-blue' : 'text-text-primary'}"
+                                        role="option"
+                                        aria-selected={roleChangeModal.newSchoolId === s.id}
+                                    >
+                                        {s.name}
+                                    </button>
+                                {/each}
+                            </div>
+                        {/if}
+                    </div>
+                </div>
+
                 {#if roleChangeModal.newRole !== roleChangeModal.user?.role}
                     <div
                         class="p-3 bg-gov-gold/10 rounded-xl border border-gov-gold/20 text-xs text-text-secondary"
@@ -805,6 +965,8 @@
                             open: false,
                             user: null,
                             newRole: "",
+                            newSchoolId: "",
+                            newDistrictId: "",
                         })}
                     class="px-5 py-2.5 text-sm font-bold text-text-muted hover:text-text-primary transition-colors min-h-[44px]"
                 >
@@ -813,10 +975,12 @@
                 <button
                     onclick={confirmRoleChange}
                     disabled={saving ||
-                        roleChangeModal.newRole === roleChangeModal.user?.role}
+                        (roleChangeModal.newRole === roleChangeModal.user?.role &&
+                        (roleChangeModal.newSchoolId || "") === (roleChangeModal.user?.school_id || "") &&
+                        (roleChangeModal.newDistrictId || "") === (roleChangeModal.user?.district_id || ""))}
                     class="px-5 py-2.5 bg-gov-blue text-white rounded-xl text-sm font-bold hover:bg-gov-blue-dark active:scale-95 transition-all disabled:opacity-40 min-h-[44px]"
                 >
-                    {saving ? "Updating..." : "Confirm Change"}
+                    {saving ? "Saving..." : "Save Changes"}
                 </button>
             </div>
         </div>

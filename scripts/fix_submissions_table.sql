@@ -14,7 +14,7 @@ ADD COLUMN IF NOT EXISTS teaching_load_id UUID REFERENCES teaching_loads(id) ON 
 
 -- Step 3: Ensure compliance_status column exists with correct constraints
 ALTER TABLE submissions 
-ADD COLUMN IF NOT EXISTS compliance_status TEXT DEFAULT 'on-time';
+ADD COLUMN IF NOT EXISTS compliance_status TEXT DEFAULT 'compliant';
 
 -- Step 4: Add check constraint for compliance_status if not already present
 ALTER TABLE submissions 
@@ -22,7 +22,7 @@ DROP CONSTRAINT IF EXISTS submissions_compliance_status_check;
 
 ALTER TABLE submissions 
 ADD CONSTRAINT submissions_compliance_status_check 
-CHECK (compliance_status IN ('on-time', 'late', 'missing'));
+CHECK (compliance_status IN ('compliant', 'late', 'non-compliant'));
 
 -- Step 5: Create indexes if they don't exist
 CREATE INDEX IF NOT EXISTS idx_submissions_teaching_load 

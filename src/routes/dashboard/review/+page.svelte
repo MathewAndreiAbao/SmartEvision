@@ -7,7 +7,7 @@
     import DLLAnnotationViewer from '$lib/components/DLLAnnotationViewer.svelte';
     import DLLReviewPanel from '$lib/components/DLLReviewPanel.svelte';
     import DLLAuditTrail from '$lib/components/DLLAuditTrail.svelte';
-    import { FileText, ArrowLeft, Download } from 'lucide-svelte';
+    import { FileText, ArrowLeft, Download, CheckCircle, XCircle } from 'lucide-svelte';
     import type { SubmissionWithReview, DLLAnnotation } from '$lib/types/dll-review';
 
     let submissionId = '';
@@ -16,7 +16,11 @@
     let loading = true;
     let isReviewer = false;
     let actionLoading = false;
+    let returnReason = '';
     let error = '';
+    let pendingList: any[] = [];
+    let listLoading = true;
+    let listError = '';
 
     // Get the current access token so server routes can authenticate the request
     async function getAuthHeaders(): Promise<Record<string, string>> {
@@ -32,13 +36,37 @@
         submissionId = urlParams.get('id') || '';
 
         if (!submissionId) {
-            error = 'No submission ID provided';
             loading = false;
+            await loadPending();
             return;
         }
 
         await loadSubmission();
     });
+
+    async function loadPending() {
+        listLoading = true;
+        listError = '';
+        try {
+            const headers = await getAuthHeaders();
+            const response = await fetch('/api/dll/pending', { headers });
+            if (!response.ok) {
+                listError = response.status === 401 ? 'Unauthorized' : 'Failed to load pending reviews';
+                return;
+            }
+            const data = await response.json();
+            pendingList = data.data || [];
+            isReviewer = true;
+        } catch (err) {
+            listError = 'Failed to load pending reviews: ' + (err as Error).message;
+        } finally {
+            listLoading = false;
+        }
+    }
+
+    function openSubmission(id: string) {
+        goto(`/dashboard/review?id=${id}`);
+    }
 
     async function loadSubmission() {
         try {
@@ -122,9 +150,56 @@
         }
     }
 
+    // Creates a review row if none exists yet, returning the review id
+    async function ensureReview(): Promise<string | null> {
+        if (submission?.review?.id) return submission.review.id;
+
+        try {
+            const headers = await getAuthHeaders();
+            const response = await fetch('/api/dll/review?action=create', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ submission_id: submissionId }),
+            });
+
+            const resData = await response.json();
+            if (!response.ok) {
+                alert('Failed to create review: ' + (resData.error || response.statusText));
+                return null;
+            }
+
+            await loadSubmission();
+            return resData.data?.id || null;
+        } catch (err) {
+            alert('Error: ' + (err as Error).message);
+            return null;
+        }
+    }
+
+    async function handleSaveRemark(remark: string) {
+        try {
+            const headers = await getAuthHeaders();
+            const response = await fetch('/api/dll/review?action=comment', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ submission_id: submissionId, reviewer_comment: remark }),
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                alert('Failed to save remark: ' + (errData.error || response.statusText));
+                return;
+            }
+
+            await loadSubmission();
+        } catch (err) {
+            alert('Error: ' + (err as Error).message);
+        }
+    }
 
     async function handleApprove() {
-        if (!submission?.review?.id) return;
+        const reviewId = await ensureReview();
+        if (!reviewId) return;
 
         actionLoading = true;
         try {
@@ -132,7 +207,7 @@
             const response = await fetch('/api/dll/review?action=approve', {
                 method: 'POST',
                 headers,
-                body: JSON.stringify({ review_id: submission.review.id }),
+                body: JSON.stringify({ review_id: reviewId }),
             });
 
             if (!response.ok) {
@@ -150,7 +225,8 @@
     }
 
     async function handleReturn(reason: string) {
-        if (!submission?.review?.id) return;
+        const reviewId = await ensureReview();
+        if (!reviewId) return;
 
         actionLoading = true;
         try {
@@ -159,7 +235,7 @@
                 method: 'POST',
                 headers,
                 body: JSON.stringify({
-                    review_id: submission.review.id,
+                    review_id: reviewId,
                     return_reason: reason,
                 }),
             });
@@ -206,16 +282,20 @@
                             <p class="text-sm text-text-muted mt-1">
                                 {submission.file_name} • Week {submission.week_number}
                             </p>
+                        {:else}
+                            <p class="text-sm text-text-muted mt-1">Submissions awaiting review</p>
                         {/if}
                     </div>
                 </div>
-                <button
-                    onclick={handleExport}
-                    class="flex items-center gap-2 px-4 py-2 bg-gov-blue text-white rounded-lg font-semibold text-sm hover:bg-gov-blue-dark transition-all"
-                >
-                    <Download size={18} />
-                    Export
-                </button>
+                {#if submission}
+                    <button
+                        onclick={handleExport}
+                        class="flex items-center gap-2 px-4 py-2 bg-gov-blue text-white rounded-lg font-semibold text-sm hover:bg-gov-blue-dark transition-all"
+                    >
+                        <Download size={18} />
+                        Export
+                    </button>
+                {/if}
             </div>
         </div>
     </div>
@@ -231,6 +311,64 @@
         {:else if error}
             <div class="p-6 bg-gov-red/10 border border-gov-red rounded-lg text-center">
                 <p class="text-gov-red font-bold">{error}</p>
+            </div>
+        {:else if !submissionId}
+            <div class="bg-white border border-border-subtle rounded-lg" in:fade={{ duration: 300 }}>
+                <div class="px-6 py-4 border-b border-border-subtle">
+                    <h2 class="text-lg font-bold text-text-primary">Pending Submissions</h2>
+                    <p class="text-sm text-text-muted mt-0.5">DLLs that need your review</p>
+                </div>
+
+                {#if listLoading}
+                    <div class="text-center py-12">
+                        <div class="inline-block">
+                            <div class="w-8 h-8 border-4 border-gov-blue border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                    </div>
+                {:else if listError}
+                    <div class="p-6 bg-gov-red/10 border border-gov-red rounded-lg text-center m-6">
+                        <p class="text-gov-red font-bold">{listError}</p>
+                    </div>
+                {:else if pendingList.length === 0}
+                    <div class="py-16 text-center">
+                        <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gov-green/10 flex items-center justify-center">
+                            <CheckCircle size={28} class="text-gov-green" />
+                        </div>
+                        <p class="text-lg font-bold text-text-primary">All caught up!</p>
+                        <p class="text-sm text-text-muted mt-1">No submissions are currently awaiting review.</p>
+                    </div>
+                {:else}
+                    <ul class="divide-y divide-border-subtle">
+                        {#each pendingList as item}
+                            <li>
+                                <button
+                                    onclick={() => openSubmission(item.id)}
+                                    class="w-full flex items-center gap-4 px-6 py-4 text-left hover:bg-surface-muted transition-colors"
+                                >
+                                    <div class="w-10 h-10 rounded-lg bg-gov-blue/5 text-gov-blue flex items-center justify-center flex-shrink-0">
+                                        <FileText size={20} />
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="font-semibold text-text-primary truncate">{item.file_name}</p>
+                                        <p class="text-xs text-text-muted mt-0.5">
+                                            {item.uploader?.full_name || 'Unknown'} • {item.doc_type} • Week {item.week_number}
+                                        </p>
+                                    </div>
+                                    <div class="text-right flex-shrink-0">
+                                        <p class="text-xs font-semibold text-text-muted">
+                                            {new Date(item.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </p>
+                                        {#if item.dll_review?.[0]?.status === 'returned'}
+                                            <span class="inline-block mt-1 rounded-full bg-gov-red/10 text-gov-red px-2 py-0.5 text-[10px] font-semibold">Returned</span>
+                                        {:else}
+                                            <span class="inline-block mt-1 rounded-full bg-gov-gold/10 text-gov-gold px-2 py-0.5 text-[10px] font-semibold">Needs Review</span>
+                                        {/if}
+                                    </div>
+                                </button>
+                            </li>
+                        {/each}
+                    </ul>
+                {/if}
             </div>
         {:else if submission}
             <div
@@ -299,7 +437,52 @@
                     <DLLReviewPanel
                         review={submission.review || null}
                         loading={actionLoading}
+                        canComment={isReviewer}
+                        onSaveRemark={handleSaveRemark}
                     />
+
+                    <!-- Reviewer Actions -->
+                    {#if isReviewer && submission.review?.status !== 'approved'}
+                        <div class="rounded-2xl border border-border-subtle bg-surface-white p-6 shadow-sm" in:fly={{ x: 20, duration: 400, delay: 150 }}>
+                            <p class="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-text-muted">Review Decision</p>
+
+                            {#if submission.review?.status === 'returned'}
+                                <div class="mb-4 rounded-lg bg-gov-red/10 border border-gov-red px-3 py-2 text-sm text-gov-red">
+                                    Reason: {submission.review.return_reason || 'No reason provided'}
+                                </div>
+                            {/if}
+
+                            <button
+                                onclick={handleApprove}
+                                disabled={actionLoading}
+                                class="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gov-green px-4 py-3 text-sm font-semibold text-white transition-all hover:bg-gov-green-dark disabled:opacity-50"
+                            >
+                                <CheckCircle size={16} />
+                                {actionLoading ? 'Processing...' : 'Approve & Mark Compliant'}
+                            </button>
+
+                            <textarea
+                                bind:value={returnReason}
+                                placeholder="Reason for return / revision request..."
+                                class="w-full resize-none rounded-xl border border-border-subtle p-3 text-sm outline-none focus:ring-2 focus:ring-gov-red"
+                                rows="2"
+                            ></textarea>
+                            <button
+                                onclick={() => {
+                                    if (!returnReason.trim()) {
+                                        alert('Please provide a reason for returning the submission');
+                                        return;
+                                    }
+                                    handleReturn(returnReason.trim());
+                                }}
+                                disabled={actionLoading}
+                                class="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gov-red px-4 py-3 text-sm font-semibold text-white transition-all hover:bg-gov-red-dark disabled:opacity-50"
+                            >
+                                <XCircle size={16} />
+                                {actionLoading ? 'Processing...' : 'Return for Revisions'}
+                            </button>
+                        </div>
+                    {/if}
                 </div>
             </div>
         {/if}

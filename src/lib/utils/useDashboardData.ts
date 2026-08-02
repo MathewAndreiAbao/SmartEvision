@@ -379,7 +379,7 @@ export async function markNonCompliantSubmissions(
                 file_path: `non-compliant/${teacher.id}/week_${week.week_number}_load_${load.id}`,
                 file_hash: hash,
                 file_size: 0,
-                doc_type: 'Non-Compliant',
+                doc_type: 'Unknown',
                 week_number: week.week_number,
                 school_year: schoolYear,
                 calendar_id: week.id,

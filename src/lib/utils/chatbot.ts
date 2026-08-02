@@ -399,8 +399,34 @@ async function queryDeadline(
 
 async function queryDlls(
     db: SupabaseClient,
-    slots: Record<string, string>
+    slots: Record<string, string>,
+    queryText?: string
 ): Promise<string> {
+    // Prefer TF-IDF semantic search when the user asked a free-text question
+    const hasStructuredSlots = !!(slots.subject || slots.week || slots.grade);
+    if (!hasStructuredSlots && queryText && queryText.trim().length > 3) {
+        try {
+            if (!dllEngineLoaded) {
+                await loadDllDocumentsFromSupabase(db);
+                dllEngineLoaded = true;
+            }
+            const semantic = dllSearchEngine.search(queryText.trim(), 5);
+            if (semantic.length > 0) {
+                const lines = semantic.map((r, i) => {
+                    const d = r.doc;
+                    const grade = d.grade ? ` (${d.grade})` : '';
+                    const week = d.week ? ` Week ${d.week}` : '';
+                    return `${i + 1}. ${d.subject}${grade}${week} — ${d.teacher}`;
+                });
+                let summary = `Found ${semantic.length} DLL${semantic.length > 1 ? 's' : ''} matching "${queryText.trim()}":\n${lines.join('\n')}`;
+                if (semantic.length === 5) summary += '\n\nFor more precise results, try a more specific search.';
+                return summary;
+            }
+        } catch (e) {
+            console.warn('[chatbot] Semantic search unavailable, falling back to SQL:', e);
+        }
+    }
+
     let query = db
         .from('submissions')
         .select(`
@@ -715,7 +741,7 @@ async function generateDatabaseResponse(
             case 'check_deadline':
                 return await queryDeadline(db, profile?.district_id ?? undefined, slots);
             case 'find_dll':
-                return await queryDlls(db, slots);
+                return await queryDlls(db, slots, text);
             case 'school_compare':
                 return await querySchoolCompare(db, profile?.district_id ?? undefined, profile, slots);
             case 'teacher_stats':
@@ -798,6 +824,7 @@ class DllSearchEngine {
 
 export const intentClassifier = new IntentClassifier(intentModel as unknown as IntentModelData);
 export const dllSearchEngine = new DllSearchEngine();
+let dllEngineLoaded = false;
 
 export async function processQuery(text: string, ctx?: ChatContext): Promise<ChatResponse> {
     const { intent, confidence } = intentClassifier.predict(text);

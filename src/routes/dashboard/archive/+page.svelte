@@ -6,6 +6,7 @@
     import FolderCard from "$lib/components/FolderCard.svelte";
     import { normalizeComplianceStatus } from "$lib/utils/useDashboardData";
     import { canViewArchivedDocument } from "$lib/utils/documentPermissions";
+    import { shareVerification } from "$lib/utils/shareIntegration";
     import { addToast } from "$lib/stores/toast";
     import { fly, fade } from "svelte/transition";
     import {
@@ -17,6 +18,7 @@
         Download,
         Eye,
         MessageSquare,
+        Share2,
         X,
         ArrowLeft,
     } from "lucide-svelte";
@@ -74,7 +76,7 @@
     ]);
 
     // â”€â”€ Remarks & Review Status â”€â”€
-    let reviewsMap = $state<Record<string, { reviewer_comment: string | null }>>({});
+    let reviewsMap = $state<Record<string, { reviewer_comment: string | null; status: string | null; return_reason: string | null }>>({});
     let statusFilter = $state<"all" | "for-checking" | "checked">("all");
 
     let remarkModalOpen = $state(false);
@@ -109,7 +111,11 @@
         if (error) {
             addToast("error", "Failed to save remark: " + error.message);
         } else {
-            reviewsMap[remarkTarget.id] = { reviewer_comment: remarkText.trim() };
+            reviewsMap[remarkTarget.id] = {
+                reviewer_comment: remarkText.trim(),
+                status: "needs-check",
+                return_reason: null,
+            };
             addToast("success", "Remark saved successfully");
             closeRemarkModal();
         }
@@ -312,12 +318,16 @@
         if (ids.length > 0) {
             const { data: reviews } = await supabase
                 .from("dll_reviews")
-                .select("submission_id, reviewer_comment")
+                .select("submission_id, reviewer_comment, status, return_reason")
                 .in("submission_id", ids);
             if (reviews) {
-                const map: Record<string, { reviewer_comment: string | null }> = {};
+                const map: Record<string, { reviewer_comment: string | null; status: string | null; return_reason: string | null }> = {};
                 for (const r of reviews) {
-                    map[r.submission_id] = { reviewer_comment: r.reviewer_comment };
+                    map[r.submission_id] = {
+                        reviewer_comment: r.reviewer_comment,
+                        status: r.status,
+                        return_reason: r.return_reason,
+                    };
                 }
                 reviewsMap = map;
             }
@@ -609,6 +619,19 @@
         }
     }
 
+    async function handleShare(sub: Submission) {
+        const result = await shareVerification(sub.file_hash, sub.file_name);
+        if (result?.success) {
+            if (result.method === 'clipboard') {
+                addToast("success", "Verification link copied to clipboard");
+            }
+        } else if (result?.error) {
+            addToast("error", "Share failed: " + result.error);
+        } else {
+            addToast("info", "Share cancelled");
+        }
+    }
+
     function buildTeachersMap(subs: Submission[]) {
         const tMap: Record<string, { label: string; avatar_url: string | null }> = {};
         for (const s of subs) {
@@ -856,7 +879,15 @@
                             class="flex flex-wrap items-center justify-center gap-1.5 mt-auto"
                         >
                             {#if sub.doc_type === 'DLL'}
-                                {#if reviewsMap[sub.id]}
+                                {#if reviewsMap[sub.id]?.status === 'approved'}
+                                    <span class="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-[10px] font-bold rounded uppercase tracking-wider">
+                                        Approved
+                                    </span>
+                                {:else if reviewsMap[sub.id]?.status === 'returned'}
+                                    <span class="px-2 py-0.5 bg-gov-red/10 text-gov-red text-[10px] font-bold rounded uppercase tracking-wider">
+                                        Returned
+                                    </span>
+                                {:else if reviewsMap[sub.id]}
                                     <span class="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-[10px] font-bold rounded uppercase tracking-wider">
                                         Checked
                                     </span>
@@ -932,6 +963,16 @@
                             >
                                 <Download size={16} />
                             </button>
+                            <button
+                                onclick={(e) => {
+                                    e.stopPropagation();
+                                    handleShare(sub);
+                                }}
+                                class="p-2 text-text-muted hover:text-gov-gold-dark hover:bg-gov-gold/10 rounded-lg transition-all"
+                                title="Share Verification Link"
+                            >
+                                <Share2 size={16} />
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1005,6 +1046,18 @@
             <div class="px-6 py-4">
                 {#if existingRemark}
                     <!-- View existing remark (everyone, including Master Teacher) -->
+                    {#if remarkTarget && reviewsMap[remarkTarget.id]?.status === 'returned'}
+                        <div class="p-4 bg-gov-red/10 border border-gov-red/30 rounded-xl mb-3">
+                            <p class="text-xs font-bold uppercase tracking-wider text-gov-red mb-1">Returned for Revisions</p>
+                            <p class="text-sm text-text-primary leading-relaxed">
+                                {reviewsMap[remarkTarget.id]?.return_reason || 'No reason provided'}
+                            </p>
+                        </div>
+                    {:else if remarkTarget && reviewsMap[remarkTarget.id]?.status === 'approved'}
+                        <div class="p-4 bg-gov-green/10 border border-gov-green/30 rounded-xl mb-3">
+                            <p class="text-xs font-bold uppercase tracking-wider text-gov-green">Approved & Compliant</p>
+                        </div>
+                    {/if}
                     <div class="p-4 bg-gov-gold/5 border border-gov-gold/20 rounded-xl">
                         <p class="text-sm text-text-primary leading-relaxed">{existingRemark}</p>
                         <p class="text-[10px] text-text-muted mt-2 font-medium">Reviewed by Master Teacher</p>

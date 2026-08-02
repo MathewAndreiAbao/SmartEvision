@@ -7,7 +7,7 @@
     }
 
     let {
-        accept = ".docx,.pdf",
+        accept = ".pdf,.docx,.doc,.jpg,.jpeg,.png",
         onfileselected,
         disabled = false,
         maxSizeMb = 500,
@@ -138,7 +138,7 @@
                     </p>
                 {/if}
                 <p class="text-xs text-text-muted mt-3">
-                    Accepted formats: .docx, .pdf
+                    Accepted formats: .pdf, .docx, .doc, .jpg, .jpeg, .png
                 </p>
             </div>
         {/if}

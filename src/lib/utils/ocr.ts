@@ -31,20 +31,35 @@ export interface DocMetadata {
 
 const PDFJS_VERSION = '3.4.120';
 
-function loadPdfJs(): Promise<void> {
+function loadPdfJs(timeoutMs: number = 10000): Promise<void> {
     return new Promise((resolve, reject) => {
         if ((window as any)['pdfjsLib']) {
             resolve();
             return;
         }
+        let settled = false;
+        const timer = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            reject(new Error('Timed out loading PDF.js from CDN'));
+        }, timeoutMs);
+        const cleanup = () => clearTimeout(timer);
         const script = document.createElement('script');
         script.src = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.js`;
         script.onload = () => {
+            if (settled) return;
+            settled = true;
+            cleanup();
             (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc =
                 `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js`;
             resolve();
         };
-        script.onerror = () => reject(new Error('Failed to load PDF.js from CDN'));
+        script.onerror = () => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            reject(new Error('Failed to load PDF.js from CDN'));
+        };
         document.head.appendChild(script);
     });
 }

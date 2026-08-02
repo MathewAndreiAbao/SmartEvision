@@ -83,7 +83,35 @@
             .on(
                 "postgres_changes",
                 { event: "*", schema: "public", table: "submissions" },
-                () => {
+                async (payload) => {
+                    // Real-time compliance risk alerts for supervisors
+                    const role = $profile?.role;
+                    if (role && role !== "Teacher" && payload?.new) {
+                        const rec = payload.new as any;
+                        if (
+                            rec?.compliance_status === "late" ||
+                            rec?.compliance_status === "non-compliant"
+                        ) {
+                            try {
+                                const { alertComplianceRisk } = await import(
+                                    "$lib/utils/notificationSystem"
+                                );
+                                await alertComplianceRisk(
+                                    $profile?.district_id || undefined,
+                                    "Your school/district",
+                                    rec.compliance_status === "non-compliant"
+                                        ? "high"
+                                        : "medium",
+                                    `A teacher submitted a ${rec.compliance_status} DLL (Week ${rec.week_number || "?"}).`,
+                                );
+                            } catch (e) {
+                                console.warn(
+                                    "[dashboard] Compliance alert skipped:",
+                                    e,
+                                );
+                            }
+                        }
+                    }
                     loadDashboard().catch((err) => console.error("[dashboard] Realtime refresh failed:", err));
                 },
             )
@@ -290,6 +318,10 @@
         stats.compliantRate = overallStats.rate;
 
         recentActivity = allSubs.slice(0, 5);
+
+        // Predictive integrity alerts (pattern detection)
+        const { detectPatterns } = await import("$lib/utils/patternDetection");
+        alerts = detectPatterns(allSubs, calendarArr, teachers);
     }
 
 

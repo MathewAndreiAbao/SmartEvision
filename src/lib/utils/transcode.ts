@@ -1,23 +1,21 @@
 import { googleConvertToPdf } from './googleConvert';
+import { supabase } from './supabase';
 
 export interface TranscodeResult {
     pdfBytes: Uint8Array;
     text?: string;
 }
 
-function getAuthToken(): string | null {
+async function getAuthToken(): Promise<string | null> {
     try {
-        const raw = localStorage.getItem('sb-' + window.location.hostname + '-auth-token');
-        if (raw) {
-            const parsed = JSON.parse(raw);
-            return parsed?.access_token || null;
-        }
+        const { data } = await supabase.auth.getSession();
+        return data?.session?.access_token ?? null;
     } catch { }
     return null;
 }
 
 async function convertViaServerProxy(file: File): Promise<Uint8Array | null> {
-    const token = getAuthToken();
+    const token = await getAuthToken();
     if (!token) return null;
 
     try {
@@ -57,5 +55,18 @@ export async function transcodeToPdf(file: File): Promise<TranscodeResult> {
         return { pdfBytes };
     }
 
-    throw new Error(`Unsupported file type: .${ext}. Only .pdf, .docx, and .doc files are accepted.`);
+    if (ext === 'jpg' || ext === 'jpeg' || ext === 'png') {
+        const { PDFDocument } = await import('pdf-lib');
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const pdfDoc = await PDFDocument.create();
+        const image = ext === 'png'
+            ? await pdfDoc.embedPng(bytes)
+            : await pdfDoc.embedJpg(bytes);
+        const page = pdfDoc.addPage([image.width, image.height]);
+        page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });
+        const pdfBytes = await pdfDoc.save({ useObjectStreams: true });
+        return { pdfBytes };
+    }
+
+    throw new Error(`Unsupported file type: .${ext}. Only .pdf, .docx, .doc, .jpg, .jpeg, and .png files are accepted.`);
 }

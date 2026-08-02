@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { supabase } from '$lib/utils/supabase';
+import { createAuthedSupabase } from '$lib/server/authClient';
 import { getAnnotations, getReview, getAuditTrail } from '$lib/utils/dllReviewWorkflow';
 import type { SubmissionWithReview } from '$lib/types/dll-review';
 
@@ -12,9 +12,11 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
     try {
         // Verify authentication (user is pre-validated by hooks.server.ts)
         const user = locals.user;
-        if (!user?.id) {
+        if (!user?.id || !locals.authToken) {
             return json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        const supabase = await createAuthedSupabase(locals.authToken);
 
         const submissionId = params.id!;
         const includeAudit = url.searchParams.get('includeAudit') === 'true';
@@ -47,11 +49,11 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         }
 
         // Get related data
-        const review = await getReview(submissionId);
-        const annotations = await getAnnotations(submissionId);
+        const review = await getReview(submissionId, supabase);
+        const annotations = await getAnnotations(submissionId, supabase);
         let auditLogs: any[] = [];
         if (includeAudit) {
-            auditLogs = await getAuditTrail(submissionId);
+            auditLogs = await getAuditTrail(submissionId, supabase);
         }
 
         const result: SubmissionWithReview = {

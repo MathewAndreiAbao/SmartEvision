@@ -8,16 +8,20 @@ import {
     createReview,
     approveReview,
     returnReview,
+    saveReviewComment,
 } from '$lib/utils/dllReviewWorkflow';
-import type { CreateReviewInput, ApproveReviewInput, ReturnReviewInput } from '$lib/types/dll-review';
+import { createAuthedSupabase } from '$lib/server/authClient';
+import type { CreateReviewInput, ApproveReviewInput, ReturnReviewInput, SaveReviewCommentInput } from '$lib/types/dll-review';
 
 export const POST: RequestHandler = async ({ request, locals, url }) => {
     try {
         // Verify authentication (user is pre-validated by hooks.server.ts)
         const user = locals.user;
-        if (!user?.id) {
+        if (!user?.id || !locals.authToken) {
             return json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        const supabase = await createAuthedSupabase(locals.authToken);
 
         const action = url.searchParams.get('action') || 'create';
         const body = await request.json();
@@ -30,12 +34,25 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
                 return json({ error: 'Missing required field: submission_id' }, { status: 400 });
             }
 
-            const { data, error } = await createReview(input, user.id);
+            const { data, error } = await createReview(input, user.id, supabase);
             if (error) {
                 return json({ error }, { status: 400 });
             }
 
             return json({ data }, { status: 201 });
+        } else if (action === 'comment') {
+            const input: SaveReviewCommentInput = body;
+
+            if (!input.submission_id) {
+                return json({ error: 'Missing required field: submission_id' }, { status: 400 });
+            }
+
+            const { data, error } = await saveReviewComment(input, user.id, supabase);
+            if (error) {
+                return json({ error }, { status: 400 });
+            }
+
+            return json({ data }, { status: 200 });
         } else if (action === 'approve') {
             const input: ApproveReviewInput = body;
 
@@ -43,7 +60,7 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
                 return json({ error: 'Missing required field: review_id' }, { status: 400 });
             }
 
-            const { data, error } = await approveReview(input, user.id);
+            const { data, error } = await approveReview(input, user.id, supabase);
             if (error) {
                 return json({ error }, { status: 400 });
             }
@@ -59,7 +76,7 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
                 );
             }
 
-            const { data, error } = await returnReview(input, user.id);
+            const { data, error } = await returnReview(input, user.id, supabase);
             if (error) {
                 return json({ error }, { status: 400 });
             }

@@ -4,15 +4,17 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { supabase } from '$lib/utils/supabase';
+import { createAuthedSupabase } from '$lib/server/authClient';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
     try {
         // Verify authentication (user is pre-validated by hooks.server.ts)
         const user = locals.user;
-        if (!user?.id) {
+        if (!user?.id || !locals.authToken) {
             return json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        const supabase = await createAuthedSupabase(locals.authToken);
 
         // Get reviewer's profile and role
         const { data: reviewer } = await supabase

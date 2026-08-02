@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { supabase } from '$lib/utils/supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { 
     DLLAnnotation, 
     DLLReview, 
@@ -15,6 +16,8 @@ import type {
     ReturnReviewInput,
     CreateAuditLogInput,
 } from '$lib/types/dll-review';
+
+type DB = SupabaseClient;
 // ─── ANNOTATION MANAGEMENT ───────────────────────────────────
 
 // Web Crypto helper (works in Node 18+ and browsers)
@@ -40,10 +43,11 @@ async function hmacSha256(secret: string, data: string): Promise<string> {
 export async function createAnnotation(
     input: CreateAnnotationInput,
     userId: string,
+    client: DB = supabase,
 ): Promise<{ data?: DLLAnnotation; error?: string }> {
     try {
         // Verify user is submission owner or reviewer
-        const { data: submission } = await supabase
+        const { data: submission } = await client
             .from('submissions')
             .select('user_id')
             .eq('id', input.submission_id)
@@ -53,7 +57,7 @@ export async function createAnnotation(
             return { error: 'Submission not found' };
         }
 
-        const { data: review } = await supabase
+        const { data: review } = await client
             .from('dll_reviews')
             .select('reviewer_id')
             .eq('submission_id', input.submission_id)
@@ -67,7 +71,7 @@ export async function createAnnotation(
         }
 
         // Create annotation
-        const { data, error } = await supabase
+        const { data, error } = await client
             .from('dll_annotations')
             .insert([
                 {
@@ -95,7 +99,7 @@ export async function createAnnotation(
             actor_id: userId,
             actor_role: isReviewer ? 'Reviewer' : 'Teacher',
             details: { annotation_id: data.id },
-        });
+        }, client);
 
         return { data };
     } catch (err) {
@@ -108,8 +112,9 @@ export async function createAnnotation(
  */
 export async function getAnnotations(
     submissionId: string,
+    client: DB = supabase,
 ): Promise<DLLAnnotation[]> {
-    const { data } = await supabase
+    const { data } = await client
         .from('dll_annotations')
         .select('*')
         .eq('submission_id', submissionId)
@@ -127,10 +132,11 @@ export async function getAnnotations(
 export async function createReview(
     input: CreateReviewInput,
     reviewerId: string,
+    client: DB = supabase,
 ): Promise<{ data?: DLLReview; error?: string }> {
     try {
         // Verify reviewer has proper role
-        const { data: reviewer } = await supabase
+        const { data: reviewer } = await client
             .from('profiles')
             .select('role')
             .eq('id', reviewerId)
@@ -141,7 +147,7 @@ export async function createReview(
         }
 
         // Check if review already exists
-        const { data: existing } = await supabase
+        const { data: existing } = await client
             .from('dll_reviews')
             .select('id')
             .eq('submission_id', input.submission_id)
@@ -152,7 +158,7 @@ export async function createReview(
         }
 
         // Get current file hash for immutable record
-        const { data: submission } = await supabase
+        const { data: submission } = await client
             .from('submissions')
             .select('file_hash')
             .eq('id', input.submission_id)
@@ -163,7 +169,7 @@ export async function createReview(
         }
 
         // Create review
-        const { data, error } = await supabase
+        const { data, error } = await client
             .from('dll_reviews')
             .insert([
                 {
@@ -188,7 +194,7 @@ export async function createReview(
             actor_id: reviewerId,
             actor_role: reviewer.role,
             details: { review_id: data.id },
-        });
+        }, client);
 
         return { data };
     } catch (err) {
@@ -202,9 +208,10 @@ export async function createReview(
 export async function saveReviewComment(
     input: SaveReviewCommentInput,
     reviewerId: string,
+    client: DB = supabase,
 ): Promise<{ data?: DLLReview; error?: string }> {
     try {
-        const { data: reviewer } = await supabase
+        const { data: reviewer } = await client
             .from('profiles')
             .select('role')
             .eq('id', reviewerId)
@@ -214,7 +221,7 @@ export async function saveReviewComment(
             return { error: 'Unauthorized: Only master teachers can add remarks' };
         }
 
-        const { data: existing } = await supabase
+        const { data: existing } = await client
             .from('dll_reviews')
             .select('id')
             .eq('submission_id', input.submission_id)
@@ -228,13 +235,13 @@ export async function saveReviewComment(
         };
 
         const { data, error } = existing
-            ? await supabase
+            ? await client
                 .from('dll_reviews')
                 .update(reviewPayload)
                 .eq('id', existing.id)
                 .select()
                 .single()
-            : await supabase
+            : await client
                 .from('dll_reviews')
                 .insert([reviewPayload])
                 .select()
@@ -250,7 +257,7 @@ export async function saveReviewComment(
             actor_id: reviewerId,
             actor_role: reviewer.role,
             details: { review_id: data.id, reason: input.reviewer_comment },
-        });
+        }, client);
 
         return { data };
     } catch (err) {
@@ -261,10 +268,11 @@ export async function saveReviewComment(
 export async function approveReview(
     input: ApproveReviewInput,
     reviewerId: string,
+    client: DB = supabase,
 ): Promise<{ data?: DLLReview; error?: string }> {
     try {
         // Verify ownership
-        const { data: review } = await supabase
+        const { data: review } = await client
             .from('dll_reviews')
             .select('submission_id, reviewer_id')
             .eq('id', input.review_id)
@@ -275,14 +283,14 @@ export async function approveReview(
         }
 
         // Get reviewer role
-        const { data: reviewer } = await supabase
+        const { data: reviewer } = await client
             .from('profiles')
             .select('role')
             .eq('id', reviewerId)
             .single();
 
         // Update review status
-        const { data, error } = await supabase
+        const { data, error } = await client
             .from('dll_reviews')
             .update({
                 status: 'approved',
@@ -303,7 +311,7 @@ export async function approveReview(
             actor_id: reviewerId,
             actor_role: reviewer?.role || 'Reviewer',
             details: { review_id: input.review_id },
-        });
+        }, client);
 
         return { data };
     } catch (err) {
@@ -317,10 +325,11 @@ export async function approveReview(
 export async function returnReview(
     input: ReturnReviewInput,
     reviewerId: string,
+    client: DB = supabase,
 ): Promise<{ data?: DLLReview; error?: string }> {
     try {
         // Verify ownership
-        const { data: review } = await supabase
+        const { data: review } = await client
             .from('dll_reviews')
             .select('submission_id, reviewer_id')
             .eq('id', input.review_id)
@@ -331,14 +340,14 @@ export async function returnReview(
         }
 
         // Get reviewer role
-        const { data: reviewer } = await supabase
+        const { data: reviewer } = await client
             .from('profiles')
             .select('role')
             .eq('id', reviewerId)
             .single();
 
         // Update review status
-        const { data, error } = await supabase
+        const { data, error } = await client
             .from('dll_reviews')
             .update({
                 status: 'returned',
@@ -363,7 +372,7 @@ export async function returnReview(
                 review_id: input.review_id,
                 reason: input.return_reason,
             },
-        });
+        }, client);
 
         return { data };
     } catch (err) {
@@ -374,8 +383,11 @@ export async function returnReview(
 /**
  * Get review for a submission
  */
-export async function getReview(submissionId: string): Promise<DLLReview | null> {
-    const { data } = await supabase
+export async function getReview(
+    submissionId: string,
+    client: DB = supabase,
+): Promise<DLLReview | null> {
+    const { data } = await client
         .from('dll_reviews')
         .select('*')
         .eq('submission_id', submissionId)
@@ -392,6 +404,7 @@ export async function getReview(submissionId: string): Promise<DLLReview | null>
  */
 export async function createAuditLog(
     input: CreateAuditLogInput,
+    client: DB = supabase,
 ): Promise<{ data?: DLLAuditLog; error?: string }> {
     try {
         // Generate signature hash (HMAC-SHA256)
@@ -400,7 +413,7 @@ export async function createAuditLog(
         const signatureHash = await hmacSha256(secret, logData);
 
         // Insert immutable log
-        const { data, error } = await supabase
+        const { data, error } = await client
             .from('dll_audit_logs')
             .insert([
                 {
@@ -431,8 +444,11 @@ export async function createAuditLog(
 /**
  * Get audit trail for a submission
  */
-export async function getAuditTrail(submissionId: string): Promise<DLLAuditLog[]> {
-    const { data } = await supabase
+export async function getAuditTrail(
+    submissionId: string,
+    client: DB = supabase,
+): Promise<DLLAuditLog[]> {
+    const { data } = await client
         .from('dll_audit_logs')
         .select('*')
         .eq('submission_id', submissionId)
@@ -455,20 +471,23 @@ export async function verifyAuditLogSignature(log: DLLAuditLog, secret: string =
 /**
  * Get review summary statistics
  */
-export async function getReviewSummary(scope: { school_id?: string; district_id?: string }) {
-    let query = supabase.from('dll_reviews').select('*');
+export async function getReviewSummary(
+    scope: { school_id?: string; district_id?: string },
+    client: DB = supabase,
+) {
+    let query = client.from('dll_reviews').select('*');
 
     if (scope.school_id) {
         query = query.in(
             'submission_id',
             (
-                await supabase
+                await client
                     .from('submissions')
                     .select('id')
                     .in(
                         'user_id',
                         (
-                            await supabase
+                            await client
                                 .from('profiles')
                                 .select('id')
                                 .eq('school_id', scope.school_id)
@@ -499,9 +518,10 @@ export async function getReviewSummary(scope: { school_id?: string; district_id?
 export async function deleteAnnotation(
     annotationId: string,
     userId: string,
+    client: DB = supabase,
 ): Promise<{ success: boolean; error?: string }> {
     try {
-        const { data: annotation } = await supabase
+        const { data: annotation } = await client
             .from('dll_annotations')
             .select('annotator_id, submission_id')
             .eq('id', annotationId)
@@ -511,7 +531,7 @@ export async function deleteAnnotation(
             return { success: false, error: 'Annotation not found' };
         }
 
-        const { data: review } = await supabase
+        const { data: review } = await client
             .from('dll_reviews')
             .select('reviewer_id')
             .eq('submission_id', annotation.submission_id)
@@ -524,7 +544,7 @@ export async function deleteAnnotation(
             return { success: false, error: 'Unauthorized: Not annotation owner or reviewer' };
         }
 
-        const { error } = await supabase
+        const { error } = await client
             .from('dll_annotations')
             .delete()
             .eq('id', annotationId);

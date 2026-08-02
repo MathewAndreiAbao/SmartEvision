@@ -2,11 +2,11 @@ import { supabase } from './supabase';
 
 /**
  * Handle Web Push Notification subscriptions.
- * Innovative Feature: Phase 4.2 implementation.
  * Uses native Push API + Notification API.
- */
-/**
- * Handle Web Push Notification subscriptions.
+ *
+ * Graceful failure: if the VAPID key is missing/invalid or the push service
+ * rejects the subscription, we fall back to local (in-app) notifications so
+ * the feature still works instead of silently failing.
  */
 export async function subscribeToPush() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -24,35 +24,76 @@ export async function subscribeToPush() {
             return false;
         }
 
-        // 2. Subscribe to Push Manager
-        // Note: In production, generate VAPID keys. For Capstone Demo, use placeholder.
-        const VAPID_PUBLIC_KEY = 'BI7C2b_G5S8q0VXR_p6mJRg6V9i_x6Z9V8n3_V8V8V8V8V8V8V8V8V8V8V8V8V8V8V8V8V8V8V8V8';
+        // 2. Resolve VAPID public key (admin-configurable; falls back to local-only)
+        const VAPID_PUBLIC_KEY = await getVapidPublicKey();
 
-        let subscription = await registration.pushManager.getSubscription();
+        // 3. Subscribe to Push Manager (best effort)
+        let pushAvailable = false;
+        try {
+            let subscription = await registration.pushManager.getSubscription();
+            if (!subscription) {
+                const options: PushSubscriptionOptionsInit = {
+                    userVisibleOnly: true,
+                };
+                // Only pass a real VAPID key; a placeholder breaks the push service.
+                if (VAPID_PUBLIC_KEY && VAPID_PUBLIC_KEY.length > 40) {
+                    options.applicationServerKey =
+                        urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+                }
+                subscription = await registration.pushManager.subscribe(options);
+            }
 
-        if (!subscription) {
-            subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-            });
+            if (subscription) {
+                // 4. Store subscription in Supabase Profile
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    await supabase.from('profiles').update({
+                        push_subscription: subscription
+                    }).eq('id', user.id);
+                }
+                pushAvailable = true;
+            }
+        } catch (pushErr) {
+            // VAPID invalid / push service unavailable — degrade gracefully
+            console.warn(
+                '[notifications] Push subscription failed; using local notifications only:',
+                pushErr,
+            );
         }
 
-        // 3. Store subscription in Supabase Profile
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            await supabase.from('profiles').update({
-                push_subscription: subscription
-            }).eq('id', user.id);
-        }
-
-        // 4. Test Notification (Local)
-        await sendLocalNotification('CEDIMS', 'Push notifications enabled! You will now receive compliance alerts.');
+        // 5. Confirm with a local notification (works even without server push)
+        await sendLocalNotification(
+            'CEDIMS',
+            pushAvailable
+                ? 'Push notifications enabled! You will now receive compliance alerts.'
+                : 'Notifications enabled (in-app alerts). Server push is not configured yet.',
+        );
 
         return true;
     } catch (err) {
         console.error('Push registration failed:', err);
         return false;
     }
+}
+
+/**
+ * Read the admin-configured VAPID public key from system_settings.
+ * Returns null when unset (triggers the local-notifications-only fallback).
+ */
+async function getVapidPublicKey(): Promise<string | null> {
+    try {
+        const { data } = await supabase
+            .from('system_settings')
+            .select('value')
+            .eq('key', 'vapid_public_key')
+            .maybeSingle();
+        if (data?.value && typeof data.value === 'string') {
+            return data.value.trim() || null;
+        }
+    } catch (e) {
+        console.warn('[notifications] Could not read VAPID key from settings:', e);
+    }
+    return null;
 }
 
 /**

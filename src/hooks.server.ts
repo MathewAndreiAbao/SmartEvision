@@ -24,6 +24,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
     event.locals.supabase = supabaseServer;
     event.locals.user = null;
+    event.locals.authToken = null;
 
     // Validate token via getUser() — this is the correct server-side pattern.
     // getSession() always returns null on a fresh server client (no localStorage/cookie).
@@ -32,6 +33,7 @@ export const handle: Handle = async ({ event, resolve }) => {
             const { data, error } = await supabaseServer.auth.getUser(accessToken);
             if (!error && data?.user) {
                 event.locals.user = data.user;
+                event.locals.authToken = accessToken;
             }
         } catch (e) {
             // Network issues should not crash the request;
