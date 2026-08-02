@@ -206,7 +206,7 @@ export function normalizeComplianceStatus(status: string | null | undefined): st
   const s = status.toLowerCase().trim();
   if (s === 'compliant' || s === 'on-time') return 'compliant';
   if (s === 'late') return 'late';
-  if (s === 'non-compliant' || s === 'missing' || s === 'non-compliant') return 'non-compliant';
+  if (s === 'non-compliant' || s === 'missing') return 'missing';
   return s;
 }
 
@@ -276,11 +276,11 @@ export function getSubmissionWeek(s: { week_number?: number | null, created_at?:
 }
 
 /**
- * WBS 14.5 - Active Non-Compliant Submission Detection (Per Teaching Load)
+ * WBS 14.5 - Active Missing Submission Detection (Per Teaching Load)
  * 
  * Scans past-deadline calendar weeks and, for each teacher, checks how many
  * teaching loads they have. For each (teacher, load, week) tuple with no
- * matching submission, inserts a 'non-compliant' placeholder record.
+ * matching submission, inserts a 'missing' placeholder record.
  */
 export async function markNonCompliantSubmissions(
   supabase: any,
@@ -363,7 +363,7 @@ export async function markNonCompliantSubmissions(
         for (const load of myLoads) {
           const loadSubs = mySubsForWeek.filter((s: any) => s.teaching_load_id === load.id);
           const hasRealSub = loadSubs.some((s: any) => s.compliance_status === 'compliant' || s.compliance_status === 'late');
-          const ncSubs = loadSubs.filter((s: any) => s.compliance_status === 'non-compliant');
+          const ncSubs = loadSubs.filter((s: any) => s.compliance_status === 'missing');
 
           if (hasRealSub) {
             if (ncSubs.length > 0) {
@@ -375,15 +375,15 @@ export async function markNonCompliantSubmissions(
               ncRecords.push({
                 user_id: teacher.id,
                 teaching_load_id: load.id,
-                file_name: `[Non-Compliant] ${load.subject} - Week ${week.week_number}`,
-                file_path: `non-compliant/${teacher.id}/week_${week.week_number}_load_${load.id}`,
+                file_name: `[Missing] ${load.subject} - Week ${week.week_number}`,
+                file_path: `missing/${teacher.id}/week_${week.week_number}_load_${load.id}`,
                 file_hash: hash,
                 file_size: 0,
                 doc_type: 'Unknown',
                 week_number: week.week_number,
                 school_year: schoolYear,
                 calendar_id: week.id,
-                compliance_status: 'non-compliant'
+                compliance_status: 'missing'
               });
             } else if (ncSubs.length > 1) {
               idsToDelete.push(...ncSubs.slice(1).map((s: any) => s.id));

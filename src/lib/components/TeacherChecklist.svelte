@@ -112,11 +112,11 @@
         return icons[status];
     }
     
-    function getBadgeType(status: ExpectationStatus): 'compliant' | 'late' | 'non-compliant' {
-        const mapping: Record<ExpectationStatus, 'compliant' | 'late' | 'non-compliant'> = {
+    function getBadgeType(status: ExpectationStatus): 'compliant' | 'late' | 'missing' {
+        const mapping: Record<ExpectationStatus, 'compliant' | 'late' | 'missing'> = {
             'compliant': 'compliant',
             'late': 'late',
-            'missing': 'non-compliant',
+            'missing': 'missing',
         };
         return mapping[status];
     }

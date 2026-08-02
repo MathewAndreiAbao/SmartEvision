@@ -348,7 +348,7 @@
                                             : result.compliance_status ===
                                                 "late"
                                               ? "late"
-                                              : "non-compliant"}
+                                              : "missing"}
                                         size="sm"
                                     />
                                 </div>

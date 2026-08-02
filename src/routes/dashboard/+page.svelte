@@ -90,7 +90,7 @@
                         const rec = payload.new as any;
                         if (
                             rec?.compliance_status === "late" ||
-                            rec?.compliance_status === "non-compliant"
+                            rec?.compliance_status === "missing"
                         ) {
                             try {
                                 const { alertComplianceRisk } = await import(
@@ -99,7 +99,7 @@
                                 await alertComplianceRisk(
                                     $profile?.district_id || undefined,
                                     "Your school/district",
-                                    rec.compliance_status === "non-compliant"
+                                    rec.compliance_status === "missing"
                                         ? "high"
                                         : "medium",
                                     `A teacher submitted a ${rec.compliance_status} DLL (Week ${rec.week_number || "?"}).`,
@@ -131,13 +131,13 @@
     }
 
     async function loadTeacherDashboard(userProfile: any) {
-        // Fix existing submissions that were incorrectly marked 'non-compliant'
-        // by the old day-of-week fallback. Only fixes real uploads, not NC placeholders.
+        // Fix existing submissions that were incorrectly marked 'missing'
+        // by the old day-of-week fallback. Only fixes real uploads, not missing placeholders.
         await supabase
             .from("submissions")
             .update({ compliance_status: "compliant" })
             .eq("user_id", userProfile.id)
-            .eq("compliance_status", "non-compliant")
+            .eq("compliance_status", "missing")
             .not("file_hash", "like", "nc_%");
 
         // Batch: fetch all submissions + teaching loads count + academic calendar in parallel
@@ -194,11 +194,11 @@
     }
 
     async function loadSupervisorDashboard(userProfile: any, role: string) {
-        // Fix existing submissions incorrectly marked 'non-compliant' by old fallback
+        // Fix existing submissions incorrectly marked 'missing' by old fallback
         let fixQuery = supabase
             .from("submissions")
             .update({ compliance_status: "compliant" })
-            .eq("compliance_status", "non-compliant")
+            .eq("compliance_status", "missing")
             .not("file_hash", "like", "nc_%");
         if (role === "School Head" || role === "Master Teacher") {
             if (userProfile.school_id) {
@@ -339,8 +339,11 @@
                 )
                     cs = "compliant";
                 else if (cs.toLowerCase() === "late") cs = "late";
-                else if (cs.toLowerCase() === "non-compliant")
-                    cs = "non-compliant";
+                else if (
+                    cs.toLowerCase() === "missing" ||
+                    cs.toLowerCase() === "non-compliant"
+                )
+                    cs = "missing";
 
                 return cs === filterStatus;
             });
@@ -373,11 +376,11 @@
 
     function getStatusBadgeType(
         s: any,
-    ): "compliant" | "late" | "non-compliant" {
+    ): "compliant" | "late" | "missing" {
         const cs = (s.compliance_status || "compliant").toLowerCase();
         if (cs === "compliant" || cs === "on-time") return "compliant";
         if (cs === "late") return "late";
-        return "non-compliant";
+        return "missing";
     }
 </script>
 
@@ -667,7 +670,7 @@
                                         ? "compliant"
                                         : item.compliance_status === "late"
                                           ? "late"
-                                          : "non-compliant"}
+                                          : "missing"}
                                     size="sm"
                                 />
                             </div>

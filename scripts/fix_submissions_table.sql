@@ -22,7 +22,7 @@ DROP CONSTRAINT IF EXISTS submissions_compliance_status_check;
 
 ALTER TABLE submissions 
 ADD CONSTRAINT submissions_compliance_status_check 
-CHECK (compliance_status IN ('compliant', 'late', 'non-compliant'));
+CHECK (compliance_status IN ('compliant', 'late', 'missing'));
 
 -- Step 5: Create indexes if they don't exist
 CREATE INDEX IF NOT EXISTS idx_submissions_teaching_load 

@@ -619,23 +619,16 @@ export async function processQueue(force = false): Promise<{ success: number; fa
  */
 export function calculateComplianceStatus(
     submissionDate: Date,
-    deadlineDate?: Date,
-    windowDays: number = 5
-): 'compliant' | 'late' | 'non-compliant' {
+    deadlineDate?: Date
+): 'compliant' | 'late' {
     const now = submissionDate;
 
     if (deadlineDate) {
         const deadline = new Date(deadlineDate);
         deadline.setHours(23, 59, 59, 999);
 
-        if (now <= deadline) return 'compliant';
-
-        const lateDeadline = new Date(deadline);
-        lateDeadline.setDate(lateDeadline.getDate() + (windowDays || 5));
-
-        if (now <= lateDeadline) return 'late';
-
-        return 'non-compliant';
+        // Submitted on or before the due date -> compliant; after -> late.
+        return now <= deadline ? 'compliant' : 'late';
     }
 
     // Fallback if no supervisor deadline is set:

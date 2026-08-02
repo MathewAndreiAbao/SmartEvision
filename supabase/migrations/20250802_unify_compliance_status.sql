@@ -2,7 +2,8 @@
 -- Purpose: Resolve the conflict between seed_full.sql ('compliant','late','non-compliant')
 --          and scripts/fix_submissions_table.sql + add_teaching_load_compliance.sql
 --          which create the OLD constraint ('on-time','late','missing').
---          This migration guarantees the canonical constraint regardless of run order.
+--          Canonical set: ('compliant', 'late', 'missing').
+--          Compliant = on/before deadline, Late = after deadline, Missing = no submission.
 
 BEGIN;
 
@@ -11,11 +12,11 @@ ALTER TABLE submissions DROP CONSTRAINT IF EXISTS submissions_compliance_status_
 
 -- 2. Reconcile legacy data values
 UPDATE submissions SET compliance_status = 'compliant' WHERE compliance_status = 'on-time';
-UPDATE submissions SET compliance_status = 'non-compliant' WHERE compliance_status = 'missing';
+UPDATE submissions SET compliance_status = 'missing' WHERE compliance_status = 'non-compliant';
 
 -- 3. Add the canonical constraint
 ALTER TABLE submissions ADD CONSTRAINT submissions_compliance_status_check
-  CHECK (compliance_status IN ('compliant', 'late', 'non-compliant'));
+  CHECK (compliance_status IN ('compliant', 'late', 'missing'));
 
 -- 4. Ensure default value matches the canonical set
 ALTER TABLE submissions ALTER COLUMN compliance_status SET DEFAULT 'compliant';

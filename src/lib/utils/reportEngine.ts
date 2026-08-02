@@ -141,7 +141,7 @@ export async function generateCompliancePDF(stats: any, title: string = "Complia
         drawStatLine('Total Submissions:', stats.totalUploads);
         drawStatLine('Compliance Rate:', `${stats.compliantRate}%`);
         drawStatLine('Late Submissions:', stats.lateCount);
-        drawStatLine('Non-Compliant:', stats.nonCompliantCount);
+        drawStatLine('Missing:', stats.nonCompliantCount);
         drawStatLine('Total Teachers:', stats.totalTeachers || 'N/A');
 
         // Footer

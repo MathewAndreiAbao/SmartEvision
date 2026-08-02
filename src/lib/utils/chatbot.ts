@@ -675,7 +675,7 @@ async function queryTeacherStats(
         const t = sorted[0] as any;
         const rate = t.total > 0 ? Math.round((t.compliant / t.total) * 100) : 0;
         const nonCompliant = t.total - t.compliant - t.late;
-        return `${t.name} has ${t.total} submission${t.total !== 1 ? 's' : ''} with a compliance rate of ${rate}% (${t.compliant} compliant${t.late > 0 ? `, ${t.late} late` : ''}${nonCompliant > 0 ? `, ${nonCompliant} non-compliant` : ''}).`;
+        return `${t.name} has ${t.total} submission${t.total !== 1 ? 's' : ''} with a compliance rate of ${rate}% (${t.compliant} compliant${t.late > 0 ? `, ${t.late} late` : ''}${nonCompliant > 0 ? `, ${nonCompliant} missing` : ''}).`;
     }
 
     const lines = sorted.slice(0, 10).map((t: any) => {

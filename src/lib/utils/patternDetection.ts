@@ -61,7 +61,7 @@ export function detectPatterns(
             const isProblematic = weekSubs.length === 0 ||
                 weekSubs.some(s => {
                     const status = normalizeComplianceStatus(s.compliance_status);
-                    return status === 'late' || status === 'non-compliant';
+                    return status === 'late' || status === 'missing';
                 });
 
             if (isProblematic) {
@@ -87,7 +87,7 @@ export function detectPatterns(
         if (userSubs.length >= 5) {
             const nonCompliantCount = userSubs.filter(s => {
                 const status = normalizeComplianceStatus(s.compliance_status);
-                return status === 'non-compliant';
+                return status === 'missing';
             }).length;
             const rate = nonCompliantCount / userSubs.length;
 

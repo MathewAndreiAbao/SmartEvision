@@ -101,14 +101,6 @@
 			roles: ["District Supervisor"],
 		},
 		{
-			href: "/dashboard/review",
-			label: "Review",
-			icon: ShieldCheck,
-			section: "Review",
-			mobileNav: true,
-			roles: ["School Head", "Master Teacher", "District Supervisor"],
-		},
-		{
 			href: "/dashboard/analytics",
 			label: "Analytics",
 			icon: TrendingUp,

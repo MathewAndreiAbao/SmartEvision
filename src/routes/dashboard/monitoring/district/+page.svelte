@@ -591,7 +591,7 @@
           </p>
         </div>
         <div class="bg-gov-red/5 p-3 rounded-lg text-center">
-          <p class="text-xs text-text-muted mb-1">Non-Compliant</p>
+          <p class="text-xs text-text-muted mb-1">Missing</p>
           <p class="text-lg font-bold text-gov-red">
             {selectedSchool.NonCompliant}
           </p>
@@ -612,8 +612,8 @@
             <StatusBadge
               status={sub.compliance_status === "late"
                 ? "late"
-                : sub.compliance_status === "non-compliant"
-                  ? "non-compliant"
+                : sub.compliance_status === "missing"
+                  ? "missing"
                   : "compliant"}
               size="sm"
             />

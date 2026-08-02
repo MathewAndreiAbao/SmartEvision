@@ -329,7 +329,7 @@
                     weekLabel: w.label,
                     rate: stats.rate,
                     count: weekSubs.length,
-                    tooltip: `${t.full_name} - ${w.label}: ${stats.rate}% (${stats.Compliant} compliant, ${stats.Late} late, ${stats.NonCompliant} non-compliant)`,
+                    tooltip: `${t.full_name} - ${w.label}: ${stats.rate}% (${stats.Compliant} compliant, ${stats.Late} late, ${stats.NonCompliant} missing)`,
                 });
             }
         }
@@ -771,7 +771,7 @@
                                     ? "compliant"
                                     : sub.compliance_status === "late"
                                       ? "late"
-                                      : "non-compliant"}
+                                      : "missing"}
                                 size="sm"
                             />
                             <span class="text-xs text-text-muted whitespace-nowrap"

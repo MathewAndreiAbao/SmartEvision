@@ -39,11 +39,11 @@
             label: "Late",
             icon: Clock,
         },
-        "non-compliant": {
+        missing: {
             bg: "bg-gov-red/10",
             text: "text-gov-red",
             border: "border-gov-red/30",
-            label: "Non-Compliant",
+            label: "Missing",
             icon: AlertCircle,
         },
         pending: {
@@ -69,7 +69,7 @@
         if (s === "compliant" || s === "on-time") return "compliant";
         if (s === "late") return "late";
         if (s === "non-compliant" || s === "non compliant" || s === "missing")
-            return "non-compliant";
+            return "missing";
         if (s === "pending") return "pending";
         if (s === "review" || s === "under review") return "review";
         return s; // Fallback to lowercase

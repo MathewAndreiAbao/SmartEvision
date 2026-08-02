@@ -9,10 +9,10 @@ ALTER TABLE submissions
 ADD COLUMN IF NOT EXISTS teaching_load_id UUID REFERENCES teaching_loads(id) ON DELETE SET NULL;
 
 -- Add compliance_status column to submissions table
--- Compliant = on-time, Late = after deadline (within window), Non-compliant = missing
+-- Compliant = on-time, Late = after deadline, Missing = no submission
 ALTER TABLE submissions 
 ADD COLUMN IF NOT EXISTS compliance_status TEXT DEFAULT 'compliant' 
-CHECK (compliance_status IN ('compliant', 'late', 'non-compliant'));
+CHECK (compliance_status IN ('compliant', 'late', 'missing'));
 
 -- Add index for teaching load lookups (performance optimization)
 CREATE INDEX IF NOT EXISTS idx_submissions_teaching_load 
