@@ -43,7 +43,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
                 compliance_status,
                 created_at,
                 week_number,
-                uploader:profiles(full_name, school_id, district_id),
+                uploader:profiles!inner(full_name, school_id, district_id),
                 dll_review:dll_reviews(id, status, reviewer_id, reviewed_at)
             `)
             .order('created_at', { ascending: false });
@@ -51,11 +51,11 @@ export const GET: RequestHandler = async ({ locals, url }) => {
         // Filter by scope
         if (reviewer.role === 'School Head' || reviewer.role === 'Master Teacher') {
             if (reviewer.school_id) {
-                query = query.eq('uploader.school_id', reviewer.school_id);
+                query = query.eq('profiles.school_id', reviewer.school_id);
             }
         } else if (reviewer.role === 'District Supervisor') {
             if (reviewer.district_id) {
-                query = query.eq('uploader.district_id', reviewer.district_id);
+                query = query.eq('profiles.district_id', reviewer.district_id);
             }
         }
 
