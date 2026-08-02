@@ -1,8 +1,6 @@
 <script lang="ts">
     import FileDropZone from "$lib/components/FileDropZone.svelte";
     import UploadProgress from "$lib/components/UploadProgress.svelte";
-    import CopilotPanel from "$lib/components/CopilotPanel.svelte";
-    import type { CopilotSuggestion } from "$lib/utils/copilot";
     import {
         runPipeline,
         type PipelinePhase,
@@ -67,8 +65,6 @@
     let detectingMetadata = $state(false);
     let detectedMetadata = $state<any>(null);
     let fileHash = $state<string>("");
-    let mySubmissions = $state<any[]>([]);
-
     // Online/Offline Mode
     let isOnline = $state(
         typeof navigator !== "undefined" ? navigator.onLine : true,
@@ -415,28 +411,7 @@
             }
         }
 
-        // 3. Fetch own submissions for Copilot context
-        if (navigator.onLine && userProfile.id) {
-            const { data: subs } = await supabase
-                .from("submissions")
-                .select("id, teaching_load_id, week_number, doc_type, compliance_status, created_at")
-                .eq("user_id", userProfile.id)
-                .order("created_at", { ascending: false })
-                .limit(200);
-            if (subs) {
-                mySubmissions = subs;
-            }
-        }
-
         loadingTeachingLoads = false;
-    }
-
-    function handleApplySuggestion(action: NonNullable<CopilotSuggestion["action"]>) {
-        if (action.teachingLoadId) teachingLoadId = action.teachingLoadId;
-        if (action.weekNumber) weekNumber = action.weekNumber;
-        if (action.docType) docType = action.docType;
-        if (action.subject) subject = action.subject;
-        addToast("success", "Copilot auto-filled the selected fields");
     }
 
     function mapTeachingLoad(metadata: Partial<DocMetadata>): string {
@@ -1361,15 +1336,6 @@
         </div>
 
         <div class="space-y-6">
-            <CopilotPanel
-                {teachingLoads}
-                {mySubmissions}
-                selectedWeek={weekNumber}
-                selectedDocType={docType}
-                selectedLoadId={teachingLoadId}
-                onApplySuggestion={handleApplySuggestion}
-            />
-
             <div class="gov-card-static p-6">
                 <h3 class="text-lg font-bold text-text-primary mb-4">
                     Before You Upload
