@@ -68,7 +68,7 @@
                     Instructional monitoring,<br class="hidden sm:block" />made clearer.
                 </h1>
                 <p class="mt-3 sm:mt-4 text-sm sm:text-lg leading-7 sm:leading-8 text-text-secondary max-w-lg">
-                    CEDIMS helps teachers, school leaders, and district supervisors manage DLL submissions, review records, and compliance tracking in one system.
+                    CEDIMS helps teachers, school leaders, and district supervisors manage DLL submissions, checking, and compliance tracking in one system.
                 </p>
             </div>
             <div class="flex flex-wrap gap-x-3 sm:gap-x-4 gap-y-1 text-xs sm:text-sm text-text-secondary">

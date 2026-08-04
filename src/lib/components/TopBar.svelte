@@ -12,7 +12,6 @@
         "archive": "Archive",
         "load": "Teaching Load",
         "calendar": "Calendar",
-        "review": "Review Queue",
         "monitoring": "Monitoring",
         "school": "School",
         "district": "District",

@@ -34,9 +34,9 @@
             icon: ShieldCheck,
         },
         {
-            title: "Review Workflow",
+            title: "Remarks & Checking",
             description:
-                "Support teacher revisions, remarks, and approvals in a clear review timeline.",
+                "Capture reviewer remarks and track the checking status of every submission in the archive.",
             icon: Workflow,
         },
         {
@@ -54,7 +54,7 @@
         {
             title: "Notifications",
             description:
-                "Receive real-time alerts for submissions, reviews, and compliance updates.",
+                "Receive real-time alerts for submissions, checking status, and compliance updates.",
             icon: BellRing,
         },
     ];
@@ -71,9 +71,9 @@
                 "DLLs, ISPs, and ISRs can be submitted and tracked through the same workflow.",
         },
         {
-            question: "How does the review process work?",
+            question: "How does checking and remarks work?",
             answer:
-                "Teachers upload DLLs, master teachers review with comments, teachers can revise if needed, and all remarks are preserved in a threaded timeline.",
+                "Teachers upload DLLs, supervisors add remarks and set the checking status, and teachers can revise if needed — every remark is preserved in the archive.",
         },
         {
             question: "Is the system available offline?",
@@ -158,7 +158,7 @@
                     A clearer way to monitor instructional compliance.
                 </h1>
                 <p class="mt-4 sm:mt-5 text-base sm:text-lg leading-7 sm:leading-8 text-text-secondary">
-                    CEDIMS helps teachers, school leaders, and district supervisors manage DLL submissions, review records, and compliance tracking in one professional, easy-to-use system.
+                    CEDIMS helps teachers, school leaders, and district supervisors manage DLL submissions, checking, and compliance tracking in one professional, easy-to-use system.
                 </p>
                 <div class="mt-6 sm:mt-8 flex flex-col gap-2 sm:flex-row sm:gap-3">
                     <button onclick={() => goto("/auth/login")} class="gov-btn-primary px-5 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base">
@@ -171,7 +171,7 @@
                 </div>
                 <div class="mt-6 sm:mt-8 flex flex-wrap gap-x-4 gap-y-2 text-xs sm:text-sm text-text-secondary">
                     <span class="inline-flex items-center gap-1.5"><BookOpen size={14} class="sm:size-[16]" /> Guided workflow</span>
-                    <span class="inline-flex items-center gap-1.5"><BellRing size={14} class="sm:size-[16]" /> Review notifications</span>
+                    <span class="inline-flex items-center gap-1.5"><BellRing size={14} class="sm:size-[16]" /> Checking alerts</span>
                     <span class="inline-flex items-center gap-1.5"><ShieldCheck size={14} class="sm:size-[16]" /> Secure records</span>
                 </div>
             </div>
@@ -185,7 +185,7 @@
                         <p class="text-sm font-semibold text-text-primary">What is CEDIMS?</p>
                     </div>
                     <p class="mt-3 sm:mt-4 text-xs sm:text-sm leading-6 sm:leading-7 text-text-secondary">
-                        The Calapan East District Instructional Monitoring System streamlines the submission, review, and compliance tracking of Daily Lesson Logs (DLLs), Instructional Supervision Plans (ISPs), and Instructional Supervision Reports (ISRs) across all schools in the district.
+                        The Calapan East District Instructional Monitoring System streamlines the submission, checking, and compliance tracking of Daily Lesson Logs (DLLs), Instructional Supervision Plans (ISPs), and Instructional Supervision Reports (ISRs) across all schools in the district.
                     </p>
                     <div class="mt-3 sm:mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] sm:text-xs text-text-secondary">
                         <BadgeCheck size={12} class="shrink-0 text-gov-blue" />
@@ -212,7 +212,7 @@
                     </div>
                     <div class="rounded-2xl border border-border-subtle p-4 sm:p-5">
                         <p class="font-semibold text-text-primary">Objectives</p>
-                        <p class="mt-1.5 sm:mt-2">Standardize submission workflows, simplify review, and improve visibility for school and district leaders.</p>
+                        <p class="mt-1.5 sm:mt-2">Standardize submission workflows, simplify checking, and improve visibility for school and district leaders.</p>
                     </div>
                     <div class="rounded-2xl border border-border-subtle p-4 sm:p-5">
                         <p class="font-semibold text-text-primary">Benefits</p>
@@ -245,10 +245,10 @@
                 <div class="grid gap-6 sm:gap-8 lg:grid-cols-[0.8fr_1.2fr]">
                     <div>
                         <p class="text-xs sm:text-sm font-semibold uppercase tracking-[0.25em] text-gov-blue">Workflow</p>
-                        <h2 class="mt-2 sm:mt-3 text-2xl sm:text-3xl font-semibold text-text-primary">From submission to review in a simple path.</h2>
+                        <h2 class="mt-2 sm:mt-3 text-2xl sm:text-3xl font-semibold text-text-primary">From submission to checking in a simple path.</h2>
                     </div>
                     <div class="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-4">
-                        {#each ["Teacher uploads DLL", "Master Teacher reviews & remarks", "Teacher revises if needed", "District compliance reports"] as step, index}
+                        {#each ["Teacher uploads DLL", "Supervisor remarks & checks", "Teacher revises if needed", "District compliance reports"] as step, index}
                             <div class="rounded-2xl border border-border-subtle bg-surface-muted p-3 sm:p-4 text-center">
                                 <div class="mx-auto mb-2 sm:mb-3 flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-gov-blue text-xs sm:text-sm font-semibold text-white">{index + 1}</div>
                                 <p class="text-xs sm:text-sm font-semibold text-text-primary">{step}</p>
