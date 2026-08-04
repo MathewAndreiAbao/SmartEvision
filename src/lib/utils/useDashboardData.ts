@@ -116,15 +116,24 @@ export async function getDefinedWeeksCount(
  * When a teacher uploads multiple documents for the same week/load, only the
  * most recent submission per slot is counted toward compliance.
  */
-export function deduplicateSubmissions<T extends { teaching_load_id?: string | null; week_number?: number | null; doc_type?: string | null; created_at?: string }>(
+export function deduplicateSubmissions<T extends { teaching_load_id?: string | null; week_number?: number | null; doc_type?: string | null; created_at?: string; compliance_status?: string }>(
   submissions: T[]
 ): T[] {
   const latestBySlot = new Map<string, T>();
+  const isSup = (r: T | undefined) => (r?.compliance_status || '').toLowerCase() === 'supplementary' || (r?.compliance_status || '').toLowerCase() === 'extra';
   for (const s of submissions) {
     const key = `${s.teaching_load_id ?? ''}|${s.week_number ?? ''}|${s.doc_type ?? ''}`;
     const existing = latestBySlot.get(key);
-    if (!existing || (s.created_at && (!existing.created_at || new Date(s.created_at) > new Date(existing.created_at)))) {
+    // Required (non-supplementary) submissions always win a slot over supplementary ones,
+    // so a "another DLL" can never replace the counted DLL for that week+subject.
+    if (!existing) {
       latestBySlot.set(key, s);
+    } else if (isSup(existing) && !isSup(s)) {
+      latestBySlot.set(key, s);
+    } else if (isSup(existing) === isSup(s)) {
+      if (s.created_at && (!existing.created_at || new Date(s.created_at) > new Date(existing.created_at))) {
+        latestBySlot.set(key, s);
+      }
     }
   }
   return Array.from(latestBySlot.values());
@@ -143,6 +152,9 @@ export function countSubmissionsByStatus(
 
   for (const s of submissions) {
     const cs = (s.compliance_status || 'compliant').toLowerCase().trim();
+    // Supplementary/extra DLLs (another DLL for an already-covered slot) are
+    // stored but must NOT affect compliant, late, missing, or the rate.
+    if (cs === 'supplementary' || cs === 'extra') continue;
     if (cs === 'compliant' || cs === 'on-time') {
       compliant++;
     } else if (cs === 'late') {
@@ -240,6 +252,7 @@ export function normalizeComplianceStatus(status: string | null | undefined): st
   if (s === 'compliant' || s === 'on-time') return 'compliant';
   if (s === 'late') return 'late';
   if (s === 'non-compliant' || s === 'missing') return 'missing';
+  if (s === 'supplementary' || s === 'extra') return 'supplementary';
   return s;
 }
 
@@ -395,7 +408,12 @@ export async function markNonCompliantSubmissions(
 
         for (const load of myLoads) {
           const loadSubs = mySubsForWeek.filter((s: any) => s.teaching_load_id === load.id);
-          const hasRealSub = loadSubs.some((s: any) => s.compliance_status === 'compliant' || s.compliance_status === 'late');
+          const hasRealSub = loadSubs.some((s: any) =>
+            s.compliance_status === 'compliant' ||
+            s.compliance_status === 'late' ||
+            s.compliance_status === 'supplementary' ||
+            s.compliance_status === 'extra'
+          );
           const ncSubs = loadSubs.filter((s: any) => s.compliance_status === 'missing');
 
           if (hasRealSub) {

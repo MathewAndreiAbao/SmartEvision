@@ -234,7 +234,31 @@ async function* runOnlinePipelineResilient(
 
     // DB Record
     yield { phase: 'uploading', progress: 80, message: 'Finalizing cloud record...' };
-    const complianceStatus = calculateComplianceStatus(new Date(), deadlineDate);
+
+    // Detect whether this is an ADDITIONAL DLL for an already-covered slot
+    // (same teaching load + week + doc type). If so, mark it 'supplementary'
+    // so it is archived but does not affect compliance / missing / late / rate.
+    let complianceStatus: 'compliant' | 'late' | 'supplementary' = calculateComplianceStatus(new Date(), deadlineDate);
+    if (options.teachingLoadId && activeWeekNumber) {
+      try {
+        const { data: slotMatch } = await withTimeout(
+          supabase
+            .from('submissions')
+            .select('id')
+            .eq('teaching_load_id', options.teachingLoadId)
+            .eq('week_number', activeWeekNumber)
+            .eq('doc_type', activeDocType)
+            .limit(1) as any,
+          30000,
+          'Duplicate slot check timed out.'
+        ) as { data: any };
+        if (slotMatch && slotMatch.length > 0) {
+          complianceStatus = 'supplementary';
+        }
+      } catch (e) {
+        console.warn('[pipeline] Duplicate slot check failed, continuing as normal:', e);
+      }
+    }
     const { error: dbError } = await withTimeout(
         supabase.from('submissions').insert({
             user_id: options.userId,
