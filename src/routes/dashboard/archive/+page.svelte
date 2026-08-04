@@ -743,19 +743,17 @@
             />
         </div>
 
-        <!-- Status Filter (Master Teacher only) -->
-        {#if $profile?.role === 'Master Teacher'}
-            <div class="flex items-center gap-1 bg-surface-muted border border-border-subtle rounded-xl p-1">
-                {#each ["all", "for-checking", "checked"] as opt}
-                    <button
-                        onclick={() => (statusFilter = opt as typeof statusFilter)}
-                        class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all {statusFilter === opt ? 'bg-gov-blue text-white shadow-sm' : 'text-text-muted hover:text-text-primary'}"
-                    >
-                        {opt === "all" ? "All" : opt === "for-checking" ? "For Checking" : "Checked"}
-                    </button>
-                {/each}
-            </div>
-        {/if}
+        <!-- Status Filter -->
+        <div class="flex items-center gap-1 bg-surface-muted border border-border-subtle rounded-xl p-1">
+            {#each ["all", "for-checking", "checked"] as opt}
+                <button
+                    onclick={() => (statusFilter = opt as typeof statusFilter)}
+                    class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all {statusFilter === opt ? 'bg-gov-blue text-white shadow-sm' : 'text-text-muted hover:text-text-primary'}"
+                >
+                    {opt === "all" ? "All" : opt === "for-checking" ? "For Checking" : "Checked"}
+                </button>
+            {/each}
+        </div>
 
         <!-- Export Button -->
         <button
@@ -1029,10 +1027,8 @@
                 <h3 class="text-lg font-bold text-text-primary">
                     {#if existingRemark}
                         Remark
-                    {:else if $profile?.role === 'Master Teacher'}
-                        Add Remark
                     {:else}
-                        Remark
+                        Add Remark
                     {/if}
                 </h3>
                 <button
@@ -1071,7 +1067,6 @@
                         </button>
                     </div>
                 {:else}
-                    {#if $profile?.role === 'Master Teacher'}
                         <!-- Add new remark -->
                         <textarea
                             bind:value={remarkText}
@@ -1094,20 +1089,6 @@
                                 {savingRemark ? "Saving..." : "Save Remark"}
                             </button>
                         </div>
-                    {:else}
-                        <div class="text-center py-8 text-text-muted">
-                            <MessageSquare size={32} class="mx-auto mb-2 opacity-40" />
-                            <p class="text-sm font-medium">No remarks yet</p>
-                        </div>
-                        <div class="flex justify-end mt-4">
-                            <button
-                                onclick={closeRemarkModal}
-                                class="px-5 py-2 bg-surface-muted text-text-primary text-sm font-bold rounded-xl hover:bg-surface-muted transition-all"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    {/if}
                 {/if}
             </div>
         </div>
