@@ -172,7 +172,7 @@
     {/if}
 
     <!-- Table -->
-    <div class="overflow-x-auto custom-scrollbar">
+    <div class="max-h-[65vh] overflow-y-auto overflow-x-auto custom-scrollbar">
         {#if calendarWeeks.length === 0 || uniqueSubjects.length === 0}
             <div class="p-8 text-center text-text-muted">
                 <p>No active schedule or teaching loads found.</p>

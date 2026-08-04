@@ -135,7 +135,7 @@
 
     <!-- Content -->
     {#if !collapsed}
-        <div class="px-5 pb-5 space-y-3" in:fly={{ y: -10, duration: 300 }}>
+        <div class="px-5 pb-5 space-y-3 max-h-[60vh] overflow-y-auto" in:fly={{ y: -10, duration: 300 }}>
             {#if analyzing}
                 <!-- Thinking Animation -->
                 <div

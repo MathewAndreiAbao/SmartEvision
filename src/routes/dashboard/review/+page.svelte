@@ -338,7 +338,7 @@
                         <p class="text-sm text-text-muted mt-1">No submissions are currently awaiting review.</p>
                     </div>
                 {:else}
-                    <ul class="divide-y divide-border-subtle">
+                    <ul class="divide-y divide-border-subtle max-h-[65vh] overflow-y-auto">
                         {#each pendingList as item}
                             <li>
                                 <button

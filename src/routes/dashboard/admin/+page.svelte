@@ -591,6 +591,7 @@
                 </div>
             {:else}
                 <div class="gov-card-static overflow-hidden">
+                    <div class="max-h-[65vh] overflow-y-auto">
                     <div class="overflow-x-auto">
                         <table
                             class="w-full text-sm"
@@ -720,6 +721,7 @@
                                 {/each}
                             </tbody>
                         </table>
+                    </div>
                     </div>
 
                     {#if filteredUsers().length === 0}

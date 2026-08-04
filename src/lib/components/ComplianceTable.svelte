@@ -95,7 +95,7 @@
     <p class="font-medium">{emptyMessage}</p>
   </div>
 {:else}
-  <div class="overflow-x-auto">
+  <div class="max-h-[65vh] overflow-y-auto overflow-x-auto">
     <table class="w-full">
       <thead>
         <tr class="border-b border-border-subtle">

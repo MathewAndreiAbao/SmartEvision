@@ -102,7 +102,7 @@
         {#if comments.length > 0}
             <div class="mb-6">
                 <p class="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-text-muted">Conversation Timeline</p>
-                <div class="space-y-0">
+                <div class="space-y-0 max-h-[50vh] overflow-y-auto pr-1">
                     {#each comments as entry, i}
                         {@const Icon = getTimelineIcon(entry.type)}
                         <div class="relative flex gap-4 pb-4">

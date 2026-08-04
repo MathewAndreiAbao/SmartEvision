@@ -749,6 +749,7 @@
                     Teacher Compliance
                 </h2>
                 <div class="bg-surface-white border border-border-subtle rounded-xl overflow-hidden shadow-sm">
+                    <div class="max-h-96 overflow-y-auto">
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="text-left text-[10px] uppercase tracking-wider text-text-muted border-b border-border-subtle">
@@ -773,6 +774,7 @@
                             {/each}
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </div>
         {/if}
