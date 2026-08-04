@@ -247,7 +247,7 @@
         let teacherQuery = supabase
             .from("profiles")
             .select("id, full_name, role, school_id, district_id")
-            .eq("role", "Teacher");
+            .in("role", ["Teacher", "Master Teacher"]);
 
         // Fetch submissions in the scope
         let subQuery = supabase

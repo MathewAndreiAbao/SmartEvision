@@ -158,7 +158,7 @@
                     .from("profiles")
                     .select("id, full_name, role, district_id")
                     .eq("school_id", userProfile.school_id)
-                    .eq("role", "Teacher")
+                    .in("role", ["Teacher", "Master Teacher"])
                     .order("full_name"),
                 supabase
                     .from("submissions")
