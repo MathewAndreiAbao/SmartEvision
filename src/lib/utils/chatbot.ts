@@ -2,6 +2,157 @@ import intentModel from '../models/intent_classifier_model.json';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getCurrentSchoolYear as getDynamicSchoolYear } from './schoolYear';
 
+// ─── Text Normalization ────────────────────────────────────────────────────
+// Makes the bot robust to typos, wrong grammar, repeated characters, emojis,
+// and diacritics. All light-weight, pure string ops — no heavy model.
+
+const DIACRITIC_MAP: Record<string, string> = {
+    'á': 'a', 'à': 'a', 'â': 'a', 'ä': 'a', 'ã': 'a', 'å': 'a', 'ā': 'a',
+    'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e', 'ẽ': 'e', 'ē': 'e',
+    'í': 'i', 'ì': 'i', 'î': 'i', 'ï': 'i', 'ī': 'i',
+    'ó': 'o', 'ò': 'o', 'ô': 'o', 'ö': 'o', 'õ': 'o', 'ō': 'o',
+    'ú': 'u', 'ù': 'u', 'û': 'u', 'ü': 'u', 'ū': 'u',
+    'ñ': 'n', 'ç': 'c', 'š': 's', 'ž': 'z', 'ý': 'y', 'ÿ': 'y', 'ß': 'ss'
+};
+
+function stripDiacritics(text: string): string {
+    return text.replace(/[áàâäãåāéèêëẽēíìîïīóòôöõōúùûüūñçšžýÿß]/g, ch => DIACRITIC_MAP[ch] || ch);
+}
+
+function removeEmojis(text: string): string {
+    return text.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}\u{2190}-\u{21FF}]/gu, ' ');
+}
+
+function collapseRepeats(text: string): string {
+    return text.replace(/(\w)\1{2,}/g, '$1$1');
+}
+
+function normalizeText(text: string): string {
+    return stripDiacritics(removeEmojis(text))
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function levenshtein(a: string, b: string): number {
+    const m = a.length, n = b.length;
+    if (m === 0) return n;
+    if (n === 0) return m;
+    const dp: number[] = new Array(n + 1).fill(0).map((_, j) => j);
+    for (let i = 1; i <= m; i++) {
+        let prev = dp[0];
+        dp[0] = i;
+        for (let j = 1; j <= n; j++) {
+            const tmp = dp[j];
+            dp[j] = Math.min(
+                dp[j] + 1,
+                dp[j - 1] + 1,
+                prev + (a[i - 1] === b[j - 1] ? 0 : 1)
+            );
+            prev = tmp;
+        }
+    }
+    return dp[n];
+}
+
+/** Best fuzzy word match against a dictionary, returning the matched word + score. */
+function fuzzyMatch(token: string, dictionary: string[], maxDist: number = 1): string | null {
+    const t = collapseRepeats(token);
+    for (const word of dictionary) {
+        if (word === t) return word;
+    }
+    if (t.length < 3) return null;
+    let best: string | null = null;
+    let bestDist = maxDist + 1;
+    for (const word of dictionary) {
+        const d = levenshtein(t, word);
+        if (d <= maxDist && d < bestDist) {
+            bestDist = d;
+            best = word;
+        }
+    }
+    return best;
+}
+
+// Common dictionary used for fuzzy slot extraction & knowledge matching.
+const FUZZY_DICT = [
+    'compliant', 'compliance', 'complience', 'submission', 'submissions', 'late', 'missing',
+    'deadline', 'deadlines', 'week', 'weeks', 'grade', 'teacher', 'teachers', 'school',
+    'district', 'dll', 'dlls', 'calendar', 'upload', 'uploading', 'compare', 'comparison',
+    'ranking', 'statistics', 'stats', 'calendar', 'fractions', 'mathematics', 'science',
+    'english', 'filipino', 'grade', 'year', 'term', 'quarter', 'today', 'this', 'next'
+];
+
+// ─── Human-like Phrasing ───────────────────────────────────────────────────
+function pick<T>(arr: T[]): T {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+const OPENERS = ['Here you go!', 'Got it.', 'Sure thing!', 'Here\u2019s what I found:', 'Of course!'];
+const LOW_CONFIDENCE_PREFIXES = [
+    'I think you might be asking about',
+    'I\u2019m not 100% sure, but this looks related to',
+    'If I understand you correctly, you\u2019re asking about',
+    'I think you mean'
+];
+const LOW_CONFIDENCE_SUFFIXES = [
+    'If that wasn\u2019t what you meant, just rephrase it and I\u2019ll give it another go.',
+    'Let me know if I got that right.',
+    'If I misread you, try rephrasing in a different way.',
+    'Does that sound about right?'
+];
+const CONFUSED_RESPONSES = [
+    'Hmm, I\u2019m not quite sure I caught that. Could you rephrase it for me?',
+    'I didn\u2019t quite understand that. Try asking in a different way.',
+    'That one\u2019s a little fuzzy for me. Can you say it another way?',
+    'I\u2019m having trouble parsing that. Try something like, \u201cWhat is my compliance rate?\u201d'
+];
+
+// ─── Knowledge Base (lightweight FAQ corpus) ───────────────────────────────
+interface KnowledgeEntry {
+    keywords: string[];
+    answer: string;
+}
+
+const KNOWLEDGE_BASE: KnowledgeEntry[] = [
+    {
+        keywords: ['dll', 'daily lesson log', 'weekly lesson log', 'lingguhang aralin', 'lesson plan', 'banghay'],
+        answer: 'A DLL (Daily Lesson Log) is the DepEd weekly lesson planning document that teachers prepare and submit for compliance monitoring. Each DLL covers the learning area, grade level, teaching dates, and week for your teaching load.'
+    },
+    {
+        keywords: ['isp', 'instructional supervisory plan'],
+        answer: 'An ISP (Instructional Supervisory Plan) is the school\u2019s supervisory blueprint that lists program improvement areas, targets, strategies, and the time frame for instructional monitoring and support.'
+    },
+    {
+        keywords: ['isr', 'instructional supervisory report'],
+        answer: 'An ISR (Instructional Supervisory Report) is the monthly report a Master Teacher submits after observing classroom instruction. It captures the teacher observed, findings, and technical assistance provided.'
+    },
+    {
+        keywords: ['compliance', 'calculated', 'computed', 'rate', 'percent'],
+        answer: 'Compliance is measured as your actual submissions divided by your expected submissions (number of active teaching loads \u00d7 weeks defined in the academic calendar). Submitted on time = compliant; after the due date = late; not submitted = missing.'
+    },
+    {
+        keywords: ['offline', 'internet', 'connect', 'sync', 'no network'],
+        answer: 'You can keep working offline. Documents you upload while offline are saved locally and sync automatically to the server the next time you regain a connection.'
+    },
+    {
+        keywords: ['role', 'master teacher', 'school head', 'district supervisor', 'administrator'],
+        answer: 'Each role sees a tailored view: Teachers manage their own DLLs; Master Teachers review and endorse; School Heads monitor their school; District Supervisors compare across the whole district.'
+    },
+    {
+        keywords: ['deadline', 'when', 'due', 'cutoff', 'cut off', 'date'],
+        answer: 'Deadlines follow the academic calendar set by your district. Ask me \u201cWhen is the next deadline?\u201d and I\u2019ll pull the exact dates for you.'
+    },
+    {
+        keywords: ['greeting', 'hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening', 'kamusta', 'kumusta', 'kumusta', 'salamat', 'thanks', 'thank you'],
+        answer: 'Hello! I\u2019m SmartE Vision\u2019s AI assistant. I can check your compliance, find DLLs, look up deadlines, compare schools, and show teacher stats. What would you like to know?'
+    },
+    {
+        keywords: ['who are you', 'your name', 'about yourself', 'what are you', 'sino ka', 'tell me about you'],
+        answer: 'I\u2019m SmartE Vision\u2019s built-in AI assistant. I live right in the app and answer your questions using live data \u2014 no internet bill needed. Ask me anything about compliance, DLLs, deadlines, or school performance!'
+    }
+];
+
 export type Intent =
     | 'ask_compliance'
     | 'check_deadline'
@@ -29,6 +180,11 @@ export interface ChatContext {
         school_id: string | null;
         district_id: string | null;
     } | null;
+    /** Short-term conversation memory for follow-up questions. */
+    memory?: {
+        lastIntent?: Intent;
+        lastSlots?: Record<string, string>;
+    };
 }
 
 interface IntentModelData {
@@ -61,7 +217,7 @@ class IntentClassifier {
     }
 
     private generateCharNgrams(text: string, minN: number = 2, maxN: number = 5): string[] {
-        const cleaned = text.toLowerCase();
+        const cleaned = normalizeText(text);
         const ngrams: string[] = [];
         for (let n = minN; n <= maxN; n++) {
             for (let i = 0; i <= cleaned.length - n; i++) {
@@ -121,9 +277,14 @@ class IntentClassifier {
     }
 }
 
-function extractSlots(text: string, _intent: Intent): Record<string, string> {
+function extractSlots(text: string, _intent: Intent, memory?: ChatContext['memory']): Record<string, string> {
     const slots: Record<string, string> = {};
-    const lower = text.toLowerCase();
+    const lower = normalizeText(text);
+
+    // Inherit slots from conversation memory (e.g. follow-up "and what about week 4?")
+    if (memory?.lastSlots) {
+        Object.assign(slots, memory.lastSlots);
+    }
 
     const weekMatch = lower.match(/week\s*(\d+)/i) || lower.match(/(\d+)\s*(?:st|nd|rd|th)?\s*week/i);
     if (weekMatch) slots.week = weekMatch[1];
@@ -135,7 +296,7 @@ function extractSlots(text: string, _intent: Intent): Record<string, string> {
         'gmrc', 'mapeh', 'makabansa', 'ap', 'epp', 'reading', 'language',
         'numeracy', 'arts', 'music', 'pe', 'health'];
     for (const subj of subjects) {
-        if (lower.includes(subj)) {
+        if (lower.includes(subj) || lower.includes(subj.slice(0, 3))) {
             slots.subject = subj === 'math' ? 'Mathematics' : subj === 'pe' ? 'PE' : subj.charAt(0).toUpperCase() + subj.slice(1);
             break;
         }
@@ -152,35 +313,46 @@ function extractSlots(text: string, _intent: Intent): Record<string, string> {
         }
     }
 
+    // Fuzzy-match "week"/"grade" tokens for typos like "wekk 4"
+    if (!slots.week) {
+        for (const tok of lower.split(/\s+/)) {
+            const num = tok.match(/\d+/);
+            if (num) {
+                const fuzzyWeek = fuzzyMatch(tok.replace(/\d+/g, ''), ['week', 'wk', 'weeks']);
+                if (fuzzyWeek) { slots.week = num[0]; break; }
+            }
+        }
+    }
+
     return slots;
 }
 
 function generateTemplateResponse(intent: Intent, slots: Record<string, string>): string {
     const templates: Record<Intent, (s: Record<string, string>) => string> = {
-        ask_compliance: () => "Let me check your compliance data. One moment, please.",
-        check_deadline: () => "Let me look up the deadlines from the academic calendar.",
+        ask_compliance: () => pick(["Let me check your compliance data — one moment.", "On it! Checking your compliance records now.", "Sure, pulling up your compliance status."]),
+        check_deadline: () => pick(["Let me look up the deadlines from the academic calendar.", "Checking the calendar for deadlines.", "On it — grabbing the deadline dates for you."]),
         find_dll: () => {
             let filters = '';
             if (slots.subject) filters += ` for ${slots.subject}`;
             if (slots.grade) filters += `, Grade ${slots.grade}`;
             if (slots.week) filters += `, Week ${slots.week}`;
-            return `Searching DLLs${filters}...`;
+            return pick([`Searching DLLs${filters}...`, `Looking for DLLs${filters}...`, `Let me find those DLLs${filters} for you.`]);
         },
         school_compare: () => {
-            if (slots.school) return `Let me pull up the compliance data for ${slots.school}.`;
-            return "Let me compare the compliance rates across schools in your district.";
+            if (slots.school) return pick([`Let me pull up the compliance data for ${slots.school}.`, `Checking how ${slots.school} is doing.`]);
+            return pick(["Let me compare the compliance rates across schools in your district.", "Comparing schools in your district now.", "Gathering the school comparison data."]);
         },
         teacher_stats: () => {
-            if (slots.teacher) return `Let me look up the submission records for ${slots.teacher}.`;
-            return "Let me gather the teacher submission statistics.";
+            if (slots.teacher) return pick([`Let me look up the submission records for ${slots.teacher}.`, `Checking ${slots.teacher}'s stats.`]);
+            return pick(["Let me gather the teacher submission statistics.", "Pulling up teacher stats.", "Fetching teacher performance data."]);
         },
-        calendar_info: () => "Let me check the academic calendar for you.",
+        calendar_info: () => pick(["Let me check the academic calendar for you.", "Looking at the school calendar now.", "Let me pull up the academic calendar."]),
         how_to_upload: () => "Uploading a DLL is simple. Head over to the Upload page, then drag and drop your .docx or .pdf file. The system will automatically detect the subject, grade level, and week from the document. You will have a chance to review the extracted information before finalizing the upload. If you are offline, no worries — the document will be saved locally and will sync automatically once you are back online.",
-        general_help: () => "I am here to help you with a variety of tasks. You can ask me to check your compliance rate, look up upcoming deadlines, find specific DLLs, compare performance across schools, or view statistics for teachers. If you need guidance on uploading documents, I can walk you through that too. Feel free to ask me something like, 'What is my compliance rate?' or 'When is the next deadline?'"
+        general_help: () => "I\u2019m here to help with a bunch of things. I can check your compliance rate, look up deadlines, find DLLs, compare schools, or show teacher stats. Try asking something like, \u201cWhat is my compliance rate?\u201d or \u201cWhen is the next deadline?\u201d"
     };
 
     const generator = templates[intent];
-    return generator ? generator(slots) : "I am not sure how to answer that. Could you try rephrasing? You can ask about compliance, deadlines, DLLs, school comparisons, or teacher statistics.";
+    return generator ? generator(slots) : pick(CONFUSED_RESPONSES);
 }
 
 function formatDate(dateStr: string): string {
@@ -730,7 +902,8 @@ async function queryCalendarInfo(
 async function generateDatabaseResponse(
     intent: Intent,
     slots: Record<string, string>,
-    ctx: ChatContext
+    ctx: ChatContext,
+    rawText?: string
 ): Promise<string> {
     const { supabase: db, userId, profile } = ctx;
 
@@ -741,7 +914,7 @@ async function generateDatabaseResponse(
             case 'check_deadline':
                 return await queryDeadline(db, profile?.district_id ?? undefined, slots);
             case 'find_dll':
-                return await queryDlls(db, slots, text);
+                return await queryDlls(db, slots, rawText);
             case 'school_compare':
                 return await querySchoolCompare(db, profile?.district_id ?? undefined, profile, slots);
             case 'teacher_stats':
@@ -766,11 +939,25 @@ class DllSearchEngine {
 
     private buildTermVector(text: string): Map<string, number> {
         const vec = new Map<string, number>();
-        const tokens = text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2);
+        const tokens = normalizeText(text).replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2);
         for (const token of tokens) {
             vec.set(token, (vec.get(token) || 0) + 1);
         }
         return vec;
+    }
+
+    // Jaccard-over-typo-tolerant-tokens: helps find docs even with misspelled queries.
+    private tokenJaccard(a: Map<string, number>, b: Map<string, number>): number {
+        const aKeys = [...a.keys()];
+        const bKeys = [...b.keys()];
+        if (aKeys.length === 0 || bKeys.length === 0) return 0;
+        let inter = 0;
+        for (const k of aKeys) {
+            if (bKeys.includes(k)) inter++;
+            else if (bKeys.some(bk => bk.length >= 4 && levenshtein(k, bk) <= 1)) inter += 0.5;
+        }
+        const union = new Set([...aKeys, ...bKeys]).size;
+        return union === 0 ? 0 : inter / union;
     }
 
     private docFreq(token: string): number {
@@ -812,7 +999,10 @@ class DllSearchEngine {
 
         for (const doc of this.documents) {
             const dVec = this.tfidf(this.buildTermVector(doc.bodyText));
-            const score = this.cosineSimilarity(qVec, dVec);
+            const cosine = this.cosineSimilarity(qVec, dVec);
+            const jaccard = this.tokenJaccard(qVec, dVec);
+            // Hybrid ranking: prefer semantic (TF-IDF) but blend typo-tolerant Jaccard.
+            const score = cosine * 0.7 + jaccard * 0.3;
             if (score > 0.01) {
                 results.push({ doc, score: Math.round(score * 1000) / 1000 });
             }
@@ -828,16 +1018,53 @@ let dllEngineLoaded = false;
 
 export async function processQuery(text: string, ctx?: ChatContext): Promise<ChatResponse> {
     const { intent, confidence } = intentClassifier.predict(text);
-    const slots = extractSlots(text, intent);
+    const slots = extractSlots(text, intent, ctx?.memory);
 
     let answer: string;
-    if (ctx?.supabase) {
-        answer = await generateDatabaseResponse(intent, slots, ctx);
+
+    // 1. Greetings / small talk / quick facts hit the knowledge base first
+    const kbHit = matchKnowledgeBase(text);
+    if (kbHit && (intent === 'general_help' || intent === 'how_to_upload' || confidence < 40)) {
+        answer = kbHit;
+    } else if (ctx?.supabase) {
+        answer = await generateDatabaseResponse(intent, slots, ctx, text);
     } else {
         answer = generateTemplateResponse(intent, slots);
     }
 
+    // 2. Humanize: prefix confident answers with a natural opener, hedge low-confidence ones
+    if (confidence >= 60 && !answer.startsWith('Hello') && !answer.startsWith('I\u2019m')) {
+        answer = `${pick(OPENERS)} ${answer}`;
+    } else if (confidence < 45 && intent === 'general_help' && !kbHit) {
+        answer = `${pick(LOW_CONFIDENCE_PREFIXES)} ${pick([
+            'your compliance status', 'finding a DLL', 'upcoming deadlines',
+            'school comparisons', 'teacher statistics', 'how to upload a document'
+        ])}. ${pick(LOW_CONFIDENCE_SUFFIXES)}`;
+    }
+
     return { intent, confidence, answer, slots };
+}
+
+function matchKnowledgeBase(text: string): string | null {
+    const lower = normalizeText(text);
+    const tokens = lower.split(/\s+/);
+    for (const entry of KNOWLEDGE_BASE) {
+        let matched = false;
+        for (const kw of entry.keywords) {
+            if (kw.includes(' ') || kw.length > 6) {
+                // Multi-word / long keywords: exact substring or fuzzy phrase match
+                if (lower.includes(kw)) { matched = true; break; }
+            } else {
+                // Short keywords: token-exact or fuzzy token match
+                for (const tok of tokens) {
+                    if (tok === kw || fuzzyMatch(tok, [kw], 1)) { matched = true; break; }
+                }
+                if (matched) break;
+            }
+        }
+        if (matched) return entry.answer;
+    }
+    return null;
 }
 
 export function searchDlls(query: string, topK: number = 3) {

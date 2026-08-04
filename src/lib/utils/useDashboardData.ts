@@ -103,14 +103,14 @@ export async function getDefinedWeeksCount(
  * When a teacher uploads multiple documents for the same week/load, only the
  * most recent submission per slot is counted toward compliance.
  */
-export function deduplicateSubmissions(
-  submissions: { teaching_load_id: string | null; week_number: number | null; doc_type: string | null; created_at: string }[]
-): typeof submissions {
-  const latestBySlot = new Map<string, typeof submissions[0]>();
+export function deduplicateSubmissions<T extends { teaching_load_id?: string | null; week_number?: number | null; doc_type?: string | null; created_at?: string }>(
+  submissions: T[]
+): T[] {
+  const latestBySlot = new Map<string, T>();
   for (const s of submissions) {
     const key = `${s.teaching_load_id ?? ''}|${s.week_number ?? ''}|${s.doc_type ?? ''}`;
     const existing = latestBySlot.get(key);
-    if (!existing || new Date(s.created_at) > new Date(existing.created_at)) {
+    if (!existing || (s.created_at && (!existing.created_at || new Date(s.created_at) > new Date(existing.created_at)))) {
       latestBySlot.set(key, s);
     }
   }
@@ -146,8 +146,8 @@ export function calculateCompliance(
   submissions: { compliance_status?: string; created_at?: string; teaching_load_id?: string | null; week_number?: number | null; doc_type?: string | null }[],
   expectedTotal: number = 0
 ): ComplianceStats {
-  const deduped = deduplicateSubmissions(submissions as any);
-  const counts = countSubmissionsByStatus(deduped);
+  const deduped = deduplicateSubmissions(submissions as { teaching_load_id?: string | null; week_number?: number | null; doc_type?: string | null; created_at?: string }[]);
+  const counts = countSubmissionsByStatus(deduped as { compliance_status?: string }[]);
 
   // Instead of counting DB records for non-compliant, we deduce it:
   // Expected Total = (Setted Weeks) * (Teaching Loads)

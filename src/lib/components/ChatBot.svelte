@@ -14,6 +14,8 @@
 
     let currentUser = $state<{ id: string } | null>(null);
     let currentProfile = $state<{ id: string; full_name: string; role: string; school_id: string | null; district_id: string | null } | null>(null);
+    let lastIntent = $state<Intent | undefined>(undefined);
+    let lastSlots = $state<Record<string, string>>({});
 
     const suggestions = [
         "What is my compliance rate?",
@@ -47,12 +49,15 @@
         const ctx: ChatContext = {
             supabase,
             userId: currentUser?.id,
-            profile: currentProfile
+            profile: currentProfile,
+            memory: { lastIntent, lastSlots }
         };
 
         const response: ChatResponse = await processQuery(q, ctx);
         isLoading = false;
         messages.push({ role: 'bot', text: response.answer, intent: response.intent });
+        lastIntent = response.intent;
+        lastSlots = response.slots;
     }
 
     function handleKeydown(e: KeyboardEvent) {
