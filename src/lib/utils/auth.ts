@@ -66,7 +66,7 @@ async function performAuthInit(): Promise<void> {
     }
 
     try {
-        const timeout = navigator.onLine ? 15000 : 3000;
+        const timeout = navigator.onLine ? 8000 : 3000;
         console.log('[v0] Auth: starting session check...');
         const sessionPromise = supabase.auth.getSession();
         const timeoutPromise = new Promise((_, reject) =>

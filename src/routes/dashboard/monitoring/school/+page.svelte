@@ -121,8 +121,11 @@
     let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
 
     onMount(async () => {
-        await loadSchoolData();
-        loading = false;
+        try {
+            await loadSchoolData();
+        } finally {
+            loading = false;
+        }
 
         // Subscribe to real-time submission changes
         realtimeChannel = supabase
@@ -131,7 +134,7 @@
                 "postgres_changes",
                 { event: "*", schema: "public", table: "submissions" },
                 () => {
-                    loadSchoolData();
+                    if (!loading) loadSchoolData();
                 },
             )
             .subscribe();
@@ -439,6 +442,13 @@
     </div>
 
     {#if loading}
+        <div class="flex flex-col items-center justify-center py-10 mb-2" role="status" aria-label="Loading data">
+            <div class="relative w-12 h-12 mb-4">
+                <div class="absolute inset-0 rounded-full border-4 border-gov-blue/20"></div>
+                <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-gov-blue animate-spin"></div>
+            </div>
+            <p class="text-sm font-medium text-text-muted uppercase tracking-wide">Loading school data...</p>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {#each Array(4) as _}
                 <div class="gov-card-static p-6 animate-pulse">

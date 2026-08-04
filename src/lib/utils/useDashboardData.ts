@@ -31,15 +31,27 @@ export interface AcademicWeek {
   school_year?: string;
 }
 
+// Short-lived in-memory cache so getActualWeeks / getDefinedWeeksCount /
+// getCurrentWeekFromCalendar don't re-query the calendar on every call within
+// a page load. Cleared whenever the school year or district changes.
+const calendarCache = new Map<string, AcademicWeek[]>();
+export function clearCalendarCache() {
+  calendarCache.clear();
+}
+
 /**
  * Fetch actual weeks from the academic_calendar table.
- * Returns sorted array of AcademicWeek objects.
+ * Returns sorted array of AcademicWeek objects. Cached per (year, district).
  */
 export async function getActualWeeks(
   supabase: any,
   schoolYear: string = getDynamicSchoolYear(),
   districtId?: string
 ): Promise<AcademicWeek[]> {
+  const cacheKey = `${schoolYear}|${districtId || 'all'}`;
+  const cached = calendarCache.get(cacheKey);
+  if (cached) return cached;
+
   let query = supabase
     .from('academic_calendar')
     .select('week_number, deadline_date, school_year')
@@ -51,8 +63,9 @@ export async function getActualWeeks(
   }
 
   const { data, error } = await query;
-  if (error || !data) return [];
-  return data as AcademicWeek[];
+  const weeks = (error || !data) ? [] : (data as AcademicWeek[]);
+  calendarCache.set(cacheKey, weeks);
+  return weeks;
 }
 
 /**

@@ -90,15 +90,20 @@
   let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
 
   onMount(async () => {
-    await loadDistrictData();
-    loading = false;
+    try {
+      await loadDistrictData();
+    } finally {
+      loading = false;
+    }
 
     realtimeChannel = supabase
       .channel("district-monitoring")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "submissions" },
-        () => loadDistrictData(),
+        () => {
+          if (!loading) loadDistrictData();
+        },
       )
       .subscribe();
   });
@@ -355,6 +360,13 @@
   </div>
 
   {#if loading}
+    <div class="flex flex-col items-center justify-center py-10 mb-2" role="status" aria-label="Loading data">
+      <div class="relative w-12 h-12 mb-4">
+        <div class="absolute inset-0 rounded-full border-4 border-gov-blue/20"></div>
+        <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-gov-blue animate-spin"></div>
+      </div>
+      <p class="text-sm font-medium text-text-muted uppercase tracking-wide">Loading district data...</p>
+    </div>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {#each Array(4) as _}
         <div class="gov-card-static p-8 animate-pulse text-center">

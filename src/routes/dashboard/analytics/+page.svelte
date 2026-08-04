@@ -30,6 +30,7 @@
     let channel: any;
     let trendChart: any = null;
     let barChart: any = null;
+    let reloadTimer: ReturnType<typeof setTimeout> | null = null;
 
     let stats = $state({
         currentCompliance: 0,
@@ -48,19 +49,23 @@
     let userRefreshed = $state(false);
 
     async function initAnalytics() {
-        const result = await fetchData();
-        if (result) {
-            const { weeklyData, schoolData } = result;
-            exportData = { weekly: weeklyData, schools: schoolData };
+        try {
+            const result = await fetchData();
+            if (result) {
+                const { weeklyData, schoolData } = result;
+                exportData = { weekly: weeklyData, schools: schoolData };
+                loading = false;
+                await tick();
+                renderCharts(weeklyData, schoolData);
+            }
+            if (userRefreshed) {
+                addToast("success", "Analytics data refreshed");
+                userRefreshed = false;
+            }
+        } catch (err) {
+            console.error("[analytics] initAnalytics error:", err);
+        } finally {
             loading = false;
-            await tick();
-            renderCharts(weeklyData, schoolData);
-        } else {
-            loading = false;
-        }
-        if (userRefreshed) {
-            addToast("success", "Analytics data refreshed");
-            userRefreshed = false;
         }
     }
 
@@ -73,9 +78,25 @@
 
     onDestroy(() => {
         if (channel) supabase.removeChannel(channel);
+        if (reloadTimer) clearTimeout(reloadTimer);
         if (trendChart) trendChart.destroy();
         if (barChart) barChart.destroy();
     });
+
+    function scheduleChartReload() {
+        if (reloadTimer) clearTimeout(reloadTimer);
+        reloadTimer = setTimeout(async () => {
+            try {
+                const result = await fetchData();
+                if (result) {
+                    const { weeklyData, schoolData } = result;
+                    updateCharts(weeklyData, schoolData);
+                }
+            } catch (err) {
+                console.warn("[analytics] Realtime refresh failed:", err);
+            }
+        }, 500);
+    }
 
     function setupRealtime() {
         channel = supabase
@@ -83,13 +104,7 @@
             .on(
                 "postgres_changes",
                 { event: "*", schema: "public", table: "submissions" },
-                async () => {
-                    const result = await fetchData();
-                    if (result) {
-                        const { weeklyData, schoolData } = result;
-                        updateCharts(weeklyData, schoolData);
-                    }
-                },
+                () => scheduleChartReload(),
             )
             .subscribe();
     }

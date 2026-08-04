@@ -16,6 +16,7 @@
     let currentProfile = $state<{ id: string; full_name: string; role: string; school_id: string | null; district_id: string | null } | null>(null);
     let lastIntent = $state<Intent | undefined>(undefined);
     let lastSlots = $state<Record<string, string>>({});
+    let dllDocsLoaded = $state(false);
 
     const suggestions = [
         "What is my compliance rate?",
@@ -34,8 +35,17 @@
         });
         const unsubUser = user.subscribe((u) => currentUser = u as { id: string } | null);
         const unsubProfile = profile.subscribe((p) => currentProfile = p as any);
-        loadDllDocumentsFromSupabase(supabase).catch(() => {});
         return () => { unsubUser(); unsubProfile(); };
+    });
+
+    // Load DLL search documents lazily, only when the chat is first opened.
+    // This avoids pulling up to 1000 OCR-text submissions on every page load,
+    // which was a major cause of slow initial renders.
+    $effect(() => {
+        if (isOpen && !dllDocsLoaded) {
+            dllDocsLoaded = true;
+            loadDllDocumentsFromSupabase(supabase).catch(() => {});
+        }
     });
 
     async function handleSend() {

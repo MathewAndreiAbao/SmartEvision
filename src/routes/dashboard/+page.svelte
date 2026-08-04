@@ -60,6 +60,12 @@
     let loading = $state(true);
     let channel: any;
 
+    // Guards against write-triggered reload feedback loops:
+    // our own compliance-fix UPDATE fires a postgres_changes event, so we
+    // skip reloading while we are the ones applying a fix.
+    let applyingFix = $state(false);
+    let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+
     let sortField = $state<string>("created_at");
     let sortDir = $state<"asc" | "desc">("desc");
     let filterStatus = $state("all");
@@ -76,7 +82,17 @@
 
     onDestroy(() => {
         if (channel) supabase.removeChannel(channel);
+        if (reloadTimer) clearTimeout(reloadTimer);
     });
+
+    // Debounce reloads so bursts of realtime events (e.g. bulk inserts or the
+    // page's own compliance-fix writes) collapse into a single refresh.
+    function scheduleReload() {
+        if (reloadTimer) clearTimeout(reloadTimer);
+        reloadTimer = setTimeout(() => {
+            loadDashboard().catch((err) => console.error("[dashboard] Realtime refresh failed:", err));
+        }, 500);
+    }
 
     function setupRealtime() {
         channel = supabase
@@ -85,6 +101,10 @@
                 "postgres_changes",
                 { event: "*", schema: "public", table: "submissions" },
                 async (payload) => {
+                    // Skip reload entirely if the change was caused by our own
+                    // compliance-status fix write (prevents feedback loops).
+                    if (applyingFix) return;
+
                     // Real-time compliance risk alerts for supervisors
                     const role = $profile?.role;
                     if (role && role !== "Teacher" && payload?.new) {
@@ -113,7 +133,7 @@
                             }
                         }
                     }
-                    loadDashboard().catch((err) => console.error("[dashboard] Realtime refresh failed:", err));
+                    scheduleReload();
                 },
             )
             .subscribe();
@@ -134,12 +154,18 @@
     async function loadTeacherDashboard(userProfile: any) {
         // Fix existing submissions that were incorrectly marked 'missing'
         // by the old day-of-week fallback. Only fixes real uploads, not missing placeholders.
-        await supabase
-            .from("submissions")
-            .update({ compliance_status: "compliant" })
-            .eq("user_id", userProfile.id)
-            .eq("compliance_status", "missing")
-            .not("file_hash", "like", "nc_%");
+        // Guarded so the resulting realtime event doesn't trigger a reload loop.
+        applyingFix = true;
+        try {
+            await supabase
+                .from("submissions")
+                .update({ compliance_status: "compliant" })
+                .eq("user_id", userProfile.id)
+                .eq("compliance_status", "missing")
+                .not("file_hash", "like", "nc_%");
+        } finally {
+            applyingFix = false;
+        }
 
         // Batch: fetch all submissions + teaching loads count + academic calendar in parallel
         const results = await Promise.allSettled([
@@ -226,7 +252,12 @@
                 }
             }
         }
-        await fixQuery;
+        applyingFix = true;
+        try {
+            await fixQuery;
+        } finally {
+            applyingFix = false;
+        }
 
         // Fetch academic calendar for the school year
         const { data: calendar } = await supabase
@@ -469,6 +500,13 @@
     </div>
 
     {#if loading}
+        <div class="flex flex-col items-center justify-center py-10 mb-2" role="status" aria-label="Loading data">
+            <div class="relative w-12 h-12 mb-4">
+                <div class="absolute inset-0 rounded-full border-4 border-gov-blue/20"></div>
+                <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-gov-blue animate-spin"></div>
+            </div>
+            <p class="text-sm font-medium text-text-muted uppercase tracking-wide">Loading your dashboard...</p>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {#each Array(4) as _}
                 <div class="gov-card-static p-5 animate-pulse">
@@ -476,6 +514,20 @@
                     <div class="h-10 bg-surface-muted rounded w-16"></div>
                 </div>
             {/each}
+        </div>
+        <div class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="gov-card-static p-5 animate-pulse lg:col-span-2">
+                <div class="h-4 bg-surface-muted rounded w-40 mb-4"></div>
+                <div class="h-40 bg-surface-muted rounded"></div>
+            </div>
+            <div class="gov-card-static p-5 animate-pulse">
+                <div class="h-4 bg-surface-muted rounded w-28 mb-4"></div>
+                <div class="space-y-3">
+                    <div class="h-8 bg-surface-muted rounded"></div>
+                    <div class="h-8 bg-surface-muted rounded"></div>
+                    <div class="h-8 bg-surface-muted rounded"></div>
+                </div>
+            </div>
         </div>
     {:else if $profile?.role === "Teacher"}
         <!-- ========== TEACHER DASHBOARD ========== -->
