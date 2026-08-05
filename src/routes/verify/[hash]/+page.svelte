@@ -203,7 +203,7 @@
 </script>
 
 <svelte:head>
-    <title>Verify Document — CEDIMS</title>
+    <title>Verify Document — CEDIMS · Powered by Smart E-VISION</title>
 </svelte:head>
 
 <!-- QR Scanner Overlay for continuous scanning -->

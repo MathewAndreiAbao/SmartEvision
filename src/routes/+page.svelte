@@ -101,7 +101,7 @@
 </script>
 
 <svelte:head>
-    <title>CEDIMS — Calapan East District Instructional Monitoring System</title>
+    <title>CEDIMS — Calapan East District Instructional Monitoring System · Powered by Smart E-VISION</title>
 </svelte:head>
 
 <div class="min-h-screen bg-surface-muted text-text-primary">
@@ -182,7 +182,10 @@
                         <div class="rounded-full bg-gov-blue/10 p-2 text-gov-blue">
                             <FileCheck2 size={16} class="sm:size-[18]" />
                         </div>
-                        <p class="text-sm font-semibold text-text-primary">What is CEDIMS?</p>
+                        <div>
+                            <p class="text-sm font-semibold text-text-primary">What is CEDIMS?</p>
+                            <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-text-muted">Powered by Smart E-VISION</p>
+                        </div>
                     </div>
                     <p class="mt-3 sm:mt-4 text-xs sm:text-sm leading-6 sm:leading-7 text-text-secondary">
                         The Calapan East District Instructional Monitoring System streamlines the submission, checking, and compliance tracking of Daily Lesson Logs (DLLs), Instructional Supervision Plans (ISPs), and Instructional Supervision Reports (ISRs) across all schools in the district.
@@ -328,7 +331,7 @@
                         <p class="text-sm font-semibold text-text-primary">CEDIMS</p>
                     </div>
                     <p class="mt-1.5 sm:mt-2 text-xs sm:text-sm text-text-secondary">Calapan East District Instructional Monitoring System</p>
-                    <p class="mt-1 text-[10px] sm:text-xs text-text-muted">Version 2.0</p>
+                    <p class="mt-1 text-[10px] sm:text-xs text-text-muted">Powered by Smart E-VISION · Version 2.0</p>
                 </div>
                 <div>
                     <p class="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.2em] text-text-secondary">DepEd Calapan East District</p>

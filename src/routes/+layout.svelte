@@ -95,7 +95,7 @@
 </script>
 
 <svelte:head>
-	<title>CEDIMS</title>
+	<title>CEDIMS · Powered by Smart E-VISION</title>
 </svelte:head>
 
 <Toast />

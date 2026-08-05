@@ -53,7 +53,7 @@
 </script>
 
 <svelte:head>
-    <title>Sign In — CEDIMS</title>
+    <title>Sign In — CEDIMS · Powered by Smart E-VISION</title>
 </svelte:head>
 
 <div class="min-h-screen bg-gradient-to-br from-surface-muted via-surface-white to-gov-blue/5 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
@@ -96,6 +96,7 @@
                     <img src="/app_icon.png" alt="CEDIMS" class="mx-auto h-12 w-12 sm:h-14 sm:w-14 rounded-xl shadow-sm mb-3 sm:mb-4" />
                     <h2 class="text-lg sm:text-xl font-semibold text-text-primary">Welcome back</h2>
                     <p class="mt-1 text-xs sm:text-sm text-text-secondary">Sign in to your district account.</p>
+                    <p class="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-text-muted">Powered by Smart E-VISION</p>
                 </div>
                 <form onsubmit={handleSubmit} class="space-y-4 sm:space-y-5">
                     <div>

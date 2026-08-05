@@ -56,7 +56,7 @@
 </script>
 
 <svelte:head>
-    <title>CEDIMS — Dashboard</title>
+    <title>CEDIMS — Dashboard · Powered by Smart E-VISION</title>
 </svelte:head>
 
 <!-- WBS 21.2 — Accessibility: Skip to Content Link -->
