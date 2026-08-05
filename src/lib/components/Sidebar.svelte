@@ -263,7 +263,7 @@
 				<p
 					class="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.25em] text-gov-blue"
 				>
-					Monitoring Hub
+					Powered by Smart E-VISION
 				</p>
 			</div>
 		</div>
