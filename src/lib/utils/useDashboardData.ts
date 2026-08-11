@@ -54,8 +54,9 @@ export async function getActualWeeks(
 
   let query = supabase
     .from('academic_calendar')
-    .select('week_number, deadline_date, school_year')
+    .select('week_number, deadline_date, school_year, is_active')
     .eq('school_year', schoolYear)
+    .eq('is_active', true)
     .order('week_number', { ascending: true });
 
   if (districtId) {

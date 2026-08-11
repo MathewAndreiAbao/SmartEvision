@@ -24,7 +24,8 @@
     let barCanvas = $state<HTMLCanvasElement>();
     const OPERATIONAL_TARGET = 100; // 100% Target Standard
     let loading = $state(true);
-    let period = $state<"quarter" | "semester" | "year">("quarter");
+    let period = $state<"term" | "year">("term");
+    let periodSummary = $state<any[]>([]);
     let exportData = $state<{ weekly: number[]; schools: any[] }>({ weekly: [], schools: [] });
     let ChartClass: any = null;
     let channel: any;
@@ -316,6 +317,169 @@
     let weekLabels = $state<string[]>([]);
     // ...
 
+    // ─── Submission Summary by Period (Term / Year) ───
+    async function getPeriodSummary(
+        period: "term" | "year",
+    ): Promise<any[]> {
+        const userProfile = $profile;
+        if (!userProfile) return [];
+        const isSchoolLevel =
+            userProfile.role === "School Head" ||
+            userProfile.role === "Master Teacher";
+        const schoolId = userProfile.school_id;
+
+        const [calendarRes, subsRes, loadsRes] = await Promise.all([
+            supabase
+                .from("academic_calendar")
+                .select("week_number, term, deadline_date, is_active"),
+            supabase
+                .from("submissions")
+                .select(
+                    "compliance_status, week_number, created_at, uploader:profiles!inner(school_id)",
+                ),
+            supabase.from("teaching_loads").select("id, profiles(school_id)"),
+        ]);
+
+        const calendar = (calendarRes.data || []).filter(
+            (c: any) =>
+                c.is_active === true &&
+                (!userProfile.district_id ||
+                    c.district_id === userProfile.district_id ||
+                    !c.district_id),
+        );
+        const submissions = subsRes.data || [];
+        const loads = loadsRes.data || [];
+
+        // Map each week to the term(s) it belongs to in the calendar
+        const weekToTerms: Record<number, { t: number; deadline?: string }[]> = {};
+        for (const c of calendar) {
+            const w = c.week_number;
+            if (!weekToTerms[w]) weekToTerms[w] = [];
+            if (!weekToTerms[w].some((e) => e.t === c.term)) {
+                weekToTerms[w].push({ t: c.term, deadline: c.deadline_date });
+            }
+        }
+
+        // Weeks per term (for expected-total calculation)
+        const weeksPerTerm: Record<number, number> = {};
+        for (const w of Object.keys(weekToTerms)) {
+            for (const o of weekToTerms[+w]) {
+                weeksPerTerm[o.t] = (weeksPerTerm[o.t] || 0) + 1;
+            }
+        }
+
+        const resolveTerm = (sub: any): number | null => {
+            const week = getSubmissionWeek(sub);
+            const opts = weekToTerms[week];
+            if (!opts || opts.length === 0) return null;
+            if (opts.length === 1) return opts[0].t;
+            // Ambiguous week number -> use nearest calendar deadline to upload date
+            const created = sub.created_at ? new Date(sub.created_at).getTime() : 0;
+            let best = opts[0];
+            let bestDiff = Infinity;
+            for (const o of opts) {
+                const d = o.deadline ? new Date(o.deadline).getTime() : Infinity;
+                const diff = Math.abs(d - created);
+                if (diff < bestDiff) {
+                    bestDiff = diff;
+                    best = o;
+                }
+            }
+            return best.t;
+        };
+
+        // Scope filtering (school level vs district level)
+        const scopeSubs = submissions.filter((s: any) => {
+            if (!isSchoolLevel) return true;
+            const uploader = Array.isArray(s.uploader)
+                ? s.uploader[0]
+                : s.uploader;
+            return uploader?.school_id === schoolId;
+        });
+        const scopeLoads = loads.filter((l: any) => {
+            if (!isSchoolLevel) return true;
+            const p = Array.isArray(l.profiles) ? l.profiles[0] : l.profiles;
+            return p?.school_id === schoolId;
+        });
+        const totalLoads = scopeLoads.length;
+
+        const byTerm: Record<number, any[]> = {};
+        for (const s of scopeSubs) {
+            const t = resolveTerm(s);
+            if (t == null) continue;
+            if (!byTerm[t]) byTerm[t] = [];
+            byTerm[t].push(s);
+        }
+
+        const terms = [
+            ...new Set(calendar.map((c: any) => c.term).filter(Boolean)),
+        ].sort((a: number, b: number) => a - b);
+
+        const groups = terms.map((t) => {
+            const stats = calculateCompliance(
+                byTerm[t] || [],
+                (weeksPerTerm[t] || 0) * totalLoads,
+            );
+            return {
+                key: t,
+                label: `Term ${t}`,
+                compliant: stats.Compliant,
+                late: stats.Late,
+                missing: stats.NonCompliant,
+                total: stats.totalUploaded,
+                expected: stats.expected,
+                rate: stats.rate,
+            };
+        });
+
+        const fold = (ts: number[]) =>
+            groups
+                .filter((g) => ts.includes(g.key))
+                .reduce(
+                    (acc, g) => ({
+                        compliant: acc.compliant + g.compliant,
+                        late: acc.late + g.late,
+                        missing: acc.missing + g.missing,
+                        total: acc.total + g.total,
+                        expected: acc.expected + g.expected,
+                    }),
+                    { compliant: 0, late: 0, missing: 0, total: 0, expected: 0 },
+                );
+
+        const withRate = (
+            key: string,
+            label: string,
+            r: { compliant: number; late: number; missing: number; total: number; expected: number },
+        ) => ({
+            key,
+            label,
+            compliant: r.compliant,
+            late: r.late,
+            missing: r.missing,
+            total: r.total,
+            expected: r.expected,
+            rate:
+                r.expected > 0
+                    ? Math.min(100, Math.round(((r.compliant + r.late) / r.expected) * 100))
+                    : 0,
+        });
+
+        if (period === "year") {
+            return [withRate("year", "School Year", fold(terms))];
+        }
+        return groups;
+    }
+
+    // Reload the period summary whenever the selected period changes
+    $effect(() => {
+        const p = period;
+        if ($profile) {
+            getPeriodSummary(p).then((r) => {
+                periodSummary = r;
+            });
+        }
+    });
+
     function renderCharts(weeklyData: number[], schoolData: any[]) {
         if (!ChartClass) return;
         if (trendChart) trendChart.destroy();
@@ -587,6 +751,71 @@
                     Schools at Target
                 </p>
             </div>
+        </div>
+
+        <!-- Submission Summary by Period -->
+        <div class="gov-card-static p-8 mt-10" in:fly={{ y: 20, duration: 600, delay: 700 }}>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 rounded-lg bg-gov-blue/10 text-gov-blue">
+                        <BarChart3 size={20} strokeWidth={1.5} />
+                    </div>
+                    <h3 class="text-sm font-semibold text-text-primary uppercase tracking-wide">
+                        Submission Summary by Period
+                    </h3>
+                </div>
+                <div class="flex items-center gap-2">
+                    {#each (["term", "year"] as const) as p}
+                        <button
+                            onclick={() => (period = p)}
+                            class="px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all {period === p ? 'bg-gov-blue text-white shadow-sm' : 'bg-surface-muted text-text-secondary hover:text-gov-blue'}"
+                        >
+                            {p === "term" ? "Term" : "School Year"}
+                        </button>
+                    {/each}
+                </div>
+            </div>
+            {#if periodSummary.length === 0}
+                <p class="text-xs sm:text-sm text-text-muted text-center py-6">
+                    No period summary available yet.
+                </p>
+            {:else}
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {#each periodSummary as g}
+                        <div class="rounded-2xl border border-border-subtle bg-surface-muted p-5">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-text-muted">
+                                {g.label}
+                            </p>
+                            <p class="mt-2 text-3xl font-semibold text-gov-blue">{g.rate}%</p>
+                            <p class="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                                Compliance rate
+                            </p>
+                            <div class="mt-4 space-y-1.5 text-xs text-text-secondary">
+                                <p class="flex justify-between">
+                                    <span>Uploaded</span>
+                                    <span class="font-semibold text-text-primary">{g.compliant + g.late}</span>
+                                </p>
+                                <p class="flex justify-between">
+                                    <span>Compliant</span>
+                                    <span class="font-semibold text-gov-green">{g.compliant}</span>
+                                </p>
+                                <p class="flex justify-between">
+                                    <span>Late</span>
+                                    <span class="font-semibold text-gov-gold-dark">{g.late}</span>
+                                </p>
+                                <p class="flex justify-between">
+                                    <span>Missing</span>
+                                    <span class="font-semibold text-gov-red">{g.missing}</span>
+                                </p>
+                                <p class="flex justify-between pt-1.5 border-t border-border-subtle">
+                                    <span>Expected</span>
+                                    <span class="font-semibold text-text-primary">{g.expected}</span>
+                                </p>
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+            {/if}
         </div>
     {/if}
 </div>

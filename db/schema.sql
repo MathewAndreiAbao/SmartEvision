@@ -60,12 +60,13 @@ CREATE TABLE academic_calendar (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     district_id UUID REFERENCES districts(id) ON DELETE CASCADE,
     school_year TEXT NOT NULL,
-    quarter INTEGER NOT NULL CHECK (quarter BETWEEN 1 AND 4),
+    term INTEGER NOT NULL CHECK (term BETWEEN 1 AND 3),
     week_number INTEGER NOT NULL CHECK (week_number BETWEEN 1 AND 52),
     deadline_date TIMESTAMPTZ NOT NULL,
     description TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(district_id, school_year, quarter, week_number)
+    UNIQUE(district_id, school_year, term, week_number)
 );
 
 -- ─── TEACHING LOADS ─────────────────────────────────────────
@@ -315,10 +316,10 @@ INSERT INTO schools (id, district_id, name) VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- ─── Academic Calendar (2025-2026 Sample for Pilot) ───
-INSERT INTO academic_calendar (district_id, school_year, quarter, week_number, deadline_date) VALUES
-    ('d1000000-0000-0000-0000-000000000001', '2025-2026', 1, 1, '2025-08-25 23:59:59+08'),
-    ('d1000000-0000-0000-0000-000000000001', '2025-2026', 1, 2, '2025-09-01 23:59:59+08'),
-    ('d1000000-0000-0000-0000-000000000001', '2025-2026', 1, 3, '2025-09-08 23:59:59+08')
+INSERT INTO academic_calendar (district_id, school_year, term, week_number, deadline_date, is_active) VALUES
+    ('d1000000-0000-0000-0000-000000000001', '2025-2026', 1, 1, '2025-08-25 23:59:59+08', TRUE),
+    ('d1000000-0000-0000-0000-000000000001', '2025-2026', 1, 2, '2025-09-01 23:59:59+08', TRUE),
+    ('d1000000-0000-0000-0000-000000000001', '2025-2026', 1, 3, '2025-09-08 23:59:59+08', TRUE)
 ON CONFLICT DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════════

@@ -18,13 +18,15 @@
         week_number: number;
         deadline_date: string;
         description: string;
+        is_active?: boolean;
     }
 
     let schoolYear = $state("2026-2027");
-    let quarter = $state(1);
+    let term = $state(1);
     let deadlines = $state<Deadline[]>([]);
     let loading = $state(true);
     let saving = $state(false);
+    let generating = $state(false);
     let resolvedDistrictId = $state<string | null>(null);
     let yearOpen = $state(false);
     let termOpen = $state(false);
@@ -35,6 +37,30 @@
         { value: 1, label: "1st Term" },
         { value: 2, label: "2nd Term" },
         { value: 3, label: "3rd Term" },
+    ];
+
+    // DepEd SY 2026-2027 three-term calendar (DepEd Order No. 009, s. 2026).
+    // Each submission deadline is the Monday of its week. Generated weeks start
+    // inactive (waiting state) until a supervisor activates them.
+    const DEPED_2026_WEEKS: { term: number; week_number: number; deadline_date: string }[] = [
+        // Term 1 (Weeks 1–13, Jun 8 – Sep 15, 2026)
+        ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map((w, i) => ({
+            term: 1,
+            week_number: w,
+            deadline_date: new Date(2026, 5, 8 + i * 7).toISOString(),
+        })),
+        // Term 2 (Weeks 14–26, Sep 16 – Dec 18, 2026; first Monday Sep 21)
+        ...[14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26].map((w, i) => ({
+            term: 2,
+            week_number: w,
+            deadline_date: new Date(2026, 8, 21 + i * 7).toISOString(),
+        })),
+        // Term 3 (Weeks 27–39, Jan 4 – Apr 8, 2027)
+        ...[27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39].map((w, i) => ({
+            term: 3,
+            week_number: w,
+            deadline_date: new Date(2027, 0, 4 + i * 7).toISOString(),
+        })),
     ];
 
     const isDistrictSupervisor = $derived(
@@ -100,7 +126,7 @@
             .from("academic_calendar")
             .select("*")
             .eq("school_year", schoolYear)
-            .eq("quarter", quarter)
+            .eq("term", term)
             .eq("district_id", resolvedDistrictId)
             .order("week_number", { ascending: true });
 
@@ -124,6 +150,7 @@
                     : "",
                 description:
                     weekData?.description || `Week ${weekNum} Submission`,
+                is_active: weekData?.is_active ?? false,
             };
         });
     }
@@ -151,10 +178,13 @@
         const payload = {
             ...(weekData.id ? { id: weekData.id } : {}),
             school_year: schoolYear,
-            quarter: quarter,
+            term: term,
             week_number: weekData.week_number,
             deadline_date: new Date(weekData.deadline_date).toISOString(),
             description: weekData.description,
+            ...(typeof weekData.is_active === "boolean"
+                ? { is_active: weekData.is_active }
+                : {}),
             district_id: resolvedDistrictId,
         };
 
@@ -227,10 +257,109 @@
     }
 
     $effect(() => {
-        if (schoolYear || quarter) {
+        if (schoolYear || term) {
             loadDeadlines();
         }
     });
+
+    async function toggleActive(d: Deadline) {
+        if (!canEdit) return;
+        if (!d.id) {
+            addToast("error", "Save the week first before activating it");
+            return;
+        }
+        const next = !d.is_active;
+        const { error } = await supabase
+            .from("academic_calendar")
+            .update({ is_active: next })
+            .eq("id", d.id);
+
+        if (error) {
+            console.error("[v0] Toggle active error:", error);
+            addToast(
+                "error",
+                `Failed to ${next ? "activate" : "deactivate"} Week ${d.week_number}: ${error.message}`,
+            );
+            return;
+        }
+
+        d.is_active = next;
+        addToast(
+            "success",
+            next
+                ? `Week ${d.week_number} is now active and visible to teachers`
+                : `Week ${d.week_number} is now hidden (waiting)`,
+        );
+
+        if (next) {
+            // Notify teachers in the district about the newly active deadline
+            const { createNotification } = await import(
+                "$lib/utils/notificationSystem"
+            );
+            const { data: teachers } = await supabase
+                .from("profiles")
+                .select("id")
+                .eq("district_id", resolvedDistrictId)
+                .eq("role", "Teacher");
+            if (teachers) {
+                await Promise.all(
+                    teachers.map((t) =>
+                        createNotification(
+                            t.id,
+                            "New Submission Deadline",
+                            `The submission deadline for Week ${d.week_number} (Term ${term}) is now open. Due: ${new Date(d.deadline_date).toLocaleDateString()}.`,
+                            "info",
+                            "/dashboard/calendar",
+                        ),
+                    ),
+                );
+            }
+        }
+    }
+
+    async function generateFromDepEd() {
+        if (!canEdit || !resolvedDistrictId) return;
+        if (
+            !confirm(
+                "Generate the full DepEd SY 2026-2027 three-term calendar for this district? Weeks are created in a waiting (inactive) state and can be activated per week. Existing dates will be overwritten.",
+            )
+        )
+            return;
+
+        generating = true;
+        try {
+            const rows = DEPED_2026_WEEKS.map((w) => ({
+                school_year: schoolYear,
+                term: w.term,
+                week_number: w.week_number,
+                deadline_date: w.deadline_date,
+                description: `Week ${w.week_number} — Term ${w.term} Submission`,
+                is_active: false,
+                district_id: resolvedDistrictId,
+            }));
+
+            const { error } = await supabase
+                .from("academic_calendar")
+                .upsert(rows, { onConflict: "district_id,school_year,term,week_number" });
+
+            if (error) {
+                console.error("[v0] Generate DepEd error:", error);
+                addToast(
+                    "error",
+                    `Failed to generate calendar: ${error.message}`,
+                );
+                return;
+            }
+
+            addToast(
+                "success",
+                "DepEd SY 2026-2027 calendar generated. Weeks are in waiting state — activate them as needed.",
+            );
+            await loadDeadlines();
+        } finally {
+            generating = false;
+        }
+    }
 </script>
 
 <svelte:head>
@@ -304,7 +433,7 @@
                     onclick={() => { termOpen = !termOpen; yearOpen = false; }}
                     class="px-4 py-2.5 text-sm font-bold text-left bg-surface-white border border-border-subtle rounded-xl min-h-[42px] flex items-center justify-between gap-3 text-gov-blue sm:min-w-[130px] w-full sm:w-auto"
                 >
-                    <span>{terms.find(t => t.value === quarter)?.label || `Term ${quarter}`}</span>
+                    <span>{terms.find(t => t.value === term)?.label || `Term ${term}`}</span>
                     <svg class="w-4 h-4 transition-transform {termOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                     </svg>
@@ -320,10 +449,10 @@
                         {#each terms as t}
                             <button
                                 type="button"
-                                onclick={() => { quarter = t.value; termOpen = false; }}
-                                class="w-full text-left px-4 py-3 text-sm hover:bg-gov-blue/5 transition-colors {quarter === t.value ? 'bg-gov-blue/10 font-bold text-gov-blue' : 'text-text-primary'}"
+                                onclick={() => { term = t.value; termOpen = false; }}
+                                class="w-full text-left px-4 py-3 text-sm hover:bg-gov-blue/5 transition-colors {term === t.value ? 'bg-gov-blue/10 font-bold text-gov-blue' : 'text-text-primary'}"
                                 role="option"
-                                aria-selected={quarter === t.value}
+                                aria-selected={term === t.value}
                             >
                                 {t.label}
                             </button>
@@ -397,13 +526,26 @@
                         </div>
 
                         {#if canEdit}
-                            <button
-                                onclick={() => saveWeek(d)}
-                                class="p-2.5 rounded-xl bg-gov-blue/5 text-gov-blue hover:bg-gov-blue hover:text-white active:scale-95 transition-all shadow-sm flex items-center justify-center"
-                                title="Save Week {d.week_number}"
-                            >
-                                <Save size={20} strokeWidth={2.5} />
-                            </button>
+                            <div class="flex items-center gap-2">
+                                {#if d.id}
+                                    <button
+                                        onclick={() => toggleActive(d)}
+                                        class="px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide transition-all shadow-sm flex items-center gap-1.5 {d.is_active
+                                            ? 'bg-gov-green/10 text-gov-green hover:bg-gov-green hover:text-white'
+                                            : 'bg-surface-muted text-text-muted border border-border-subtle hover:bg-gov-gold/10 hover:text-gov-gold-dark'}"
+                                        title="Toggle visibility of Week {d.week_number} to teachers"
+                                    >
+                                        {d.is_active ? "Active" : "Waiting"}
+                                    </button>
+                                {/if}
+                                <button
+                                    onclick={() => saveWeek(d)}
+                                    class="p-2.5 rounded-xl bg-gov-blue/5 text-gov-blue hover:bg-gov-blue hover:text-white active:scale-95 transition-all shadow-sm flex items-center justify-center"
+                                    title="Save Week {d.week_number}"
+                                >
+                                    <Save size={20} strokeWidth={2.5} />
+                                </button>
+                            </div>
                         {/if}
                     </div>
 
@@ -472,28 +614,43 @@
             <div
                 class="mt-12 p-8 bg-surface border border-border-subtle rounded-[2.5rem] shadow-sm"
             >
-                <div class="flex items-start gap-4">
-                    <div
-                        class="p-2.5 rounded-xl bg-gov-blue/10 text-gov-blue group-hover:bg-gov-blue group-hover:text-white transition-all"
-                    >
-                        <Info size={24} />
-                    </div>
-                    <div>
-                        <h4 class="font-bold text-text-primary text-lg mb-1">
-                            Operational Guidelines
-                        </h4>
-                        <p class="text-sm text-text-secondary leading-relaxed">
-                            Each week is saved individually by clicking the <span
-                                class="inline-flex items-center justify-center px-2 py-0.5 rounded bg-gov-blue/10 text-gov-blue font-bold text-[10px] uppercase"
-                                >Save</span
+                    <div class="flex items-start gap-4">
+                        <div
+                            class="p-2.5 rounded-xl bg-gov-blue/10 text-gov-blue group-hover:bg-gov-blue group-hover:text-white transition-all"
+                        >
+                            <Info size={24} />
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-text-primary text-lg mb-1">
+                                Operational Guidelines
+                            </h4>
+                            <p class="text-sm text-text-secondary leading-relaxed">
+                                Each week is saved individually by clicking the <span
+                                    class="inline-flex items-center justify-center px-2 py-0.5 rounded bg-gov-blue/10 text-gov-blue font-bold text-[10px] uppercase"
+                                    >Save</span
+                                >
+                                icon. Deadlines are set to
+                                <strong>11:59 PM</strong> of the selected date. Submissions
+                                after this will be marked as <strong>Late</strong>
+                                automatically. Use the <strong>Waiting</strong> / <strong
+                                    >Active</strong
+                                >
+                                toggle to control whether a week is visible to teachers and
+                                counted toward compliance.
+                            </p>
+                            <button
+                                type="button"
+                                onclick={() => generateFromDepEd()}
+                                disabled={generating}
+                                class="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gov-blue text-white text-sm font-bold hover:bg-gov-blue-dark active:scale-95 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                             >
-                            icon. Deadlines are set to
-                            <strong>11:59 PM</strong> of the selected date. Submissions
-                            after this will be marked as <strong>Late</strong>
-                            automatically.
-                        </p>
+                                <CalendarDays size={18} />
+                                {generating
+                                    ? "Generating…"
+                                    : "Generate from DepEd SY 2026-2027"}
+                            </button>
+                        </div>
                     </div>
-                </div>
             </div>
         {:else}
             <div

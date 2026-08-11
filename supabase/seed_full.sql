@@ -90,17 +90,18 @@ CREATE TABLE IF NOT EXISTS profiles (
 -- PART 4: TABLES — ACADEMIC STRUCTURE
 -- ═══════════════════════════════════════════════════════════════════════════════
 
--- Academic Calendar (weekly deadlines per quarter)
+-- Academic Calendar (weekly deadlines per term, DepEd three-term system)
 CREATE TABLE IF NOT EXISTS academic_calendar (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     district_id UUID REFERENCES districts(id) ON DELETE CASCADE,
     school_year TEXT NOT NULL,
-    quarter INTEGER NOT NULL CHECK (quarter BETWEEN 1 AND 4),
+    term INTEGER NOT NULL CHECK (term BETWEEN 1 AND 3),
     week_number INTEGER NOT NULL CHECK (week_number BETWEEN 1 AND 52),
     deadline_date TIMESTAMPTZ NOT NULL,
     description TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(district_id, school_year, quarter, week_number)
+    UNIQUE(district_id, school_year, term, week_number)
 );
 
 -- Teaching Loads (teacher subject/grade assignments)
@@ -623,7 +624,7 @@ ON CONFLICT (id) DO NOTHING;
 -- ═══════════════════════════════════════════════════════════════════════════════
 
 -- Term 1: Weeks 1–13 (Jun 8 – Sep 4, 2026)
-INSERT INTO academic_calendar (district_id, school_year, quarter, week_number, deadline_date, description) VALUES
+INSERT INTO academic_calendar (district_id, school_year, term, week_number, deadline_date, description) VALUES
     ('d1000000-0000-0000-0000-000000000001', '2026-2027', 1, 1,  '2026-06-12 17:00:00+08', 'Week 1 — Opening of Classes (Jun 8)'),
     ('d1000000-0000-0000-0000-000000000001', '2026-2027', 1, 2,  '2026-06-19 17:00:00+08', 'Week 2'),
     ('d1000000-0000-0000-0000-000000000001', '2026-2027', 1, 3,  '2026-06-26 17:00:00+08', 'Week 3'),
@@ -640,7 +641,7 @@ INSERT INTO academic_calendar (district_id, school_year, quarter, week_number, d
 ON CONFLICT DO NOTHING;
 
 -- Term 2: Weeks 14–26 (Sep 7 – Dec 4, 2026)
-INSERT INTO academic_calendar (district_id, school_year, quarter, week_number, deadline_date, description) VALUES
+INSERT INTO academic_calendar (district_id, school_year, term, week_number, deadline_date, description) VALUES
     ('d1000000-0000-0000-0000-000000000001', '2026-2027', 2, 14, '2026-09-11 17:00:00+08', 'Week 14 — Start of Term 2'),
     ('d1000000-0000-0000-0000-000000000001', '2026-2027', 2, 15, '2026-09-18 17:00:00+08', 'Week 15'),
     ('d1000000-0000-0000-0000-000000000001', '2026-2027', 2, 16, '2026-09-25 17:00:00+08', 'Week 16'),
@@ -660,7 +661,7 @@ ON CONFLICT DO NOTHING;
 -- Classes resume Jan 4, 2027 (Monday)
 
 -- Term 3: Weeks 27–39 (Jan 4 – Mar 31, 2027)
-INSERT INTO academic_calendar (district_id, school_year, quarter, week_number, deadline_date, description) VALUES
+INSERT INTO academic_calendar (district_id, school_year, term, week_number, deadline_date, description) VALUES
     ('d1000000-0000-0000-0000-000000000001', '2026-2027', 3, 27, '2027-01-08 17:00:00+08', 'Week 27 — Start of Term 3 (Classes resume Jan 4)'),
     ('d1000000-0000-0000-0000-000000000001', '2026-2027', 3, 28, '2027-01-15 17:00:00+08', 'Week 28'),
     ('d1000000-0000-0000-0000-000000000001', '2026-2027', 3, 29, '2027-01-22 17:00:00+08', 'Week 29'),
@@ -675,6 +676,10 @@ INSERT INTO academic_calendar (district_id, school_year, quarter, week_number, d
     ('d1000000-0000-0000-0000-000000000001', '2026-2027', 3, 38, '2027-03-26 17:00:00+08', 'Week 38 — Term 3 Exam (Mar 22–23)'),
     ('d1000000-0000-0000-0000-000000000001', '2026-2027', 3, 39, '2027-03-31 17:00:00+08', 'Week 39 — End of Term 3; End of School Year')
 ON CONFLICT DO NOTHING;
+
+-- Seed weeks are made active so a fresh deployment works out of the box.
+-- Newly auto-generated weeks from the DepEd calendar default to inactive (waiting).
+UPDATE academic_calendar SET is_active = TRUE;
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- PART 15: SEED DATA — SYSTEM SETTINGS

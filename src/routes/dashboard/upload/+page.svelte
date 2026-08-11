@@ -112,7 +112,20 @@
 
                 if (serverHashMatch) {
                     submissionAlreadyExists = true;
-                    submissionBlockReason = `Duplicate content: Already archived on server as "${serverHashMatch.file_name}" (${serverHashMatch.doc_type}, Week ${serverHashMatch.week_number})`;
+                    // Check whether the archived file has already been approved
+                    const { data: review } = await supabase
+                        .from("dll_reviews")
+                        .select("status")
+                        .eq("submission_id", serverHashMatch.id)
+                        .maybeSingle();
+
+                    if (review?.status === "approved") {
+                        submissionBlockReason = `Already approved (Checked): This file was approved as "${serverHashMatch.file_name}" (${serverHashMatch.doc_type}, Week ${serverHashMatch.week_number}). It has already been checked and approved, so it should not be re-uploaded.`;
+                    } else if (review?.status === "returned") {
+                        submissionBlockReason = `Duplicate content: This file was already archived and returned as "${serverHashMatch.file_name}" (${serverHashMatch.doc_type}, Week ${serverHashMatch.week_number}).`;
+                    } else {
+                        submissionBlockReason = `Duplicate content: Already archived on server as "${serverHashMatch.file_name}" (${serverHashMatch.doc_type}, Week ${serverHashMatch.week_number}).`;
+                    }
                     return;
                 }
             }

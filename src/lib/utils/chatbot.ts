@@ -881,12 +881,12 @@ async function queryCalendarInfo(
     }
 
     const entries = data as any[];
-    const quarters = [...new Set(entries.map((e: any) => `Quarter ${e.quarter}`))].join(', ');
+    const terms = [...new Set(entries.map((e: any) => `Term ${e.term}`))].join(', ');
     const weeks = entries.length;
     const first = entries[0];
     const nextDeadline = entries.find((e: any) => new Date(e.deadline_date) > new Date());
 
-    let response = `The academic calendar covers ${quarters} and has ${weeks} weeks scheduled`;
+    let response = `The academic calendar covers ${terms} and has ${weeks} weeks scheduled`;
     if (first?.school_year) response += ` for the school year ${first.school_year}`;
     response += '.';
 
