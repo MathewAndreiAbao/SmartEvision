@@ -7,7 +7,6 @@
     import {
         Save,
         Clock,
-        AlertCircle,
         CheckCircle2,
         Info,
         CalendarDays,
@@ -231,29 +230,6 @@
                 }
             }
         }
-    }
-
-    function isPast(dateStr: string): boolean {
-        if (!dateStr) return false;
-        // Deadline is end of day (11:59:59 PM)
-        const deadline = new Date(dateStr);
-        deadline.setHours(23, 59, 59, 999);
-        return new Date() > deadline;
-    }
-
-    function isUpcoming(dateStr: string): boolean {
-        if (!dateStr) return false;
-        const d = new Date(dateStr);
-        d.setHours(0, 0, 0, 0);
-
-        const now = new Date();
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const threeDays = new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000);
-        threeDays.setHours(23, 59, 59, 999);
-
-        return d >= today && d <= threeDays;
     }
 
     $effect(() => {
@@ -490,35 +466,19 @@
                                     Week {d.week_number}
                                 </h3>
                                 <div class="flex items-center gap-1.5 mt-1">
-                                    {#if !canEdit && d.deadline_date}
-                                        {#if isPast(d.deadline_date)}
-                                            <div
-                                                class="flex items-center gap-1 text-[10px] font-semibold uppercase text-gov-red"
-                                            >
-                                                <AlertCircle size={10} />
-                                                Expired
-                                            </div>
-                                        {:else if isUpcoming(d.deadline_date)}
-                                            <div
-                                                class="flex items-center gap-1 text-[10px] font-semibold uppercase text-gov-gold-dark"
-                                            >
-                                                <Clock size={10} />
-                                                Upcoming
-                                            </div>
-                                        {:else}
-                                            <div
-                                                class="flex items-center gap-1 text-[10px] font-semibold uppercase text-gov-green"
-                                            >
-                                                <CheckCircle2 size={10} />
-                                                Active
-                                            </div>
-                                        {/if}
+                                    {#if d.is_active}
+                                        <div
+                                            class="flex items-center gap-1 text-[10px] font-semibold uppercase text-gov-green"
+                                        >
+                                            <CheckCircle2 size={10} />
+                                            Active
+                                        </div>
                                     {:else}
                                         <div
                                             class="flex items-center gap-1 text-[10px] font-semibold uppercase text-text-muted"
                                         >
-                                            <Info size={10} />
-                                            Admin View
+                                            <Clock size={10} />
+                                            Waiting
                                         </div>
                                     {/if}
                                 </div>
