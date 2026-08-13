@@ -1,0 +1,25 @@
+{
+  "classifier": "doctype_classifier",
+  "n_samples": 64,
+  "classes": [
+    "DLL",
+    "ISP",
+    "ISR"
+  ],
+  "train_accuracy": 100.0,
+  "test_accuracy": 100.0,
+  "cv_mean": 100.0,
+  "cv_std": 0.0,
+  "cv_folds": [
+    100.0,
+    100.0,
+    100.0,
+    100.0,
+    100.0
+  ],
+  "per_class_f1": {
+    "DLL": 100.0,
+    "ISP": 100.0,
+    "ISR": 100.0
+  }
+}

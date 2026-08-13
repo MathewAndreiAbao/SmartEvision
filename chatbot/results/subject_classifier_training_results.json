@@ -1,0 +1,35 @@
+{
+  "classifier": "subject_classifier",
+  "n_samples": 570,
+  "classes": [
+    "AP",
+    "EPP",
+    "English",
+    "Filipino",
+    "GMRC",
+    "MAPEH",
+    "Mathematics",
+    "Science"
+  ],
+  "train_accuracy": 96.49,
+  "test_accuracy": 68.53,
+  "cv_mean": 66.14,
+  "cv_std": 3.71,
+  "cv_folds": [
+    60.53,
+    70.18,
+    67.54,
+    69.3,
+    63.16
+  ],
+  "per_class_f1": {
+    "AP": 82.76,
+    "EPP": 33.33,
+    "English": 78.26,
+    "Filipino": 72.0,
+    "GMRC": 60.87,
+    "MAPEH": 75.86,
+    "Mathematics": 91.89,
+    "Science": 53.16
+  }
+}

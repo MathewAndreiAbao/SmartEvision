@@ -121,6 +121,35 @@ Per-intent F1 (test set): `ask_compliance` 85.71, `calendar_info` 97.56, `check_
 
 ![Per-intent F1 score](images/f1-per-intent.png)
 
+### 4.1.1 Secondary on-device classifiers (word-level Naive Bayes)
+
+In addition to the flagship intent classifier, the system trains two small **word-level Naive Bayes**
+models (`chatbot/train_doc_classifiers.py`) used for OCR metadata disambiguation: a **subject
+classifier** (8 classes) and a **doc-type classifier** (DLL / ISP / ISR).
+
+| Classifier | Samples | Held-out test | 5-fold CV |
+|------------|---------|---------------|-----------|
+| **Doc-type** (DLL/ISP/ISR) | 64 | **100.0%** | **100.0% ± 0.0** |
+| **Subject** (8 classes) | 570 | **68.53%** | **66.14% ± 3.71** |
+
+The doc-type classifier is trivially strong because its markers (`dll`, `isp`, `isr`) are explicit
+and distinct. The subject classifier is intentionally the harder task — subjects share many header
+words (`aralin`, `lesson`, `learning area`) in both English and Tagalog, so it achieves a moderate
+~66–70% with purely word-level features; this is why the system **combines** it with the
+fuzzy/Levenshtein layer rather than relying on it alone.
+
+![Classifier test accuracy](images/classifier-accuracy.png)
+
+![Subject classifier per-class F1](images/subject-f1.png)
+
+Per-class F1 (subject, held-out test): AP 82.76, EPP 33.33, English 78.26, Filipino 72.00, GMRC
+60.87, MAPEH 75.86, Mathematics 91.89, Science 53.16. (EPP and Science are the hardest due to
+overlapping livelihood/science vocabulary.)
+
+Training artifacts: `chatbot/results/subject_classifier_training_results.json`,
+`chatbot/results/doctype_classifier_training_results.json`, plus confusion-matrix PNGs in
+`chatbot/results/`.
+
 ### 4.2 Justification vs. alternatives
 
 | Alternative | Why NOT chosen | Evidence / rationale |
