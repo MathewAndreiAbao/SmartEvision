@@ -1041,8 +1041,10 @@
                 <h3 class="text-lg font-bold text-text-primary">
                     {#if existingRemark}
                         Remark
-                    {:else}
+                    {:else if canReview}
                         Add Remark
+                    {:else}
+                        View Remarks
                     {/if}
                 </h3>
                 <button
