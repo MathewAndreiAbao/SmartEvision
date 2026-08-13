@@ -100,10 +100,10 @@
                 <h3
                     class="text-sm font-semibold text-text-primary uppercase tracking-wide"
                 >
-                    Smart Copilot
+                    Upload Assistant
                 </h3>
                 <p class="text-[9px] text-text-muted font-medium">
-                    AI-powered upload assistant
+                    On-device upload guidance
                 </p>
             </div>
         </div>
