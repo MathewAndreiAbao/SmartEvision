@@ -37,7 +37,11 @@ export function canViewArchivedDocument(role: string, docType: string): boolean 
 }
 
 export function canAddReviewRemarks(role: string): boolean {
-  return role === 'Master Teacher';
+  return (
+    role === 'Master Teacher' ||
+    role === 'School Head' ||
+    role === 'District Supervisor'
+  );
 }
 
 export function getUploadGuidance(role: string): string {

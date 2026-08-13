@@ -29,6 +29,18 @@ text. Several mature OCR technologies were surveyed for the system:
 This hybrid maximizes accuracy while keeping cost at zero and processing 100% on-device, which
 matters for an education district with limited connectivity.
 
+```mermaid
+flowchart TD
+    A[Uploaded .pdf / image] --> B{PDF.js text layer extraction}
+    B -->|text is rich| C[Use embedded text — fast & exact]
+    B -->|text is too sparse / scanned| D[Render page to image]
+    D --> E[Tesseract.js raster OCR WASM]
+    C --> F[Confidence scoring]
+    E --> F
+    F --> G[Fuzzy classifier cleans OCR typos]
+    G --> H[Extracted: subject, grade, doc type, date range, week]
+```
+
 ---
 
 ## 2. Discussion of Technologies — OCR, NLP, and Clustering
@@ -68,6 +80,14 @@ matters for an education district with limited connectivity.
 - This surfaces at-risk teachers / schools for district supervision, complementing the supervised
   compliance rate.
 
+```mermaid
+xychart-beta
+    title "K-Means teacher behavior features (mock example)"
+    x-axis ["Punctuality", "Consistency", "Completeness", "Volume"]
+    y-axis "feature value" 0 --> 100
+    bar [72, 68, 80, 74]
+```
+
 ---
 
 ## 3. Development Process of the Machine Learning / AI Model
@@ -89,6 +109,18 @@ pipeline:
    rank DLL results; the assistant includes a lightweight FAQ knowledge base and conversation
    memory for follow-ups.
 
+```mermaid
+flowchart LR
+    A[639 labeled samples EN+FIL+typos] --> B[Char n-gram tokenization]
+    B --> C[CountVectorizer vocab = 5,000]
+    C --> D[Multinomial Logistic Regression]
+    D --> E[Train 60/40 held-out split]
+    E --> F[5-fold stratified CV]
+    F --> G[Export coefficients → intent_classifier_model.json]
+    G --> H[Chatbot loads JSON offline in browser]
+    H --> I[Intent routing + slot extraction + TF-IDF/Jaccard search]
+```
+
 ---
 
 ## 4. Why This Method and Not the Alternatives (Testing-based Justification)
@@ -108,6 +140,30 @@ pipeline:
 Per-intent F1 (test set): `ask_compliance` 85.71, `calendar_info` 97.56, `check_deadline` 91.43,
 `find_dll` 90.48, `general_help` 92.68, `how_to_upload` 85.71, `school_compare` 94.44,
 `teacher_stats` 97.56.
+
+```mermaid
+xychart-beta
+    title "Accuracy: Train vs. Held-out Test vs. 5-fold CV"
+    x-axis ["Train", "Test", "CV mean"]
+    y-axis "accuracy %" 85 --> 100
+    bar [100.0, 91.88, 95.62]
+```
+
+```mermaid
+xychart-beta
+    title "5-fold cross-validation accuracy per fold"
+    x-axis ["Fold 1", "Fold 2", "Fold 3", "Fold 4", "Fold 5"]
+    y-axis "accuracy %" 90 --> 100
+    bar [95.31, 97.66, 97.66, 92.19, 95.28]
+```
+
+```mermaid
+xychart-beta
+    title "Per-intent F1 score (held-out test set)"
+    x-axis ["compliance", "calendar", "deadline", "find_dll", "general", "upload", "compare", "stats"]
+    y-axis "F1" 80 --> 100
+    bar [85.71, 97.56, 91.43, 90.48, 92.68, 85.71, 94.44, 97.56]
+```
 
 ### 4.2 Justification vs. alternatives
 
@@ -144,6 +200,20 @@ Every submission carries a `compliance_status` of **Compliant / Late / Missing /
    (For Checking → Checked; Checked may be **Approved** or **Returned**).
 5. Anyone can scan the QR code at `/verify/[hash]` to confirm authenticity and view the audit trail.
 
+```mermaid
+flowchart TD
+    T[Teacher uploads file] --> P[Convert / compress PDF]
+    P --> O[OCR extracts metadata]
+    O --> H[SHA-256 hash + QR stamp]
+    H --> S[Submission written with compliance status]
+    S --> L[Hash-chained audit log logAction]
+    S --> R[Supervisor adds remarks in Archive]
+    R --> C{Checking state in dll_reviews}
+    C -->|Approved| A[Checked / Approved badge]
+    C -->|Returned| B[Teacher uploads revised file]
+    A --> V[QR scan verify/\[hash\] confirms authenticity]
+```
+
 ### 5.3 Approval is the same as the Checked status
 In this system, a document is considered **approved** when its `dll_reviews.status` is
 `'approved'`, which corresponds to the Archive's **Checked** state. The Archive badges an approved
@@ -166,18 +236,25 @@ still allowing a teacher to submit a corrected revision when a document was retu
 
 ---
 
-## 6. Summary of Submissions per Quarter
+## 6. Summary of Submissions per Term
 
 The Analytics dashboard (`src/routes/dashboard/analytics/+page.svelte`) provides a
-**Submission Summary by Period** with a **Quarter / Semester / School Year** selector. Submissions
-are mapped to calendar quarters via `academic_calendar` week→quarter assignment; each period shows:
+**Submission Summary by Period** with a **Term / School Year** selector (matching the DepEd
+three-term SY 2026–2027 calendar). Submissions are mapped to calendar terms via
+`academic_calendar` week→term assignment; each period shows:
 
 - **Compliance rate (%)**
 - **Uploaded** (compliant + late)
 - **Compliant / Late / Missing**
-- **Expected** total (weeks-in-period × teaching loads)
+- **Expected** total (weeks-in-period × teaching loads, counting only active weeks)
 
-Semester view folds Quarters 1–2 and 3–4; the School Year view folds all quarters.
+```mermaid
+xychart-beta
+    title "Compliance rate by term (mock example)"
+    x-axis ["Term 1", "Term 2", "Term 3"]
+    y-axis "compliance %" 0 --> 100
+    bar [78, 84, 81]
+```
 
 ---
 
@@ -188,3 +265,13 @@ school heads. The core flow is captured in the use case and DFD: teacher uploads
 validation → compliance classification → supervisor remarks/checking → QR verification → period
 summary. These diagrams and consultation records are part of the capstone documentation set and
 are referenced by the live screens described above.
+
+```mermaid
+flowchart LR
+    A[Teacher] --> B[Upload DLL/ISP/ISR]
+    B --> C[OCR / NLP validation]
+    C --> D[Compliance classification]
+    D --> E[Supervisor remarks + checking]
+    E --> F[QR verification]
+    F --> G[Period summary dashboard]
+```

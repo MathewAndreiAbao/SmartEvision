@@ -5,7 +5,10 @@
     import { onMount } from "svelte";
     import FolderCard from "$lib/components/FolderCard.svelte";
     import { normalizeComplianceStatus } from "$lib/utils/useDashboardData";
-    import { canViewArchivedDocument } from "$lib/utils/documentPermissions";
+    import {
+        canViewArchivedDocument,
+        canAddReviewRemarks,
+    } from "$lib/utils/documentPermissions";
     import { shareVerification } from "$lib/utils/shareIntegration";
     import { addToast } from "$lib/stores/toast";
     import { fly, fade } from "svelte/transition";
@@ -85,6 +88,10 @@
     let existingRemark = $state<string | null>(null);
     let savingRemark = $state(false);
 
+    const canReview = $derived(
+        $profile ? canAddReviewRemarks($profile.role) : false,
+    );
+
     function openRemarkModal(sub: Submission) {
         remarkTarget = sub;
         remarkText = "";
@@ -99,6 +106,13 @@
     }
 
     async function saveRemark() {
+        if (!canReview) {
+            addToast(
+                "error",
+                "You don't have permission to add remarks",
+            );
+            return;
+        }
         if (!remarkTarget || !remarkText.trim() || !$profile) return;
         savingRemark = true;
         const { error } = await supabase.from("dll_reviews").upsert({
@@ -1056,7 +1070,7 @@
                     {/if}
                     <div class="p-4 bg-gov-gold/5 border border-gov-gold/20 rounded-xl">
                         <p class="text-sm text-text-primary leading-relaxed">{existingRemark}</p>
-                        <p class="text-[10px] text-text-muted mt-2 font-medium">Reviewed by Master Teacher</p>
+                        <p class="text-[10px] text-text-muted mt-2 font-medium">Reviewed by supervisor</p>
                     </div>
                     <div class="flex justify-end mt-4">
                         <button
@@ -1067,7 +1081,8 @@
                         </button>
                     </div>
                 {:else}
-                        <!-- Add new remark -->
+                    {#if canReview}
+                        <!-- Add new remark (Master Teacher, School Head, District Supervisor) -->
                         <textarea
                             bind:value={remarkText}
                             placeholder="Enter your remarks for this DLL..."
@@ -1089,6 +1104,22 @@
                                 {savingRemark ? "Saving..." : "Save Remark"}
                             </button>
                         </div>
+                    {:else}
+                        <div class="p-4 bg-surface-muted border border-border-subtle rounded-xl">
+                            <p class="text-xs font-bold uppercase tracking-wider text-text-muted mb-1">Remarks</p>
+                            <p class="text-sm text-text-muted">
+                                No remarks have been added for this document yet.
+                            </p>
+                        </div>
+                        <div class="flex justify-end mt-4">
+                            <button
+                                onclick={closeRemarkModal}
+                                class="px-5 py-2 bg-surface-muted text-text-primary text-sm font-bold rounded-xl hover:bg-surface-muted transition-all"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    {/if}
                 {/if}
             </div>
         </div>
