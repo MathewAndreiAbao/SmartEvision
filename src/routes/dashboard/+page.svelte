@@ -30,8 +30,21 @@
         Users,
         FileText,
         ShieldX,
+        Search,
+        Building2,
     } from "lucide-svelte";
     import { showQRScanner } from "$lib/stores/ui";
+
+    interface ComplianceRow {
+        id: string;
+        name: string;
+        school_name: string;
+        expected: number;
+        compliant: number;
+        late: number;
+        missing: number;
+        rate: number;
+    }
 
     let submissions = $state<any[]>([]);
     let weeklyData = $state<any[]>([]);
@@ -58,6 +71,14 @@
     let alerts = $state<any[]>([]);
     let teacherCompliance = $state<any[]>([]);
     let loading = $state(true);
+
+    // Teacher Compliance table: sorting, search & school grouping
+    let tcSortField = $state<keyof ComplianceRow>("rate");
+    let tcSortDir = $state<"asc" | "desc">("desc");
+    let tcSearch = $state("");
+    let tcGroupBySchool = $state(true);
+    let tcViewAll = $state(false);
+
     let channel: any;
 
     // Guards against write-triggered reload feedback loops:
@@ -461,6 +482,80 @@
         }
     }
 
+    // Teacher Compliance: filtered + sorted rows
+    const filteredTeacherCompliance = $derived(
+        applyTcFilters(teacherCompliance, tcSearch, tcSortField, tcSortDir),
+    );
+
+    // Group rows by school for the categorized view
+    const groupedTeacherCompliance = $derived(
+        groupTcBySchool(teacherCompliance, tcSearch, tcSortField, tcSortDir),
+    );
+
+    function applyTcFilters(
+        rows: ComplianceRow[],
+        search: string,
+        sortField: keyof ComplianceRow,
+        sortDir: "asc" | "desc",
+    ): ComplianceRow[] {
+        const q = search.trim().toLowerCase();
+        let result = rows;
+        if (q) {
+            result = result.filter(
+                (t) =>
+                    t.name.toLowerCase().includes(q) ||
+                    t.school_name.toLowerCase().includes(q),
+            );
+        }
+        return [...result]
+            .sort((a, b) => {
+                let aVal: string | number = a[sortField];
+                let bVal: string | number = b[sortField];
+                if (sortField === "name" || sortField === "school_name") {
+                    aVal = String(aVal || "").toLowerCase();
+                    bVal = String(bVal || "").toLowerCase();
+                } else {
+                    aVal = Number(aVal) || 0;
+                    bVal = Number(bVal) || 0;
+                }
+                const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+                return sortDir === "asc" ? cmp : -cmp;
+            });
+    }
+
+    function toggleTcSort(field: keyof ComplianceRow) {
+        if (tcSortField === field) tcSortDir = tcSortDir === "asc" ? "desc" : "asc";
+        else {
+            tcSortField = field;
+            tcSortDir = "desc";
+        }
+    }
+
+    function groupTcBySchool(
+        rows: ComplianceRow[],
+        search: string,
+        sortField: keyof ComplianceRow,
+        sortDir: "asc" | "desc",
+    ): { school: string; rows: ComplianceRow[]; compliant: number; late: number; missing: number; expected: number }[] {
+        const filtered = applyTcFilters(rows, search, sortField, sortDir);
+        const groups = new Map<string, ComplianceRow[]>();
+        for (const t of filtered) {
+            const key = t.school_name || "Unassigned School";
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key)!.push(t);
+        }
+        return [...groups.entries()]
+            .map(([school, gRows]) => ({
+                school,
+                rows: gRows,
+                compliant: gRows.reduce((s, r) => s + r.compliant, 0),
+                late: gRows.reduce((s, r) => s + r.late, 0),
+                missing: gRows.reduce((s, r) => s + r.missing, 0),
+                expected: gRows.reduce((s, r) => s + r.expected, 0),
+            }))
+            .sort((a, b) => a.school.localeCompare(b.school));
+    }
+
     function formatDate(dateStr: string): string {
         return new Date(dateStr).toLocaleDateString("en-PH", {
             month: "short",
@@ -742,38 +837,145 @@
         <!-- Teacher Compliance Table -->
         {#if teacherCompliance.length > 0}
             <div class="mb-6" in:fade={{ duration: 500, delay: 300 }}>
-                <h2
-                    class="text-sm font-bold text-text-muted uppercase tracking-widest mb-4 flex items-center gap-2"
-                >
-                    <div class="h-1 w-4 bg-gov-blue"></div>
-                    Teacher Compliance
-                </h2>
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <h2
+                        class="text-sm font-bold text-text-muted uppercase tracking-widest flex items-center gap-2"
+                    >
+                        <div class="h-1 w-4 bg-gov-blue"></div>
+                        Teacher Compliance
+                        <span class="text-xs font-semibold text-text-muted/70">({teacherCompliance.length} teachers)</span>
+                    </h2>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- Search -->
+                        <div class="relative">
+                            <input
+                                type="text"
+                                bind:value={tcSearch}
+                                placeholder="Search teacher or school..."
+                                class="w-56 px-3 py-1.5 pl-8 text-sm rounded-lg border border-border-subtle bg-surface-white focus:outline-none focus:ring-2 focus:ring-gov-blue/40"
+                            />
+                            <Search
+                                class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted"
+                            />
+                        </div>
+
+                        <!-- Group toggle -->
+                        <button
+                            class="px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors {tcGroupBySchool ? 'bg-gov-blue text-white border-gov-blue' : 'bg-surface-white text-text-muted border-border-subtle'}"
+                            onclick={() => (tcGroupBySchool = !tcGroupBySchool)}
+                        >
+                            {tcGroupBySchool ? "Grouped by School" : "Flat List"}
+                        </button>
+
+                        <!-- Expand/collapse all -->
+                        <button
+                            class="px-3 py-1.5 text-xs font-semibold rounded-lg border border-border-subtle bg-surface-white text-text-muted hover:bg-surface-muted/40 transition-colors"
+                            onclick={() => (tcViewAll = !tcViewAll)}
+                        >
+                            {tcViewAll ? "Collapse All" : "Expand All"}
+                        </button>
+                    </div>
+                </div>
+
                 <div class="bg-surface-white border border-border-subtle rounded-xl overflow-hidden shadow-sm">
-                    <div class="max-h-96 overflow-y-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="text-left text-[10px] uppercase tracking-wider text-text-muted border-b border-border-subtle">
-                                <th class="px-4 py-3 font-bold">Teacher</th>
-                                <th class="px-4 py-3 font-bold hidden sm:table-cell">School</th>
-                                <th class="px-4 py-3 font-bold text-center">Compliant</th>
-                                <th class="px-4 py-3 font-bold text-center">Late</th>
-                                <th class="px-4 py-3 font-bold text-center">Missing</th>
-                                <th class="px-4 py-3 font-bold text-right">Rate</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {#each teacherCompliance as tc}
-                                <tr class="border-b border-border-subtle last:border-0 hover:bg-surface-muted/40 transition-colors">
-                                    <td class="px-4 py-3 font-semibold text-text-primary">{tc.name}</td>
-                                    <td class="px-4 py-3 text-text-muted hidden sm:table-cell">{tc.school_name}</td>
-                                    <td class="px-4 py-3 text-center text-gov-green font-semibold">{tc.compliant}</td>
-                                    <td class="px-4 py-3 text-center text-gov-gold-dark font-semibold">{tc.late}</td>
-                                    <td class="px-4 py-3 text-center text-gov-red font-semibold">{tc.missing}</td>
-                                    <td class="px-4 py-3 text-right font-semibold text-text-primary">{tc.rate}%</td>
-                                </tr>
+                    <div class="max-h-[36rem] overflow-y-auto">
+                        {#if filteredTeacherCompliance.length === 0}
+                            <p class="px-4 py-8 text-center text-sm text-text-muted">No teachers match your search.</p>
+                        {:else if tcGroupBySchool}
+                            <!-- Grouped by school -->
+                            {#each groupedTeacherCompliance as group}
+                                <details class="border-b border-border-subtle last:border-0" open={tcViewAll}>
+                                    <summary class="flex items-center justify-between px-4 py-3 bg-surface-muted/40 hover:bg-surface-muted/60 cursor-pointer select-none">
+                                        <span class="flex items-center gap-2 font-bold text-text-primary">
+                                            <Building2 class="w-4 h-4 text-gov-blue" />
+                                            {group.school}
+                                        </span>
+                                        <span class="flex items-center gap-4 text-xs text-text-muted">
+                                            <span class="text-gov-green font-semibold">{group.compliant} compliant</span>
+                                            <span class="text-gov-gold-dark font-semibold">{group.late} late</span>
+                                            <span class="text-gov-red font-semibold">{group.missing} missing</span>
+                                            <span class="font-bold text-text-primary">{group.expected > 0 ? Math.round(((group.compliant + group.late) / group.expected) * 100) : 0}%</span>
+                                            <span class="w-5 h-5 flex items-center justify-center">{group.rows.length}</span>
+                                        </span>
+                                    </summary>
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full text-sm">
+                                            <thead>
+                                                <tr class="text-left text-[10px] uppercase tracking-wider text-text-muted border-b border-border-subtle bg-surface-muted/20">
+                                                    <th class="px-4 py-2 font-bold cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("name")}>
+                                                        Teacher {tcSortField === "name" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
+                                                    </th>
+                                                    <th class="px-4 py-2 font-bold text-center cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("compliant")}>
+                                                        Compliant {tcSortField === "compliant" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
+                                                    </th>
+                                                    <th class="px-4 py-2 font-bold text-center cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("late")}>
+                                                        Late {tcSortField === "late" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
+                                                    </th>
+                                                    <th class="px-4 py-2 font-bold text-center cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("missing")}>
+                                                        Missing {tcSortField === "missing" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
+                                                    </th>
+                                                    <th class="px-4 py-2 font-bold text-right cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("rate")}>
+                                                        Rate {tcSortField === "rate" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {#each group.rows as tc}
+                                                    <tr class="border-b border-border-subtle last:border-0 hover:bg-surface-muted/40 transition-colors">
+                                                        <td class="px-4 py-3 font-semibold text-text-primary">{tc.name}</td>
+                                                        <td class="px-4 py-3 text-center text-gov-green font-semibold">{tc.compliant}</td>
+                                                        <td class="px-4 py-3 text-center text-gov-gold-dark font-semibold">{tc.late}</td>
+                                                        <td class="px-4 py-3 text-center text-gov-red font-semibold">{tc.missing}</td>
+                                                        <td class="px-4 py-3 text-right font-semibold text-text-primary">{tc.rate}%</td>
+                                                    </tr>
+                                                {/each}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </details>
                             {/each}
-                        </tbody>
-                    </table>
+                        {:else}
+                            <!-- Flat list -->
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead>
+                                        <tr class="text-left text-[10px] uppercase tracking-wider text-text-muted border-b border-border-subtle">
+                                            <th class="px-4 py-3 font-bold cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("name")}>
+                                                Teacher {tcSortField === "name" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
+                                            </th>
+                                            <th class="px-4 py-3 font-bold cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("school_name")}>
+                                                School {tcSortField === "school_name" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
+                                            </th>
+                                            <th class="px-4 py-3 font-bold text-center cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("compliant")}>
+                                                Compliant {tcSortField === "compliant" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
+                                            </th>
+                                            <th class="px-4 py-3 font-bold text-center cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("late")}>
+                                                Late {tcSortField === "late" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
+                                            </th>
+                                            <th class="px-4 py-3 font-bold text-center cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("missing")}>
+                                                Missing {tcSortField === "missing" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
+                                            </th>
+                                            <th class="px-4 py-3 font-bold text-right cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("rate")}>
+                                                Rate {tcSortField === "rate" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {#each filteredTeacherCompliance as tc}
+                                            <tr class="border-b border-border-subtle last:border-0 hover:bg-surface-muted/40 transition-colors">
+                                                <td class="px-4 py-3 font-semibold text-text-primary">{tc.name}</td>
+                                                <td class="px-4 py-3 text-text-muted">{tc.school_name}</td>
+                                                <td class="px-4 py-3 text-center text-gov-green font-semibold">{tc.compliant}</td>
+                                                <td class="px-4 py-3 text-center text-gov-gold-dark font-semibold">{tc.late}</td>
+                                                <td class="px-4 py-3 text-center text-gov-red font-semibold">{tc.missing}</td>
+                                                <td class="px-4 py-3 text-right font-semibold text-text-primary">{tc.rate}%</td>
+                                            </tr>
+                                        {/each}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {/if}
                     </div>
                 </div>
             </div>
