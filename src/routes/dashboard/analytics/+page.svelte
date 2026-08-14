@@ -19,6 +19,9 @@
         getWeekNumber,
         getDefinedWeeksCount,
     } from "$lib/utils/useDashboardData";
+    import { exportStyledExcel } from "$lib/utils/excelExport";
+    import { FileSpreadsheet } from "lucide-svelte";
+    import type { ReportOptions } from "$lib/utils/excelExport";
 
     let trendCanvas = $state<HTMLCanvasElement>();
     let barCanvas = $state<HTMLCanvasElement>();
@@ -552,13 +555,156 @@
                 maintainAspectRatio: false,
                 plugins: {
                     legend: { display: true, position: "top" },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx: any) => {
+                                const ds = ctx.dataset as any;
+                                return `${ds.label}: ${ctx.parsed.y}`;
+                            },
+                            footer: (items: any[]) => {
+                                const v = items[0];
+                                if (!v) return "";
+                                const total = (v.chart.data.datasets as any[]).reduce(
+                                    (sum, d) => sum + (d.data[v.dataIndex] ?? 0),
+                                    0,
+                                );
+                                const rate = total > 0 ? total : v.parsed.y;
+                                return `Total: ${total}`;
+                            },
+                        },
+                    },
                 },
                 scales: {
-                    x: { stacked: true },
+                    x: {
+                        stacked: true,
+                        ticks: {
+                            autoSkip: true,
+                            maxRotation: 75,
+                            minRotation: 0,
+                            autoSkipPadding: 10,
+                            maxTicksLimit: 20,
+                        },
+                    },
                     y: { stacked: true, beginAtZero: true },
                 },
-            },
+            } as any,
         });
+    }
+
+    const userScopeLabel = $derived.by(() => {
+        if (!$profile) return "Institutional";
+        if ($profile.role === "School Head") return "School";
+        if ($profile.role === "Master Teacher") return "School";
+        return "District / Institutional";
+    });
+
+    async function exportAnalyticsReport() {
+        if (
+            exportData.weekly.length === 0 &&
+            exportData.schools.length === 0 &&
+            periodSummary.length === 0
+        ) {
+            addToast("info", "No analytics data available to export");
+            return;
+        }
+        try {
+            const date = new Date().toISOString().split("T")[0];
+
+            const weeklyTable = {
+                title: "Weekly Compliance Trend",
+                headers: ["Week", "Compliance Rate (%)"],
+                rows: exportData.weekly.map((v: number, i: number) => [
+                    weekLabels[i] || `Week ${i + 1}`,
+                    v ?? 0,
+                ]),
+                numericColumns: [1],
+                totalsRow: [
+                    "Overall Average",
+                    exportData.weekly.length
+                        ? Math.round(
+                              (exportData.weekly.reduce((a: number, b: number) => a + b, 0) /
+                                  exportData.weekly.length) *
+                                  100,
+                          ) /
+                              100
+                        : 0,
+                ],
+            } as ReportOptions["tables"][number];
+
+            const comparisonTable = {
+                title: "School / Teacher Comparison",
+                headers: [
+                    "Name",
+                    "Compliant",
+                    "Late",
+                    "Missing",
+                    "Compliance Rate (%)",
+                ],
+                rows: exportData.schools.map((s: any) => [
+                    s.name || "Unknown",
+                    s.compliant ?? 0,
+                    s.late ?? 0,
+                    s.nonCompliant ?? 0,
+                    s.rate ?? 0,
+                ]),
+                numericColumns: [1, 2, 3, 4],
+                totalsRow: [
+                    "Total",
+                    exportData.schools.reduce((a: number, s: any) => a + (s.compliant || 0), 0),
+                    exportData.schools.reduce((a: number, s: any) => a + (s.late || 0), 0),
+                    exportData.schools.reduce((a: number, s: any) => a + (s.nonCompliant || 0), 0),
+                    exportData.schools.length
+                        ? Math.round(
+                              (exportData.schools.reduce((a: number, s: any) => a + (s.rate || 0), 0) /
+                                  exportData.schools.length) *
+                                  100,
+                          ) /
+                              100
+                        : 0,
+                ],
+            } as ReportOptions["tables"][number];
+
+            const periodTable: ReportOptions["tables"][number] = {
+                title: "Submission Summary by Period",
+                headers: [
+                    "Period",
+                    "Compliant",
+                    "Late",
+                    "Missing",
+                    "Uploaded",
+                    "Expected",
+                    "Compliance Rate (%)",
+                ],
+                rows: periodSummary.map((g: any) => [
+                    g.label || "—",
+                    g.compliant ?? 0,
+                    g.late ?? 0,
+                    g.missing ?? 0,
+                    g.compliant + g.late,
+                    g.expected ?? 0,
+                    g.rate ?? 0,
+                ]),
+                numericColumns: [1, 2, 3, 4, 5, 6],
+            };
+
+            const opts: ReportOptions = {
+                fileName: `analytics-report-${date}.xlsx`,
+                title: "Institutional Analytics Report",
+                subtitle: "CEDIMS – Compliance, Evaluation & Instruction Data Management",
+                meta: [
+                    { label: "Scope", value: userScopeLabel },
+                    { label: "Generated By", value: $profile?.full_name || "—" },
+                    { label: "Role", value: $profile?.role || "—" },
+                ],
+                tables: [weeklyTable, comparisonTable, periodTable],
+            };
+
+            const msg = await exportStyledExcel(opts);
+            addToast("success", msg);
+        } catch (err) {
+            console.error("[analytics] Excel export failed:", err);
+            addToast("error", "Could not generate the Excel report");
+        }
     }
 
     function exportAnalyticsCSV() {
@@ -574,7 +720,7 @@
         rows.push("");
         rows.push("School/School ID,Compliance Rate (%)");
         for (const s of exportData.schools) {
-            rows.push(`${s.school_name || s.school_id || "Unknown"},${s.rate ?? 0}`);
+            rows.push(`${s.name || "Unknown"},${s.rate ?? 0}`);
         }
         const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
@@ -618,11 +764,19 @@
                 />
             </button>
             <button
-                onclick={exportAnalyticsCSV}
+                onclick={exportAnalyticsReport}
                 class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gov-blue text-white text-sm font-bold shadow-lg shadow-gov-blue/20 hover:bg-gov-blue-dark transition-all"
             >
-                <Download size={18} strokeWidth={1.5} />
-                Export Data
+                <FileSpreadsheet size={18} strokeWidth={1.5} />
+                Export Report
+            </button>
+            <button
+                onclick={exportAnalyticsCSV}
+                title="Download plain CSV"
+                class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface-muted text-text-secondary hover:text-gov-blue transition-colors border border-border-subtle"
+            >
+                <Download size={16} strokeWidth={1.5} />
+                <span class="hidden sm:inline text-xs font-bold">CSV</span>
             </button>
         </div>
     </div>

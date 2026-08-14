@@ -155,8 +155,8 @@ Every submission carries a `compliance_status` of **Compliant / Late / Missing /
 1. Teacher uploads → PDF is converted/compressed, **OCR** extracts metadata, a **SHA-256 file hash**
    and **QR stamp** are generated.
 2. Submission is written with its compliance status.
-3. Every action is recorded in a **hash-chained audit log** (`src/lib/utils/reportEngine.ts`,
-   `logAction`) for tamper-evidence.
+3. Every action is recorded in a **hash-chained audit log** (`src/lib/utils/audit.ts`,
+   `logAudit`) for tamper-evidence.
 4. Supervisors open the Archive, add **remarks**, and set the checking status in `dll_reviews`
    (For Checking → Checked; Checked may be **Approved** or **Returned**).
 5. Anyone can scan the QR code at `/verify/[hash]` to confirm authenticity and view the audit trail.
