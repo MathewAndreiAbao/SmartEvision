@@ -31,7 +31,6 @@
     } from "$lib/utils/clusterAnalytics";
     import ClusterVisualization from "$lib/components/ClusterVisualization.svelte";
     import { cacheMetadata, getCachedMetadata } from "$lib/utils/offline";
-  import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
 
     // Data
     interface Teacher {
@@ -499,8 +498,13 @@
     </div>
 
     {#if loading}
-        <div class="gov-card-static">
-            <CEDIMSLoader label="Loading school data..." />
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {#each Array(4) as _}
+                <div class="gov-card-static p-6 animate-pulse">
+                    <div class="h-4 bg-surface-muted rounded w-24 mb-3"></div>
+                    <div class="h-8 bg-surface-muted rounded w-16"></div>
+                </div>
+            {/each}
         </div>
     {:else}
         <!-- KPI Cards -->

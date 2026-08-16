@@ -5,8 +5,7 @@
 	import ChatBot from "$lib/components/ChatBot.svelte";
 	import { showQRScanner } from "$lib/stores/ui";
 	import { goto } from "$app/navigation";
-	import { initAuth, profile, authLoading } from "$lib/utils/auth";
-	import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
+	import { initAuth, profile } from "$lib/utils/auth";
 	import {
 		initOfflineSync,
 		prefetchOfflineMetadata,
@@ -15,10 +14,6 @@
 	import { get } from "svelte/store";
 
 	let { children } = $props();
-
-	// Keeps the loader visible for at least a minimum duration on every refresh,
-	// even when a cached profile unlocks the UI instantly (fast offline load).
-	let initialLoadDone = $state(false);
 
 	function handleScan(data: string) {
 		if (data.includes("/verify/")) {
@@ -93,13 +88,7 @@
 			}, 2000);
 		})();
 
-		// Ensure the loader is perceivable on refresh by holding it for a floor duration.
-		const minLoaderTimer = setTimeout(() => {
-			initialLoadDone = true;
-		}, 900);
-
 		return () => {
-			clearTimeout(minLoaderTimer);
 			window.removeEventListener("error", handleModuleError);
 		};
 	});
@@ -113,14 +102,6 @@
 
 {#if $showQRScanner}
 	<QRScanner onScan={handleScan} onClose={() => showQRScanner.set(false)} />
-{/if}
-
-<!-- Global full-screen loader: initial load / refresh (min duration).
-     Per-tab navigation is handled by the dashboard layout loader. -->
-{#if $authLoading || !initialLoadDone}
-	<div class="cedims-global-loader" role="status" aria-label="Loading CEDIMS">
-		<CEDIMSLoader label="Loading CEDIMS..." />
-	</div>
 {/if}
 
 <ChatBot />

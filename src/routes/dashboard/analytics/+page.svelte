@@ -23,7 +23,6 @@
     import { exportStyledExcel } from "$lib/utils/excelExport";
     import { FileSpreadsheet } from "lucide-svelte";
     import type { ReportOptions } from "$lib/utils/excelExport";
-    import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
 
     let trendCanvas = $state<HTMLCanvasElement>();
     let barCanvas = $state<HTMLCanvasElement>();
@@ -793,8 +792,9 @@
     </div>
 
     {#if loading}
-        <div class="gov-card-static">
-            <CEDIMSLoader label="Preparing analytics..." />
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="gov-card-static h-96 animate-pulse"></div>
+            <div class="gov-card-static h-96 animate-pulse"></div>
         </div>
     {:else}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
