@@ -5,7 +5,9 @@
 	import ChatBot from "$lib/components/ChatBot.svelte";
 	import { showQRScanner } from "$lib/stores/ui";
 	import { goto } from "$app/navigation";
-	import { initAuth, profile } from "$lib/utils/auth";
+	import { navigating } from "$app/stores";
+	import { initAuth, profile, authLoading } from "$lib/utils/auth";
+	import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
 	import {
 		initOfflineSync,
 		prefetchOfflineMetadata,
@@ -102,6 +104,13 @@
 
 {#if $showQRScanner}
 	<QRScanner onScan={handleScan} onClose={() => showQRScanner.set(false)} />
+{/if}
+
+<!-- Global full-screen loader: initial load + every route navigation -->
+{#if $navigating !== null || $authLoading}
+	<div class="cedims-global-loader" role="status" aria-label="Loading CEDIMS">
+		<CEDIMSLoader label="Loading CEDIMS..." />
+	</div>
 {/if}
 
 <ChatBot />
