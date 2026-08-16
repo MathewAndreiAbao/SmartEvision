@@ -406,16 +406,7 @@
     {/if}
   </div>
 
-  {#if loading}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {#each Array(4) as _}
-        <div class="gov-card-static p-8 animate-pulse text-center">
-          <div class="h-4 bg-surface-muted rounded w-24 mx-auto mb-4"></div>
-          <div class="h-10 bg-surface-muted rounded w-16 mx-auto"></div>
-        </div>
-      {/each}
-    </div>
-  {:else}
+  {#if !loading}
     <!-- KPI Cards -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-6">
       <div in:fly={{ y: 20, duration: 400 }}>

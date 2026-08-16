@@ -172,16 +172,7 @@
         </button>
     </div>
 
-    {#if loading}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {#each Array(3) as _}
-                <div class="gov-card-static p-8 animate-pulse">
-                    <div class="h-6 bg-surface-muted rounded-full w-24 mb-6"></div>
-                    <div class="h-8 bg-surface-muted rounded w-3/4 mb-4"></div>
-                </div>
-            {/each}
-        </div>
-    {:else if loads.length === 0}
+    {#if !loading && loads.length === 0}
         <div
             class="bg-surface-muted backdrop-blur-md border border-dashed border-border-strong rounded-3xl p-20 text-center"
         >

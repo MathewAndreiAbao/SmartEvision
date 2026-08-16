@@ -70,7 +70,6 @@
     });
     let alerts = $state<any[]>([]);
     let teacherCompliance = $state<any[]>([]);
-    let loading = $state(true);
 
     // Teacher Compliance table: sorting, search & school grouping
     let tcSortField = $state<keyof ComplianceRow>("rate");
@@ -98,7 +97,6 @@
         } catch (err) {
             console.error("[dashboard] Failed to load dashboard:", err);
         }
-        loading = false;
     });
 
     onDestroy(() => {
@@ -594,37 +592,7 @@
         </p>
     </div>
 
-    {#if loading}
-        <div class="flex flex-col items-center justify-center py-10 mb-2" role="status" aria-label="Loading data">
-            <div class="relative w-12 h-12 mb-4">
-                <div class="absolute inset-0 rounded-full border-4 border-gov-blue/20"></div>
-                <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-gov-blue animate-spin"></div>
-            </div>
-            <p class="text-sm font-medium text-text-muted uppercase tracking-wide">Loading your dashboard...</p>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {#each Array(4) as _}
-                <div class="gov-card-static p-5 animate-pulse">
-                    <div class="h-4 bg-surface-muted rounded w-24 mb-4"></div>
-                    <div class="h-10 bg-surface-muted rounded w-16"></div>
-                </div>
-            {/each}
-        </div>
-        <div class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="gov-card-static p-5 animate-pulse lg:col-span-2">
-                <div class="h-4 bg-surface-muted rounded w-40 mb-4"></div>
-                <div class="h-40 bg-surface-muted rounded"></div>
-            </div>
-            <div class="gov-card-static p-5 animate-pulse">
-                <div class="h-4 bg-surface-muted rounded w-28 mb-4"></div>
-                <div class="space-y-3">
-                    <div class="h-8 bg-surface-muted rounded"></div>
-                    <div class="h-8 bg-surface-muted rounded"></div>
-                    <div class="h-8 bg-surface-muted rounded"></div>
-                </div>
-            </div>
-        </div>
-    {:else if $profile?.role === "Teacher"}
+    {#if $profile?.role === "Teacher"}
         <!-- ========== TEACHER DASHBOARD ========== -->
 
         <!-- Stats Row -->

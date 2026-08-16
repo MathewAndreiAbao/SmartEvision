@@ -439,13 +439,7 @@
         </div>
     </div>
 
-    {#if loading}
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {#each Array(6) as _}
-                <div class="gov-card-static p-8 h-36 animate-pulse"></div>
-            {/each}
-        </div>
-    {:else}
+    {#if !loading}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8" in:fade>
             {#each deadlines as d, i (d.week_number)}
                 <div

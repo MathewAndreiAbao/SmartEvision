@@ -497,16 +497,7 @@
         {/if}
     </div>
 
-    {#if loading}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {#each Array(4) as _}
-                <div class="gov-card-static p-6 animate-pulse">
-                    <div class="h-4 bg-surface-muted rounded w-24 mb-3"></div>
-                    <div class="h-8 bg-surface-muted rounded w-16"></div>
-                </div>
-            {/each}
-        </div>
-    {:else}
+    {#if !loading}
         <!-- KPI Cards -->
         <!-- KPI Row -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-10">

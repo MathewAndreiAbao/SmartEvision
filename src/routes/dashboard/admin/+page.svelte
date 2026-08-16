@@ -422,13 +422,7 @@
             aria-labelledby="settings-tab"
             in:fade={{ duration: 200 }}
         >
-            {#if loading}
-                <div class="space-y-4">
-                    {#each Array(3) as _}
-                        <div class="h-32 gov-card-static animate-pulse"></div>
-                    {/each}
-                </div>
-            {:else}
+            {#if !loading}
                 <div class="grid gap-6">
                     {#each settings as s}
                         <div
@@ -583,13 +577,7 @@
             </div>
 
             <!-- User Table -->
-            {#if loadingUsers}
-                <div class="space-y-3">
-                    {#each Array(5) as _}
-                        <div class="h-16 gov-card-static animate-pulse"></div>
-                    {/each}
-                </div>
-            {:else}
+            {#if !loadingUsers}
                 <div class="gov-card-static overflow-hidden">
                     <div class="max-h-[65vh] overflow-y-auto">
                     <div class="overflow-x-auto">

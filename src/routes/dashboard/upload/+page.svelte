@@ -978,7 +978,7 @@
                         {/if}
                     </div>
 
-                    {#if detectingMetadata}
+                    {#if false}
                         <div class="space-y-4 py-8">
                             <div
                                 class="h-12 bg-surface-muted rounded-xl animate-pulse"
@@ -1451,7 +1451,7 @@
                 </button>
             </div>
             <div class="max-h-[60vh] overflow-y-auto p-4 space-y-2">
-                {#if loadingTeachingLoads}
+                {#if false}
                     <div
                         class="py-12 flex flex-col items-center justify-center gap-4"
                     >

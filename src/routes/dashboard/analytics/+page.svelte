@@ -791,12 +791,7 @@
         </div>
     </div>
 
-    {#if loading}
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div class="gov-card-static h-96 animate-pulse"></div>
-            <div class="gov-card-static h-96 animate-pulse"></div>
-        </div>
-    {:else}
+    {#if !loading}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <!-- Trend Line -->
             <div class="gov-card-static p-8" in:fly={{ y: 20, duration: 600 }}>

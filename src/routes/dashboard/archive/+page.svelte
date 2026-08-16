@@ -73,7 +73,6 @@
     let allSubmissions = $state<Submission[]>([]);
     let schoolsMap = $state<Record<string, { label: string; avatar_url: string | null }>>({});
     let teachersMap = $state<Record<string, { label: string; avatar_url: string | null }>>({});
-    let loading = $state(true);
     let loadError = $state<string | null>(null);
     let searchQuery = $state("");
     let currentPage = $state(1);
@@ -142,7 +141,6 @@
     // â”€â”€ Lifecycle â”€â”€
     onMount(async () => {
         await loadData();
-        loading = false;
     });
 
     // â”€â”€ Data Fetching â”€â”€
@@ -901,22 +899,6 @@
             <button onclick={() => { loadData(); }} class="px-4 py-2 bg-gov-blue text-white text-sm font-bold rounded-xl hover:bg-gov-blue-dark transition-colors">
                 Try Again
             </button>
-        </div>
-    {:else if loading}
-        <div
-            class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
-        >
-            {#each Array(10) as _}
-                <div class="gov-card-static p-6 animate-pulse">
-                    <div
-                        class="w-12 h-12 bg-surface-muted rounded-xl mx-auto mb-3"
-                    ></div>
-                    <div
-                        class="h-3 bg-surface-muted rounded w-3/4 mx-auto mb-2"
-                    ></div>
-                    <div class="h-2 bg-surface-muted rounded w-1/2 mx-auto"></div>
-                </div>
-            {/each}
         </div>
     {:else if !isFileLevel && currentFolders.length > 0}
         <!-- Folder Grid -->
