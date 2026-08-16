@@ -4,6 +4,7 @@
     import { addToast } from "$lib/stores/toast";
     import { onMount } from "svelte";
     import { fly, fade } from "svelte/transition";
+    import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
     import {
         Save,
         Clock,
@@ -439,7 +440,11 @@
         </div>
     </div>
 
-    {#if !loading}
+    {#if loading}
+        <div class="gov-card-static">
+            <CEDIMSLoader label="Loading calendar..." />
+        </div>
+    {:else}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8" in:fade>
             {#each deadlines as d, i (d.week_number)}
                 <div

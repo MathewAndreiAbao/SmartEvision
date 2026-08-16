@@ -3,6 +3,7 @@
     import { profile } from "$lib/utils/auth";
     import { addToast } from "$lib/stores/toast";
     import { onMount } from "svelte";
+    import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
     import { Edit, Trash2, Plus, BookOpen, Layers } from "lucide-svelte";
     import { fly } from "svelte/transition";
 
@@ -172,7 +173,11 @@
         </button>
     </div>
 
-    {#if !loading && loads.length === 0}
+    {#if loading}
+        <div class="gov-card-static">
+            <CEDIMSLoader label="Loading teaching loads..." />
+        </div>
+    {:else if loads.length === 0}
         <div
             class="bg-surface-muted backdrop-blur-md border border-dashed border-border-strong rounded-3xl p-20 text-center"
         >

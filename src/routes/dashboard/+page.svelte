@@ -9,6 +9,7 @@
     import { fly, fade } from "svelte/transition";
     import { goto } from "$app/navigation";
     import TeacherChecklist from "$lib/components/TeacherChecklist.svelte";
+    import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
     import {
         calculateCompliance,
         groupSubmissionsByWeek,
@@ -70,6 +71,7 @@
     });
     let alerts = $state<any[]>([]);
     let teacherCompliance = $state<any[]>([]);
+    let loading = $state(true);
 
     // Teacher Compliance table: sorting, search & school grouping
     let tcSortField = $state<keyof ComplianceRow>("rate");
@@ -97,6 +99,7 @@
         } catch (err) {
             console.error("[dashboard] Failed to load dashboard:", err);
         }
+        loading = false;
     });
 
     onDestroy(() => {
@@ -592,7 +595,11 @@
         </p>
     </div>
 
-    {#if $profile?.role === "Teacher"}
+    {#if loading}
+        <div class="gov-card-static">
+            <CEDIMSLoader label="Loading your dashboard..." />
+        </div>
+    {:else if $profile?.role === "Teacher"}
         <!-- ========== TEACHER DASHBOARD ========== -->
 
         <!-- Stats Row -->

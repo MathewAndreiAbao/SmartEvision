@@ -29,6 +29,7 @@
     import { exportStyledExcel } from "$lib/utils/excelExport";
     import type { ReportOptions } from "$lib/utils/excelExport";
     import { cacheMetadata, getCachedMetadata } from "$lib/utils/offline";
+    import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
 
     // â”€â”€ Types â”€â”€
     interface Submission {
@@ -73,6 +74,7 @@
     let allSubmissions = $state<Submission[]>([]);
     let schoolsMap = $state<Record<string, { label: string; avatar_url: string | null }>>({});
     let teachersMap = $state<Record<string, { label: string; avatar_url: string | null }>>({});
+    let loading = $state(true);
     let loadError = $state<string | null>(null);
     let searchQuery = $state("");
     let currentPage = $state(1);
@@ -141,6 +143,7 @@
     // â”€â”€ Lifecycle â”€â”€
     onMount(async () => {
         await loadData();
+        loading = false;
     });
 
     // â”€â”€ Data Fetching â”€â”€
@@ -899,6 +902,10 @@
             <button onclick={() => { loadData(); }} class="px-4 py-2 bg-gov-blue text-white text-sm font-bold rounded-xl hover:bg-gov-blue-dark transition-colors">
                 Try Again
             </button>
+        </div>
+    {:else if loading}
+        <div class="gov-card-static">
+            <CEDIMSLoader label="Loading archive..." />
         </div>
     {:else if !isFileLevel && currentFolders.length > 0}
         <!-- Folder Grid -->
