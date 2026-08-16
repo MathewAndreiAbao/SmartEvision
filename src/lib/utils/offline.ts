@@ -96,13 +96,14 @@ export async function prefetchOfflineMetadata(userId: string, districtId?: strin
         if (districtId) {
             const { data: calendar, error: calErr } = await supabase
                 .from('academic_calendar')
-                .select('id, week_number, deadline_date, description')
+                .select('id, week_number, deadline_date, description, is_active')
                 .eq('district_id', districtId)
                 .order('week_number', { ascending: true });
 
             if (!calErr && calendar && calendar.length > 0) {
                 calendarData = calendar;
                 await cacheMetadata(`calendar_${districtId}`, calendar);
+                await cacheMetadata(`calendar_open_${districtId}`, calendar);
                 console.log(`[offline] Cached ${calendar.length} calendar weeks for district ${districtId}`);
             }
         }
@@ -111,14 +112,17 @@ export async function prefetchOfflineMetadata(userId: string, districtId?: strin
         if (calendarData.length === 0) {
             const { data: globalCal, error: globalCalErr } = await supabase
                 .from('academic_calendar')
-                .select('id, week_number, deadline_date, description')
+                .select('id, week_number, deadline_date, description, is_active')
                 .order('week_number', { ascending: true });
 
             if (!globalCalErr && globalCal) {
                 calendarData = globalCal;
                 await cacheMetadata('calendar_all', globalCal);
                 // Also cache as district-specific if possible to avoid redundant fetches
-                if (districtId) await cacheMetadata(`calendar_${districtId}`, globalCal);
+                if (districtId) {
+                    await cacheMetadata(`calendar_${districtId}`, globalCal);
+                    await cacheMetadata(`calendar_open_${districtId}`, globalCal);
+                }
                 console.log(`[offline] Cached ${globalCal.length} global calendar weeks (fallback)`);
             }
         }
@@ -472,42 +476,65 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                     continue;
                 }
 
-                // ── Upload to Cloudflare R2 via Pre-signed URL ──
+                // ── Upload to Backblaze B2 via Pre-signed URL ──
                 const { data: sessionData } = await supabase.auth.getSession();
                 const accessToken = sessionData?.session?.access_token;
                 if (!accessToken) throw new Error('Not authenticated for background sync');
 
                 const sanitizedPath = item.filePath.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9./_-]/g, '');
-                
-                // Prepare FormData for server proxy
-                const formData = new FormData();
-                formData.append('file', item.pdfBytes as Blob, item.fileName);
-                formData.append('key', sanitizedPath);
+                const contentType = 'application/pdf';
 
-                console.log(`[sync] Attempting proxy upload to server for: ${item.fileName}`);
+                console.log(`[sync] Requesting pre-signed B2 upload URL for: ${item.fileName}`);
 
-                const uploadResponse = await withTimeout(
-                    fetch('/api/storage/upload', {
+                // 1. Get a pre-signed PUT url from our API (signing never hits B2 CORS)
+                const presignResponse = await withTimeout(
+                    fetch('/api/storage/presign', {
                         method: 'POST',
-                        headers: { 
-                            'Authorization': `Bearer ${accessToken}` 
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Content-Type': 'application/json'
                         },
-                        body: formData
+                        body: JSON.stringify({ key: sanitizedPath, contentType, intent: 'upload' })
                     }),
-                    120000, 
-                    'Sync archive upload timed out'
+                    20000,
+                    'Pre-signed URL request timed out'
                 ).catch(err => {
-                    console.error('[sync] Fetch error during server proxy upload.', err);
+                    console.error('[sync] Fetch error during pre-signed URL request.', err);
                     throw err;
                 });
 
-                if (!uploadResponse.ok) {
-                    let errStr = uploadResponse.statusText;
+                if (!presignResponse.ok) {
+                    let errStr = presignResponse.statusText;
                     try {
-                        const errJson = await uploadResponse.json();
+                        const errJson = await presignResponse.json();
                         errStr = errJson.message || errStr;
                     } catch { /* ignore */ }
-                    throw new Error(`Archive upload failed (${uploadResponse.status}): ${errStr}`);
+                    throw new Error(`Pre-signed URL failed (${presignResponse.status}): ${errStr}`);
+                }
+
+                const { url: presignedUrl } = await presignResponse.json();
+
+                // 2. Direct PUT browser -> B2 (no server-side 4.2 MB limit)
+                const putResponse = await withTimeout(
+                    fetch(presignedUrl, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': contentType },
+                        body: item.pdfBytes as Blob
+                    }),
+                    120000,
+                    'Sync archive upload timed out'
+                ).catch(err => {
+                    console.error('[sync] Fetch error during B2 direct upload.', err);
+                    throw err;
+                });
+
+                if (!putResponse.ok) {
+                    let errStr = putResponse.statusText;
+                    try {
+                        const errJson = await putResponse.json();
+                        errStr = errJson.message || errStr;
+                    } catch { /* ignore */ }
+                    throw new Error(`Archive upload failed (${putResponse.status}): ${errStr}`);
                 }
 
                 // ── Fetch deadline for compliance + calendar_id ──

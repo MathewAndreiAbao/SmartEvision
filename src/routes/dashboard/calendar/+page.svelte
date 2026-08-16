@@ -40,7 +40,7 @@
 
     // DepEd SY 2026-2027 three-term calendar (DepEd Order No. 009, s. 2026).
     // Each submission deadline is the Monday of its week. Generated weeks start
-    // inactive (waiting state) until a supervisor activates them.
+    // scheduled (closed / not open) until a supervisor opens them to teachers.
     const DEPED_2026_WEEKS: { term: number; week_number: number; deadline_date: string }[] = [
         // Term 1 (Weeks 1–13, Jun 8 – Sep 15, 2026)
         ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map((w, i) => ({
@@ -254,7 +254,7 @@
             console.error("[v0] Toggle active error:", error);
             addToast(
                 "error",
-                `Failed to ${next ? "activate" : "deactivate"} Week ${d.week_number}: ${error.message}`,
+                `Failed to ${next ? "open" : "schedule"} Week ${d.week_number}: ${error.message}`,
             );
             return;
         }
@@ -263,8 +263,8 @@
         addToast(
             "success",
             next
-                ? `Week ${d.week_number} is now active and visible to teachers`
-                : `Week ${d.week_number} is now hidden (waiting)`,
+                ? `Week ${d.week_number} is now open for submissions (visible to teachers)`
+                : `Week ${d.week_number} is now scheduled (hidden from teachers)`,
         );
 
         if (next) {
@@ -297,7 +297,7 @@
         if (!canEdit || !resolvedDistrictId) return;
         if (
             !confirm(
-                "Generate the full DepEd SY 2026-2027 three-term calendar for this district? Weeks are created in a waiting (inactive) state and can be activated per week. Existing dates will be overwritten.",
+                "Generate the full DepEd SY 2026-2027 three-term calendar for this district? Weeks are created in a scheduled (closed) state and can be opened per week. Existing dates will be overwritten.",
             )
         )
             return;
@@ -329,7 +329,7 @@
 
             addToast(
                 "success",
-                "DepEd SY 2026-2027 calendar generated. Weeks are in waiting state — activate them as needed.",
+                "DepEd SY 2026-2027 calendar generated. Weeks are scheduled (closed) — open them as needed.",
             );
             await loadDeadlines();
         } finally {
@@ -471,14 +471,14 @@
                                             class="flex items-center gap-1 text-[10px] font-semibold uppercase text-gov-green"
                                         >
                                             <CheckCircle2 size={10} />
-                                            Active
+                                            Open
                                         </div>
                                     {:else}
                                         <div
                                             class="flex items-center gap-1 text-[10px] font-semibold uppercase text-text-muted"
                                         >
                                             <Clock size={10} />
-                                            Waiting
+                                            Scheduled
                                         </div>
                                     {/if}
                                 </div>
@@ -493,9 +493,9 @@
                                         class="px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide transition-all shadow-sm flex items-center gap-1.5 {d.is_active
                                             ? 'bg-gov-green/10 text-gov-green hover:bg-gov-green hover:text-white'
                                             : 'bg-surface-muted text-text-muted border border-border-subtle hover:bg-gov-gold/10 hover:text-gov-gold-dark'}"
-                                        title="Toggle visibility of Week {d.week_number} to teachers"
+                                        title="Week {d.week_number} is {d.is_active ? 'open' : 'scheduled'} — click to {d.is_active ? 'close (hide from teachers)' : 'open this week to teachers'}"
                                     >
-                                        {d.is_active ? "Active" : "Waiting"}
+                                        {d.is_active ? "Open" : "Scheduled"}
                                     </button>
                                 {/if}
                                 <button
@@ -592,8 +592,8 @@
                                 icon. Deadlines are set to
                                 <strong>11:59 PM</strong> of the selected date. Submissions
                                 after this will be marked as <strong>Late</strong>
-                                automatically. Use the <strong>Waiting</strong> / <strong
-                                    >Active</strong
+                                automatically. Use the <strong>Scheduled</strong> / <strong
+                                    >Open</strong
                                 >
                                 toggle to control whether a week is visible to teachers and
                                 counted toward compliance.

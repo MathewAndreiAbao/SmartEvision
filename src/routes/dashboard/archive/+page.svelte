@@ -28,6 +28,7 @@
     } from "lucide-svelte";
     import { exportStyledExcel } from "$lib/utils/excelExport";
     import type { ReportOptions } from "$lib/utils/excelExport";
+    import { cacheMetadata, getCachedMetadata } from "$lib/utils/offline";
 
     // â”€â”€ Types â”€â”€
     interface Submission {
@@ -151,6 +152,22 @@
         if (!userProfile) return;
 
         const role = userProfile.role;
+
+        // â”€â”€ Offline: restore cached archive view ─â”€
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+            const cached = await getCachedMetadata(`archive_state_${role}_${userProfile.id}`);
+            if (cached?.data) {
+                allSubmissions = cached.data.submissions || [];
+                schoolsMap = cached.data.schoolsMap || {};
+                teachersMap = cached.data.teachersMap || {};
+                reviewsMap = cached.data.reviewsMap || {};
+                console.log("[archive] Loaded archive from offline cache");
+                return;
+            }
+            allSubmissions = [];
+            loadError = "You are offline and no cached archive is available on this device yet.";
+            return;
+        }
 
         try {
 
@@ -348,6 +365,18 @@
                 }
                 reviewsMap = map;
             }
+        }
+
+        // â”€â”€ Cache finalized state for offline viewing ─â”€
+        try {
+            await cacheMetadata(`archive_state_${role}_${userProfile.id}`, {
+                submissions: allSubmissions,
+                schoolsMap,
+                teachersMap,
+                reviewsMap,
+            });
+        } catch (e) {
+            console.warn("[archive] Failed to cache archive state:", e);
         }
         } catch (err) {
             console.error("[archive] Failed to load data:", err);

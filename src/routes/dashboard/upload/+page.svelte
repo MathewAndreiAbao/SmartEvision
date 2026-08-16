@@ -162,9 +162,11 @@
         }
 
         // Offline Fallback
-        const cached = await getCachedMetadata(`calendar_${districtId}`);
+        const cached = await getCachedMetadata(`calendar_open_${districtId}`);
         if (cached?.data) {
-            const entry = cached.data.find((e: any) => e.week_number === wk);
+            const entry = cached.data.find(
+                (e: any) => e.week_number === wk && e.is_active === true,
+            );
             if (entry) {
                 currentDeadline = entry;
                 console.log("[upload] Using cached deadline for week", wk);
@@ -355,11 +357,12 @@
             let calendarEntries: any[] = [];
 
             // Try cache first for immediate UI
-            const cachedCal = await getCachedMetadata(
-                `calendar_${userProfile.district_id}`,
-            );
+            const cacheKey = `calendar_open_${userProfile.district_id}`;
+            const cachedCal = await getCachedMetadata(cacheKey);
             if (cachedCal?.data) {
-                calendarEntries = cachedCal.data as any[];
+                calendarEntries = (cachedCal.data as any[]).filter(
+                    (w) => w.is_active === true,
+                );
                 academicWeeks = calendarEntries.map((w) => w.week_number);
                 console.log("[upload] Loaded calendar from cache");
             }
@@ -368,14 +371,15 @@
             if (navigator.onLine) {
                 const { data, error } = await supabase
                     .from("academic_calendar")
-                    .select("week_number, deadline_date, description")
+                    .select("week_number, deadline_date, description, is_active")
                     .eq("district_id", userProfile.district_id)
+                    .eq("is_active", true)
                     .order("week_number", { ascending: true });
 
                 if (!error && data) {
                     calendarEntries = data;
                     academicWeeks = data.map((w) => w.week_number);
-                    cacheMetadata(`calendar_${userProfile.district_id}`, data);
+                    cacheMetadata(cacheKey, data);
                 } else if (error) {
                     console.error(
                         "[upload] Online fetch calendar error:",
@@ -514,6 +518,7 @@
             .gte("deadline_date", isoDate)
             .lte("deadline_date", isoEndDate)
             .eq("district_id", districtId)
+            .eq("is_active", true)
             .order("deadline_date", { ascending: true })
             .limit(1)
             .maybeSingle();

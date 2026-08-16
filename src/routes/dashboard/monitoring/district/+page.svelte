@@ -23,6 +23,7 @@
     getDefinedWeeksCount,
     getDynamicSchoolYear,
   } from "$lib/utils/useDashboardData";
+  import { cacheMetadata, getCachedMetadata } from "$lib/utils/offline";
 
   // Data Interfaces
   interface School {
@@ -115,6 +116,17 @@
   async function loadDistrictData() {
     const userProfile = $profile;
     if (!userProfile?.district_id) return;
+
+    // Offline: restore cached monitoring snapshot without touching Supabase
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      const cached = await getCachedMetadata(
+        `district_monitor_${userProfile.district_id}`,
+      );
+      if (cached?.data) {
+        applyDistrictSnapshot(cached.data);
+      }
+      return;
+    }
 
     // Fetch District Logo
     const { data: distData } = await supabase.from('districts').select('avatar_url').eq('id', userProfile.district_id).single();
@@ -247,6 +259,40 @@
         dashed: true,
       },
     ];
+
+    // Cache the full monitoring snapshot for offline viewing
+    try {
+      await cacheMetadata(`district_monitor_${userProfile.district_id}`, {
+        districtLogoUrl,
+        schools,
+        allSubmissions,
+        currentDefinedWeeks,
+        kpi,
+        heatmapRows,
+        heatmapWeeks,
+        heatmapCells,
+        trendLabels,
+        trendDatasets,
+      });
+    } catch (e) {
+      console.warn("[district-monitor] Failed to cache snapshot:", e);
+    }
+  }
+
+  function applyDistrictSnapshot(s: any) {
+    districtLogoUrl = s.districtLogoUrl ?? null;
+    schools = s.schools || [];
+    allSubmissions = s.allSubmissions || [];
+    currentDefinedWeeks = s.currentDefinedWeeks ?? 1;
+    kpi = { totalSchools: 0, overallRate: 0, lateCount: 0, atRiskCount: 0, previousRate: 0, ...(s.kpi || {}) };
+    heatmapRows = s.heatmapRows || [];
+    heatmapWeeks = s.heatmapWeeks || [];
+    heatmapCells = s.heatmapCells || [];
+    trendLabels = s.trendLabels || [];
+    trendDatasets = s.trendDatasets || [];
+    console.log(
+      "[district-monitor] Restored monitoring snapshot from offline cache",
+    );
   }
 
   function buildHeatmap(calendar: any[]) {

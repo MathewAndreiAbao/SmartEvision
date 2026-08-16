@@ -30,6 +30,7 @@
         canCluster,
     } from "$lib/utils/clusterAnalytics";
     import ClusterVisualization from "$lib/components/ClusterVisualization.svelte";
+    import { cacheMetadata, getCachedMetadata } from "$lib/utils/offline";
 
     // Data
     interface Teacher {
@@ -149,6 +150,17 @@
     async function loadSchoolData() {
         const userProfile = $profile;
         if (!userProfile?.school_id) return;
+
+        // Offline: restore cached monitoring snapshot without touching Supabase
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+            const cached = await getCachedMetadata(
+                `school_monitor_${userProfile.school_id}`,
+            );
+            if (cached?.data) {
+                applySchoolSnapshot(cached.data);
+            }
+            return;
+        }
 
         // Fetch School Logo
         const { data: schoolData } = await supabase.from('schools').select('avatar_url').eq('id', userProfile.school_id).single();
@@ -286,6 +298,49 @@
             clusterResults = output.results;
             clusterSummaries = output.summaries;
         }
+
+        // Cache the full monitoring snapshot for offline viewing
+        try {
+            await cacheMetadata(`school_monitor_${userProfile.school_id}`, {
+                schoolLogoUrl,
+                teachers,
+                allSubmissions,
+                currentDefinedWeeks,
+                kpi,
+                heatmapRows,
+                heatmapWeeks,
+                heatmapCells,
+                trendLabels,
+                trendDatasets,
+                clusterReady,
+                clusterResults,
+                clusterSummaries,
+            });
+        } catch (e) {
+            console.warn(
+                "[school-monitor] Failed to cache snapshot:",
+                e,
+            );
+        }
+    }
+
+    function applySchoolSnapshot(s: any) {
+        schoolLogoUrl = s.schoolLogoUrl ?? null;
+        teachers = s.teachers || [];
+        allSubmissions = s.allSubmissions || [];
+        currentDefinedWeeks = s.currentDefinedWeeks ?? 1;
+        kpi = { totalTeachers: 0, overallRate: 0, lateCount: 0, atRiskCount: 0, previousRate: 0, ...(s.kpi || {}) };
+        heatmapRows = s.heatmapRows || [];
+        heatmapWeeks = s.heatmapWeeks || [];
+        heatmapCells = s.heatmapCells || [];
+        trendLabels = s.trendLabels || [];
+        trendDatasets = s.trendDatasets || [];
+        clusterReady = s.clusterReady ?? false;
+        clusterResults = s.clusterResults || [];
+        clusterSummaries = s.clusterSummaries || [];
+        console.log(
+            "[school-monitor] Restored monitoring snapshot from offline cache",
+        );
     }
 
     function buildHeatmap(calendar: any[] = []) {
