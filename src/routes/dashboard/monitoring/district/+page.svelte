@@ -24,6 +24,7 @@
     getDynamicSchoolYear,
   } from "$lib/utils/useDashboardData";
   import { cacheMetadata, getCachedMetadata } from "$lib/utils/offline";
+  import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
 
   // Data Interfaces
   interface School {
@@ -301,6 +302,7 @@
     const weeks = [];
 
     const recentCal = [...calendar]
+      .filter((c) => c.is_active === true)
       .sort((a, b) => b.week_number - a.week_number)
       .slice(0, weekCount)
       .reverse();
@@ -406,20 +408,8 @@
   </div>
 
   {#if loading}
-    <div class="flex flex-col items-center justify-center py-10 mb-2" role="status" aria-label="Loading data">
-      <div class="relative w-12 h-12 mb-4">
-        <div class="absolute inset-0 rounded-full border-4 border-gov-blue/20"></div>
-        <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-gov-blue animate-spin"></div>
-      </div>
-      <p class="text-sm font-medium text-text-muted uppercase tracking-wide">Loading district data...</p>
-    </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {#each Array(4) as _}
-        <div class="gov-card-static p-8 animate-pulse text-center">
-          <div class="h-4 bg-surface-muted rounded w-24 mx-auto mb-4"></div>
-          <div class="h-10 bg-surface-muted rounded w-16 mx-auto"></div>
-        </div>
-      {/each}
+    <div class="gov-card-static">
+      <CEDIMSLoader label="Loading district data..." />
     </div>
   {:else}
     <!-- KPI Cards -->
@@ -469,7 +459,7 @@
         <h3 class="text-lg font-bold text-text-primary mb-4">
           School Performance Heatmap
         </h3>
-        <div class="overflow-x-auto touch-pan-x">
+        <div class="overflow-auto max-h-[70vh] touch-pan-x cedims-scroll">
         <ComplianceHeatmap
           rows={heatmapRows}
           weeks={heatmapWeeks}
@@ -489,12 +479,14 @@
         <h3 class="text-lg font-bold text-text-primary mb-4">
           District-Wide Trend
         </h3>
-        <div class="h-[280px]">
+        <div class="overflow-x-auto cedims-scroll">
+        <div class="min-w-[520px] h-[280px]">
           <ComplianceTrendChart
             labels={trendLabels}
             datasets={trendDatasets}
             height={280}
           />
+        </div>
         </div>
       </div>
     </div>
@@ -656,7 +648,7 @@
         </div>
       </div>
 
-      <div class="divide-y divide-border-subtle">
+      <div class="divide-y divide-border-subtle max-h-[55vh] overflow-y-auto pr-1 cedims-scroll">
         {#each selectedSubmissions as sub}
           <div class="py-3 flex items-center justify-between">
             <div class="min-w-0 pr-4">

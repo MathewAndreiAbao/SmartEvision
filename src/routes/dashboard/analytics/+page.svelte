@@ -18,10 +18,12 @@
         getSubmissionWeek,
         getWeekNumber,
         getDefinedWeeksCount,
+        getDynamicSchoolYear,
     } from "$lib/utils/useDashboardData";
     import { exportStyledExcel } from "$lib/utils/excelExport";
     import { FileSpreadsheet } from "lucide-svelte";
     import type { ReportOptions } from "$lib/utils/excelExport";
+    import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
 
     let trendCanvas = $state<HTMLCanvasElement>();
     let barCanvas = $state<HTMLCanvasElement>();
@@ -169,12 +171,16 @@
     async function getWeeklyCompliance(
         schoolId: string | null = null,
     ): Promise<number[]> {
-        // Fetch weeks from academic_calendar
+        const userProfile = $profile;
+        const schoolYear = getDynamicSchoolYear();
+
+        // Fetch weeks from academic_calendar (active only, scoped to the current school year)
         let uploadsQuery = supabase
             .from("submissions")
             .select(
-                "compliance_status, week_number, created_at, uploader:profiles!inner(school_id)",
-            );
+                "compliance_status, week_number, school_year, created_at, uploader:profiles!inner(school_id)",
+            )
+            .eq("school_year", schoolYear);
 
         if (schoolId) {
             uploadsQuery = uploadsQuery.eq(
@@ -187,7 +193,9 @@
             uploadsQuery,
             supabase
                 .from("academic_calendar")
-                .select("week_number, district_id")
+                .select("week_number, district_id, is_active")
+                .eq("school_year", schoolYear)
+                .eq("is_active", true)
                 .order("week_number", { ascending: true }),
             schoolId
                 ? supabase
@@ -199,9 +207,10 @@
                       .select("id", { count: "exact" }),
         ]);
 
-        const uploads = uploadsRes.data || [];
+        const uploads = (uploadsRes.data || []).filter(
+            (s: any) => s.school_year === schoolYear,
+        );
         const calendarData = calendarRes.data || [];
-        const userProfile = $profile;
         const calendar = calendarData.filter(
             (c: any) =>
                 !userProfile?.district_id ||
@@ -213,10 +222,12 @@
 
         const totalExpectedLoads = loadsRes.count || 0;
 
-        // Use actual week numbers from calendar, fallback to 1..8
+        // Use the most recent 8 active weeks so the trend starts from the correct week
         const weeks =
             calendar.length > 0
-                ? calendar.map((c: any) => c.week_number)
+                ? calendar
+                      .slice(-8)
+                      .map((c: any) => c.week_number)
                 : [1, 2, 3, 4, 5, 6, 7, 8];
 
         // Store labels using actual week numbers
@@ -782,9 +793,8 @@
     </div>
 
     {#if loading}
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div class="gov-card-static h-96 animate-pulse"></div>
-            <div class="gov-card-static h-96 animate-pulse"></div>
+        <div class="gov-card-static">
+            <CEDIMSLoader label="Preparing analytics..." />
         </div>
     {:else}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -812,8 +822,10 @@
                         8-Week Window
                     </div>
                 </div>
-                <div class="h-72">
-                    <canvas bind:this={trendCanvas}></canvas>
+                <div class="h-72 overflow-x-auto cedims-scroll">
+                    <div class="min-w-[520px] h-72">
+                        <canvas bind:this={trendCanvas}></canvas>
+                    </div>
                 </div>
             </div>
 
@@ -856,9 +868,19 @@
                 >
                     <Activity size={32} strokeWidth={1.5} />
                 </div>
-                <p class="text-4xl font-semibold text-gov-blue tracking-normal">
-                    +{stats.improvement}%
-                </p>
+                {#if stats.improvement >= 0}
+                    <p
+                        class="text-4xl font-semibold text-gov-green tracking-normal"
+                    >
+                        +{stats.improvement}%
+                    </p>
+                {:else}
+                    <p
+                        class="text-4xl font-semibold text-gov-red tracking-normal"
+                    >
+                        {stats.improvement}%
+                    </p>
+                {/if}
                 <p
                     class="text-xs font-bold text-text-muted mt-2 uppercase tracking-wide"
                 >
@@ -902,7 +924,10 @@
                 <p
                     class="text-xs font-bold text-text-muted mt-2 uppercase tracking-wide"
                 >
-                    Schools at Target
+                    {$profile?.role === "School Head" ||
+                    $profile?.role === "Master Teacher"
+                        ? "Teachers at Target"
+                        : "Schools at Target"}
                 </p>
             </div>
         </div>

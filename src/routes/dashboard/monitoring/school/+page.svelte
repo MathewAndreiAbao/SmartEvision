@@ -31,6 +31,7 @@
     } from "$lib/utils/clusterAnalytics";
     import ClusterVisualization from "$lib/components/ClusterVisualization.svelte";
     import { cacheMetadata, getCachedMetadata } from "$lib/utils/offline";
+  import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
 
     // Data
     interface Teacher {
@@ -350,6 +351,7 @@
 
         if (calendar.length > 0) {
             const recentCal = [...calendar]
+                .filter((c: any) => c.is_active === true)
                 .sort((a, b) => b.week_number - a.week_number)
                 .slice(0, weekCount)
                 .reverse();
@@ -497,20 +499,8 @@
     </div>
 
     {#if loading}
-        <div class="flex flex-col items-center justify-center py-10 mb-2" role="status" aria-label="Loading data">
-            <div class="relative w-12 h-12 mb-4">
-                <div class="absolute inset-0 rounded-full border-4 border-gov-blue/20"></div>
-                <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-gov-blue animate-spin"></div>
-            </div>
-            <p class="text-sm font-medium text-text-muted uppercase tracking-wide">Loading school data...</p>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {#each Array(4) as _}
-                <div class="gov-card-static p-6 animate-pulse">
-                    <div class="h-4 bg-surface-muted rounded w-24 mb-3"></div>
-                    <div class="h-8 bg-surface-muted rounded w-16"></div>
-                </div>
-            {/each}
+        <div class="gov-card-static">
+            <CEDIMSLoader label="Loading school data..." />
         </div>
     {:else}
         <!-- KPI Cards -->
@@ -583,7 +573,7 @@
                 <h3 class="text-lg font-bold text-text-primary mb-4">
                     Compliance Heatmap
                 </h3>
-                <div class="overflow-x-auto touch-pan-x">
+                <div class="overflow-auto max-h-[70vh] touch-pan-x cedims-scroll">
                 <ComplianceHeatmap
                     rows={heatmapRows}
                     weeks={heatmapWeeks}
@@ -810,7 +800,7 @@
         {#if selectedSubmissions.length === 0}
             <p class="text-center text-text-muted py-6">No submissions found</p>
         {:else}
-            <div class="divide-y divide-border-subtle">
+            <div class="divide-y divide-border-subtle max-h-[55vh] overflow-y-auto pr-1 cedims-scroll">
                 {#each selectedSubmissions as sub}
                     {@const tl = Array.isArray(sub.teaching_loads)
                         ? sub.teaching_loads[0]

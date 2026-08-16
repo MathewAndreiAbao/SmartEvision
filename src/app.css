@@ -31,6 +31,39 @@
   background: var(--color-text-muted);
 }
 
+/* ── CEDIMS Custom Scrollbars (used on dense tables/charts) ── */
+.cedims-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #1a3a5c rgba(0, 0, 0, 0.08);
+}
+.cedims-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.cedims-scroll::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 999px;
+}
+.cedims-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #1a3a5c, #2f5d8f);
+  border-radius: 999px;
+}
+.cedims-scroll::-webkit-scrollbar-thumb:hover {
+  background: #0f2740;
+}
+.dark .cedims-scroll {
+  scrollbar-color: #2a2a40 rgba(0, 0, 0, 0.4);
+}
+.dark .cedims-scroll::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+}
+.dark .cedims-scroll::-webkit-scrollbar-thumb {
+  background: #2a2a40;
+}
+.dark .cedims-scroll::-webkit-scrollbar-thumb:hover {
+  background: #585870;
+}
+
 /* ── Government-Grade Design System Tokens ── */
 @theme {
   /* Custom breakpoint for very small screens */
