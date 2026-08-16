@@ -17,6 +17,10 @@
 
 	let { children } = $props();
 
+	// Keeps the loader visible for at least a minimum duration on every refresh,
+	// even when a cached profile unlocks the UI instantly (fast offline load).
+	let initialLoadDone = $state(false);
+
 	function handleScan(data: string) {
 		if (data.includes("/verify/")) {
 			const hash = data.split("/verify/").pop();
@@ -90,7 +94,13 @@
 			}, 2000);
 		})();
 
+		// Ensure the loader is perceivable on refresh by holding it for a floor duration.
+		const minLoaderTimer = setTimeout(() => {
+			initialLoadDone = true;
+		}, 900);
+
 		return () => {
+			clearTimeout(minLoaderTimer);
 			window.removeEventListener("error", handleModuleError);
 		};
 	});
@@ -106,8 +116,8 @@
 	<QRScanner onScan={handleScan} onClose={() => showQRScanner.set(false)} />
 {/if}
 
-<!-- Global full-screen loader: initial load + every route navigation -->
-{#if $navigating !== null || $authLoading}
+<!-- Global full-screen loader: initial load (min duration) + every route navigation -->
+{#if $navigating !== null || $authLoading || !initialLoadDone}
 	<div class="cedims-global-loader" role="status" aria-label="Loading CEDIMS">
 		<CEDIMSLoader label="Loading CEDIMS..." />
 	</div>
