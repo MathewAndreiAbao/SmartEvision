@@ -12,7 +12,9 @@
     import { settings } from "$lib/stores/settings";
     import { theme } from "$lib/stores/theme";
     import { goto } from "$app/navigation";
+    import { navigating } from "$app/stores";
     import { onMount } from "svelte";
+    import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
 
     let { children } = $props();
 
@@ -68,24 +70,9 @@
 </a>
 
 {#if $authLoading}
-    <!-- Loading state -->
-    <div
-        class="min-h-screen bg-surface flex items-center justify-center"
-        role="status"
-        aria-label="Loading Dashboard"
-    >
-        <div class="text-center">
-            <img
-                src="/app_icon.png"
-                alt="CEDIMS"
-                class="w-14 h-14 mx-auto rounded-md shadow-sm mb-4 animate-pulse"
-            />
-            <p
-                class="text-sm font-medium text-text-muted uppercase tracking-wide"
-            >
-                Loading...
-            </p>
-        </div>
+    <!-- CEDIMS loading animation shown while auth/tabs initialize -->
+    <div class="min-h-screen bg-surface flex items-center justify-center">
+        <CEDIMSLoader label="Loading Dashboard..." />
     </div>
 {:else if $user}
     <div class="min-h-screen bg-surface">
@@ -99,8 +86,19 @@
         >
             <TopBar />
 
-            <div class="p-3 sm:p-4 lg:p-6 pb-24 sm:pb-20 lg:pb-6 flex-1">
-                {@render children()}
+            <div class="relative p-3 sm:p-4 lg:p-6 pb-24 sm:pb-20 lg:pb-6 flex-1">
+                <!-- Per-tab loader: shows while navigating between dashboard sections -->
+                {#if $navigating !== null}
+                    <div
+                        class="absolute inset-0 z-40 bg-surface/70 flex items-center justify-center"
+                        role="status"
+                        aria-label="Loading section"
+                    >
+                        <CEDIMSLoader compact label="Loading section..." />
+                    </div>
+                {:else}
+                    {@render children()}
+                {/if}
             </div>
         </main>
 

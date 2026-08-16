@@ -5,7 +5,6 @@
 	import ChatBot from "$lib/components/ChatBot.svelte";
 	import { showQRScanner } from "$lib/stores/ui";
 	import { goto } from "$app/navigation";
-	import { navigating } from "$app/stores";
 	import { initAuth, profile, authLoading } from "$lib/utils/auth";
 	import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
 	import {
@@ -116,8 +115,9 @@
 	<QRScanner onScan={handleScan} onClose={() => showQRScanner.set(false)} />
 {/if}
 
-<!-- Global full-screen loader: initial load (min duration) + every route navigation -->
-{#if $navigating !== null || $authLoading || !initialLoadDone}
+<!-- Global full-screen loader: initial load / refresh (min duration).
+     Per-tab navigation is handled by the dashboard layout loader. -->
+{#if $authLoading || !initialLoadDone}
 	<div class="cedims-global-loader" role="status" aria-label="Loading CEDIMS">
 		<CEDIMSLoader label="Loading CEDIMS..." />
 	</div>
