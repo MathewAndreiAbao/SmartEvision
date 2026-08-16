@@ -13,10 +13,29 @@
     import { theme } from "$lib/stores/theme";
     import { goto } from "$app/navigation";
     import { navigating } from "$app/stores";
-    import { onMount } from "svelte";
+    import { onMount, onDestroy } from "svelte";
     import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
 
     let { children } = $props();
+
+    // Holds the per-tab loader on screen for a minimum duration so it is always
+    // visible when switching between dashboard sections, even for fast routes.
+    let routeLoading = $state(false);
+    let navTimer: ReturnType<typeof setTimeout> | null = null;
+
+    onDestroy(() => {
+        if (navTimer) clearTimeout(navTimer);
+    });
+
+    $effect(() => {
+        if ($navigating !== null) {
+            routeLoading = true;
+            if (navTimer) clearTimeout(navTimer);
+            navTimer = setTimeout(() => {
+                routeLoading = false;
+            }, 750);
+        }
+    });
 
     // Auth guard — skip during password change to avoid redirect when supabase temporarily signs out
     $effect(() => {
@@ -87,8 +106,8 @@
             <TopBar />
 
             <div class="relative p-3 sm:p-4 lg:p-6 pb-24 sm:pb-20 lg:pb-6 flex-1">
-                <!-- Per-tab loader: shows while navigating between dashboard sections -->
-                {#if $navigating !== null}
+                <!-- Per-tab loader: visible for a minimum duration on every tab switch -->
+                {#if routeLoading}
                     <div
                         class="absolute inset-0 z-40 bg-surface/70 flex items-center justify-center"
                         role="status"
