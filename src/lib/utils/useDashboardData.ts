@@ -451,8 +451,21 @@ export async function markNonCompliantSubmissions(
     }
 
     if (ncRecords.length > 0) {
-      const { error } = await supabase.from('submissions').insert(ncRecords);
-      if (!error) marked += ncRecords.length;
+        // Chunk the insert: Supabase REST rejects requests without rows that fit
+        // one body (~1000 rows). Inserting tens of thousands of 'missing' rows at
+        // once would exceed that, so we batch in safe slices.
+        const BATCH_SIZE = 900;
+        for (let i = 0; i < ncRecords.length; i += BATCH_SIZE) {
+            const chunk = ncRecords.slice(i, i + BATCH_SIZE);
+            const { error } = await supabase
+                .from("submissions")
+                .insert(chunk);
+            if (error) {
+                console.error("[markNonCompliantSubmissions] batch insert error:", error);
+            } else {
+                marked += chunk.length;
+            }
+        }
     }
 
     return marked;

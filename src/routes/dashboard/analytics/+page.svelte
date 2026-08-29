@@ -105,11 +105,17 @@
     }
 
     function setupRealtime() {
+        const schoolYear = getDynamicSchoolYear();
         channel = supabase
             .channel("analytics-dashboard")
             .on(
                 "postgres_changes",
-                { event: "*", schema: "public", table: "submissions" },
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "submissions",
+                    filter: `school_year=eq.${schoolYear}`,
+                },
                 () => scheduleChartReload(),
             )
             .subscribe();
@@ -174,13 +180,42 @@
         const userProfile = $profile;
         const schoolYear = getDynamicSchoolYear();
 
-        // Fetch weeks from academic_calendar (active only, scoped to the current school year)
+        // 1. Resolve the calendar weeks to display (last 8 ACTIVE weeks, district-scoped)
+        const calendarRes = await supabase
+            .from("academic_calendar")
+            .select("week_number, district_id, is_active")
+            .eq("school_year", schoolYear)
+            .eq("is_active", true)
+            .order("week_number", { ascending: true });
+
+        const calendarData = calendarRes.data || [];
+        const calendar = calendarData.filter(
+            (c: any) =>
+                !userProfile?.district_id ||
+                c.district_id === userProfile.district_id ||
+                !c.district_id,
+        );
+
+        // Use the most recent 8 active weeks so the trend starts from the correct week
+        const weeks =
+            calendar.length > 0
+                ? calendar
+                      .slice(-8)
+                      .map((c: any) => c.week_number)
+                : [1, 2, 3, 4, 5, 6, 7, 8];
+
+        // Store labels using actual week numbers
+        weekLabels = weeks.map((w: number) => `Week ${w}`);
+
+        // 2. Fetch ONLY the rendered weeks — a big data cut vs fetching the whole
+        //    school year, so the page scales without shipping every submission row.
         let uploadsQuery = supabase
             .from("submissions")
             .select(
                 "compliance_status, week_number, school_year, created_at, uploader:profiles!inner(school_id)",
             )
-            .eq("school_year", schoolYear);
+            .eq("school_year", schoolYear)
+            .in("week_number", weeks);
 
         if (schoolId) {
             uploadsQuery = uploadsQuery.eq(
@@ -189,14 +224,8 @@
             );
         }
 
-        const [uploadsRes, calendarRes, loadsRes] = await Promise.all([
+        const [uploadsRes, loadsRes] = await Promise.all([
             uploadsQuery,
-            supabase
-                .from("academic_calendar")
-                .select("week_number, district_id, is_active")
-                .eq("school_year", schoolYear)
-                .eq("is_active", true)
-                .order("week_number", { ascending: true }),
             schoolId
                 ? supabase
                       .from("teaching_loads")
@@ -210,28 +239,8 @@
         const uploads = (uploadsRes.data || []).filter(
             (s: any) => s.school_year === schoolYear,
         );
-        const calendarData = calendarRes.data || [];
-        const calendar = calendarData.filter(
-            (c: any) =>
-                !userProfile?.district_id ||
-                c.district_id === userProfile.district_id ||
-                !c.district_id,
-        );
-
-        const currentDefinedWeeks = await getDefinedWeeksCount(supabase);
 
         const totalExpectedLoads = loadsRes.count || 0;
-
-        // Use the most recent 8 active weeks so the trend starts from the correct week
-        const weeks =
-            calendar.length > 0
-                ? calendar
-                      .slice(-8)
-                      .map((c: any) => c.week_number)
-                : [1, 2, 3, 4, 5, 6, 7, 8];
-
-        // Store labels using actual week numbers
-        weekLabels = weeks.map((w: number) => `Week ${w}`);
 
         return weeks.map((w: number) => {
             const weekSubs = uploads.filter(
@@ -245,6 +254,33 @@
     async function getSchoolComparison(schoolId: string | null = null) {
         const currentDefinedWeeks = await getDefinedWeeksCount(supabase);
 
+        // Prefer server-side SQL aggregation (RPC) so we never ship the whole
+        // submissions table to the browser — this is what makes the page scale.
+        // Falls back to the JS path if the SQL migration hasn't been applied.
+        try {
+            const { data, error } = await supabase.rpc("get_analytics_comparison");
+            if (!error && Array.isArray(data) && data.length > 0) {
+                return (data as any[]).map((r: any) => ({
+                    id: r.id,
+                    name:
+                        r.name ||
+                        (r.school_name || "Unknown").replace(
+                            " Elementary School",
+                            " ES",
+                        ),
+                    compliant: r.compliant ?? 0,
+                    late: r.late ?? 0,
+                    nonCompliant: r.noncompliant ?? 0,
+                    rate: r.rate ?? 0,
+                }));
+            }
+        } catch (err) {
+            console.warn(
+                "[analytics] get_analytics_comparison unavailable, falling back to JS:",
+                err,
+            );
+        }
+
         if (schoolId) {
             // SH view: Compare Teachers in their school
             const [teachersRes, subsRes, loadsRes] = await Promise.all([
@@ -255,7 +291,8 @@
                     .eq("role", "Teacher"),
                 supabase
                     .from("submissions")
-                    .select("compliance_status, user_id"),
+                    .select("compliance_status, user_id")
+                    .eq("school_year", getDynamicSchoolYear()),
                 supabase.from("teaching_loads").select("id, user_id"),
             ]);
 
@@ -290,7 +327,8 @@
             supabase.from("schools").select("id, name"),
             supabase
                 .from("submissions")
-                .select("compliance_status, profiles(school_id)"),
+                .select("compliance_status, profiles(school_id)")
+                .eq("school_year", getDynamicSchoolYear()),
             supabase.from("teaching_loads").select("id, profiles(school_id)"),
         ]);
 

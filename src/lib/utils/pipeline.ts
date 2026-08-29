@@ -200,26 +200,44 @@ async function* runOnlinePipelineResilient(
     ) as { data: any };
     if (hashMatch) throw new Error(`Duplicate content detected on server: ${hashMatch.file_name}`);
 
-    // ─── Server Proxy Upload (Bypass CORS) ───
+    // ─── Direct B2 Upload via Pre-signed URL ───
     yield { phase: 'uploading', progress: 40, message: 'Uploading securely via server...' };
     const session = await supabase.auth.getSession();
     const token = session.data.session?.access_token;
     
     if (!token) throw new Error('Authentication required for archive.');
 
-    // 1. Prepare FormData
-    const formData = new FormData();
-    formData.append('file', new Blob([stampedBytes as any], { type: 'application/pdf' }), fileName);
-    formData.append('key', filePath);
-
-    // 2. Direct POST to our own SvelteKit API (Never hits B2 CORS)
-    const uploadResponse = await withTimeout(
-        fetch('/api/storage/upload', {
+    const contentType = 'application/pdf';
+    const presignResponse = await withTimeout(
+        fetch('/api/storage/presign', {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: formData
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ key: filePath, contentType, intent: 'upload' })
         }),
-        120000, 
+        30000,
+        'Pre-signed URL request timed out.'
+    );
+
+    if (!presignResponse.ok) {
+        let errStr = presignResponse.statusText;
+        try {
+            const errJson = await presignResponse.json();
+            errStr = errJson.message || errStr;
+        } catch { /* ignore */ }
+        throw new Error(`Pre-signed URL failed (${presignResponse.status}): ${errStr}`);
+    }
+
+    const { url: presignedUrl } = await presignResponse.json();
+    const uploadResponse = await withTimeout(
+        fetch(presignedUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': contentType },
+            body: stampedBytes as Blob
+        }),
+        120000,
         'Secure archive upload timed out.'
     );
 
