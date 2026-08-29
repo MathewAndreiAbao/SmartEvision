@@ -49,7 +49,7 @@
 			icon: CloudUpload,
 			section: "Management",
 			mobileNav: true,
-			roles: ["Teacher"],
+			roles: ["Teacher", "School Head", "Master Teacher", "District Supervisor"],
 		},
 		{
 			href: "/dashboard/archive",
