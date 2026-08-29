@@ -7,6 +7,7 @@ export function getAllowedUploadDocTypes(role: string): string[] {
     case 'School Head':
       return ['ISP', 'ISR'];
     case 'District Supervisor':
+      return ['ISR'];
     default:
       return [];
   }
@@ -53,7 +54,7 @@ export function getUploadGuidance(role: string): string {
     case 'School Head':
       return 'School Heads may upload ISP and ISR documents only.';
     case 'District Supervisor':
-      return 'District Supervisors do not have upload permission in this workflow.';
+      return 'District Supervisors may upload ISR documents only.';
     default:
       return 'Please sign in to continue.';
   }
