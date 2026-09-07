@@ -20,9 +20,7 @@
 {#if totalCount > 0}
     <div class="mb-6" in:fly={{ y: -10, duration: 300 }}>
         <div
-            class="gov-card overflow-hidden border-l-4 {isHighSeverity
-                ? ‘border-l-gov-red’
-                : ‘border-l-gov-gold’} {isHighSeverity ? ‘bg-gov-red/5’ : ‘bg-gov-gold/5’}"
+            class={`gov-card overflow-hidden border-l-4 ${isHighSeverity ? ‘border-l-gov-red’ : ‘border-l-gov-gold’} ${isHighSeverity ? ‘bg-gov-red/5’ : ‘bg-gov-gold/5’}`}
         >
             <button
                 class="w-full flex items-center justify-between gap-4 px-4 sm:px-6 py-4 sm:py-5 cursor-pointer text-left hover:bg-black/2 transition-colors duration-200"
