@@ -266,7 +266,7 @@
 				<p
 					class="mt-1 text-[9px] font-bold uppercase tracking-[0.3em] text-gov-blue/80"
 				>
-					Smart E-Vision
+					Calapan East District
 				</p>
 			</div>
 		</div>

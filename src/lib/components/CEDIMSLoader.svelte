@@ -7,44 +7,20 @@
 </script>
 
 <div class="cedims-loader" role="status" aria-label={label} class:compact>
-    <!-- Animated CEDIMS Logo Icon -->
+    <!-- Official Calapan East District Logo -->
     <div class="logo-container" aria-hidden="true">
-        <svg viewBox="0 0 120 120" class="logo-icon">
-            <!-- Shield background -->
-            <defs>
-                <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style="stop-color:#2563eb;stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
-                </linearGradient>
-                <linearGradient id="pulseGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.2" />
-                    <stop offset="50%" style="stop-color:#60a5fa;stop-opacity:0.5" />
-                    <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0.2" />
-                </linearGradient>
-            </defs>
-
-            <!-- Pulsing outer ring -->
-            <circle cx="60" cy="60" r="58" class="pulse-ring" stroke="url(#pulseGradient)" stroke-width="2" fill="none" />
-
-            <!-- Main shield -->
-            <path d="M 60 15 L 90 35 L 90 65 Q 60 95 60 95 Q 30 65 30 35 Z" fill="url(#logoGradient)" class="shield" />
-
-            <!-- Check mark inside shield -->
-            <g class="check-mark" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none">
-                <path d="M 48 60 L 56 68 L 72 52" />
-            </g>
-
-            <!-- Rotating accent line -->
-            <g class="accent-line">
-                <line x1="60" y1="10" x2="60" y2="25" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" opacity="0.6" />
-            </g>
-        </svg>
+        <img
+            src="/app_icon.png"
+            alt="CEDIMS Logo"
+            class="logo-image"
+            loading="eager"
+        />
     </div>
 
     <!-- Text Label -->
     <div class="text-container">
         <h1 class="cedims-text">CEDIMS</h1>
-        <p class="subtitle">Compliance Education Daily Instructional Monitoring System</p>
+        <p class="subtitle">Calapan East District Instructional Monitoring System</p>
     </div>
 
     <!-- Progress Bar -->
@@ -74,84 +50,29 @@
 
     .logo-container {
         position: relative;
-        width: 140px;
-        height: 140px;
         display: flex;
         align-items: center;
         justify-content: center;
     }
-    .cedims-loader.compact .logo-container {
+
+    .logo-image {
+        width: 140px;
+        height: 140px;
+        object-fit: contain;
+        filter: drop-shadow(0 4px 16px rgba(37, 99, 235, 0.25));
+        animation: logo-float 3s ease-in-out infinite;
+    }
+    .cedims-loader.compact .logo-image {
         width: 100px;
         height: 100px;
     }
 
-    .logo-icon {
-        width: 100%;
-        height: 100%;
-        filter: drop-shadow(0 4px 12px rgba(37, 99, 235, 0.2));
-    }
-
-    .pulse-ring {
-        animation: pulse-ring 2s ease-in-out infinite;
-    }
-    @keyframes pulse-ring {
-        0%, 100% {
-            r: 58;
-            opacity: 0.3;
-        }
-        50% {
-            r: 66;
-            opacity: 0;
-        }
-    }
-
-    .shield {
-        animation: shield-float 3s ease-in-out infinite;
-    }
-    @keyframes shield-float {
+    @keyframes logo-float {
         0%, 100% {
             transform: translateY(0px);
         }
         50% {
             transform: translateY(-8px);
-        }
-    }
-
-    .check-mark {
-        animation: check-draw 1s ease-in-out 0.4s forwards, check-pulse 2s ease-in-out 1.4s infinite;
-        opacity: 0;
-    }
-    @keyframes check-draw {
-        from {
-            stroke-dasharray: 50;
-            stroke-dashoffset: 50;
-            opacity: 0;
-        }
-        to {
-            stroke-dasharray: 50;
-            stroke-dashoffset: 0;
-            opacity: 1;
-        }
-    }
-    @keyframes check-pulse {
-        0%, 100% {
-            opacity: 1;
-        }
-        50% {
-            opacity: 0.6;
-        }
-    }
-
-    .accent-line {
-        animation: rotate-accent 2s linear infinite;
-        transform-origin: 60px 60px;
-    }
-    @keyframes rotate-accent {
-        from {
-            transform: rotate(0deg);
-        }
-        to {
-            transform: rotate(360deg);
         }
     }
 
@@ -179,12 +100,14 @@
         letter-spacing: 0.05em;
         text-transform: uppercase;
         color: #718096;
-        margin-top: 0.25rem;
+        margin-top: 0.5rem;
         margin: 0;
-        max-width: 200px;
+        max-width: 240px;
+        line-height: 1.4;
     }
     .cedims-loader.compact .subtitle {
-        display: none;
+        font-size: 0.65rem;
+        max-width: 180px;
     }
 
     .progress-bar {
