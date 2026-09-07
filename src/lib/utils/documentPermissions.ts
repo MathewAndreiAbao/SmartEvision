@@ -59,3 +59,32 @@ export function getUploadGuidance(role: string): string {
       return 'Please sign in to continue.';
   }
 }
+
+/**
+ * Check if a user can view an uploaded ISP/ISR document.
+ * ISP/ISR uploads are only visible to:
+ * - District Supervisors (can see all)
+ * - The person who uploaded it
+ */
+export function canViewUploadedISPISR(
+  role: string,
+  docType: string,
+  uploaderId: string,
+  currentUserId: string
+): boolean {
+  // Not ISP/ISR, use regular rules
+  if (docType !== 'ISP' && docType !== 'ISR') {
+    return canViewArchivedDocument(role, docType);
+  }
+
+  // ISP/ISR: only District Supervisor or uploader can view
+  if (role === 'District Supervisor') {
+    return true;
+  }
+
+  if (uploaderId === currentUserId) {
+    return true;
+  }
+
+  return false;
+}

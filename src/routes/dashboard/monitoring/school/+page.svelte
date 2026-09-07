@@ -32,6 +32,7 @@
     import ClusterVisualization from "$lib/components/ClusterVisualization.svelte";
     import { cacheMetadata, getCachedMetadata } from "$lib/utils/offline";
   import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
+  import { canViewUploadedISPISR } from "$lib/utils/documentPermissions";
 
     // Data
     interface Teacher {
@@ -217,9 +218,15 @@
 
         allSubmissions = (subsRes.data || []).map((s: any) => s as Submission);
         const teacherIds = new Set(teachers.map((t: Teacher) => t.id));
-        allSubmissions = allSubmissions.filter((s: Submission) =>
-            teacherIds.has(s.user_id),
-        );
+        allSubmissions = allSubmissions.filter((s: Submission) => {
+            // Include submission if from a teacher in this school
+            if (!teacherIds.has(s.user_id)) {
+                return false;
+            }
+            // Additional filter for ISP/ISR: only show if School Head uploaded it
+            const role = userProfile?.role || '';
+            return canViewUploadedISPISR(role, s.doc_type, s.user_id, userProfile?.id || '');
+        });
 
         // Calculate KPIs
         const totalSchoolLoads = teachers.reduce(

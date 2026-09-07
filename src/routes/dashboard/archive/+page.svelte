@@ -8,6 +8,7 @@
     import {
         canViewArchivedDocument,
         canAddReviewRemarks,
+        canViewUploadedISPISR,
     } from "$lib/utils/documentPermissions";
     import { shareVerification } from "$lib/utils/shareIntegration";
     import { addToast } from "$lib/stores/toast";
@@ -405,7 +406,16 @@
 
     // Get submissions filtered by the current path
     const filteredByPath = $derived.by(() => {
-        let filtered = allSubmissions.filter((s) => canViewArchivedDocument($profile?.role || '', s.doc_type));
+        const role = $profile?.role || '';
+        const userId = $profile?.id || '';
+        let filtered = allSubmissions.filter((s) => {
+            // Check if user can view this document type in general
+            if (!canViewArchivedDocument(role, s.doc_type)) {
+                return false;
+            }
+            // Additional check for ISP/ISR visibility (District Supervisor or uploader only)
+            return canViewUploadedISPISR(role, s.doc_type, s.user_id, userId);
+        });
         for (const seg of currentPath) {
             if (seg.type === "docType") {
                 filtered = filtered.filter((s) => s.doc_type === seg.id);
