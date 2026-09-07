@@ -16,11 +16,13 @@
     const totalCount = $derived(alerts.length);
     const isHighSeverity = $derived(highSeverityAlerts.length > 0);
 
-    const cardClass = isHighSeverity ? "gov-card overflow-hidden border-l-4 border-l-gov-red" : "gov-card overflow-hidden border-l-4 border-l-gov-gold";
-    const iconBg = isHighSeverity ? "rgba(220, 38, 38, 0.2)" : "rgba(217, 119, 6, 0.2)";
-    const iconColor = isHighSeverity ? "#dc2626" : "#d97706";
-    const badgeBg = isHighSeverity ? "#dc2626" : "#d97706";
-    const cardBg = isHighSeverity ? "rgba(220, 38, 38, 0.05)" : "rgba(217, 119, 6, 0.05)";
+    const cardClass = $derived(
+        isHighSeverity ? "gov-card overflow-hidden border-l-4 border-l-gov-red" : "gov-card overflow-hidden border-l-4 border-l-gov-gold"
+    );
+    const iconBg = $derived(isHighSeverity ? "rgba(220, 38, 38, 0.2)" : "rgba(217, 119, 6, 0.2)");
+    const iconColor = $derived(isHighSeverity ? "#dc2626" : "#d97706");
+    const badgeBg = $derived(isHighSeverity ? "#dc2626" : "#d97706");
+    const cardBg = $derived(isHighSeverity ? "rgba(220, 38, 38, 0.05)" : "rgba(217, 119, 6, 0.05)");
 </script>
 
 {#if totalCount > 0}
