@@ -154,9 +154,10 @@
         if (!userProfile) return;
 
         const role = userProfile.role;
+        console.log('[archive] Loading with role:', role, 'userId:', userProfile.id, 'schoolId:', userProfile.school_id, 'districtId:', userProfile.district_id);
 
         // â”€â”€ Offline: restore cached archive view ─â”€
-        if (typeof navigator !== "undefined" && !navigator.onLine) {
+        if (typeof navigator !== “undefined” && !navigator.onLine) {
             const cached = await getCachedMetadata(`archive_state_${role}_${userProfile.id}`);
             if (cached?.data) {
                 allSubmissions = cached.data.submissions || [];
@@ -194,6 +195,7 @@
                 .order("created_at", { ascending: false });
 
             allSubmissions = getRows<Submission>(data);
+            console.log('[archive] Master Teacher loaded', allSubmissions.length, 'submissions:', allSubmissions.map(s => ({ id: s.id, docType: s.doc_type, userId: s.user_id })));
             teachersMap = buildTeachersMap(allSubmissions);
         } else if (role === "School Head") {
             if (!userProfile.school_id) return;
@@ -208,6 +210,7 @@
                 .order("created_at", { ascending: false });
 
             allSubmissions = getRows<Submission>(data);
+            console.log('[archive] School Head loaded', allSubmissions.length, 'submissions:', allSubmissions.map(s => ({ id: s.id, docType: s.doc_type, userId: s.user_id })));
             teachersMap = buildTeachersMap(allSubmissions);
         } else if (role === "District Supervisor") {
             // District-scoped: fetch submissions from all schools in district
@@ -251,6 +254,7 @@
                     school_avatar: schoolInfo?.avatar_url || null
                 };
             });
+            console.log('[archive] District Supervisor loaded', allSubmissions.length, 'submissions from', schools.length, 'schools:', allSubmissions.map(s => ({ id: s.id, docType: s.doc_type, userId: s.user_id })));
 
             teachersMap = buildTeachersMap(allSubmissions);
         }
@@ -411,11 +415,17 @@
         let filtered = allSubmissions.filter((s) => {
             // Check if user can view this document type in general
             if (!canViewArchivedDocument(role, s.doc_type)) {
+                console.log('[archive] Filtered out', s.id, s.doc_type, '- canViewArchivedDocument returned false');
                 return false;
             }
             // Additional check for ISP/ISR visibility (District Supervisor or uploader only)
-            return canViewUploadedISPISR(role, s.doc_type, s.user_id, userId);
+            const canView = canViewUploadedISPISR(role, s.doc_type, s.user_id, userId);
+            if (!canView) {
+                console.log('[archive] Filtered out', s.id, s.doc_type, '- canViewUploadedISPISR returned false (userId:', s.user_id, 'currentUserId:', userId, ')');
+            }
+            return canView;
         });
+        console.log('[archive] After visibility filter:', filtered.length, 'submissions remain, docTypes:', [...new Set(filtered.map(s => s.doc_type))].join(', '));
         for (const seg of currentPath) {
             if (seg.type === "docType") {
                 filtered = filtered.filter((s) => s.doc_type === seg.id);
@@ -502,17 +512,19 @@
     function getDocTypeFolders(subs: Submission[]): FolderItem[] {
         const grouped = new Map<string, number>();
         for (const s of subs) {
-            const dt = s.doc_type || "Other";
+            const dt = s.doc_type || “Other”;
             grouped.set(dt, (grouped.get(dt) || 0) + 1);
         }
-        return Array.from(grouped.entries())
+        const result = Array.from(grouped.entries())
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([dt, count]) => ({
                 id: dt,
                 label: dt,
                 count,
-                type: "docType" as const,
+                type: “docType” as const,
             }));
+        console.log('[archive] getDocTypeFolders created', result.length, 'folders:', result.map(f => f.label).join(', '));
+        return result;
     }
 
     function getSchoolFolders(subs: Submission[]): FolderItem[] {
