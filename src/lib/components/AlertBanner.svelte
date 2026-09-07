@@ -15,18 +15,24 @@
     );
     const totalCount = $derived(alerts.length);
     const isHighSeverity = $derived(highSeverityAlerts.length > 0);
+
+    const cardClass = isHighSeverity ? "gov-card overflow-hidden border-l-4 border-l-gov-red" : "gov-card overflow-hidden border-l-4 border-l-gov-gold";
+    const iconBg = isHighSeverity ? "rgba(220, 38, 38, 0.2)" : "rgba(217, 119, 6, 0.2)";
+    const iconColor = isHighSeverity ? "#dc2626" : "#d97706";
+    const badgeBg = isHighSeverity ? "#dc2626" : "#d97706";
+    const cardBg = isHighSeverity ? "rgba(220, 38, 38, 0.05)" : "rgba(217, 119, 6, 0.05)";
 </script>
 
 {#if totalCount > 0}
     <div class="mb-6" in:fly={{ y: -10, duration: 300 }}>
-        <div class="gov-card overflow-hidden border-l-4" class:border-l-gov-red={isHighSeverity} class:border-l-gov-gold={!isHighSeverity} class:bg-gov-red-opacity={isHighSeverity} class:bg-gov-gold-opacity={!isHighSeverity} style="background-color: {isHighSeverity ? 'rgba(220, 38, 38, 0.05)' : 'rgba(217, 119, 6, 0.05)'}">
+        <div class={cardClass} style="background-color: {cardBg}">
             <button
                 class="w-full flex items-center justify-between gap-4 px-4 sm:px-6 py-4 sm:py-5 cursor-pointer text-left hover:bg-black/2 transition-colors duration-200"
                 onclick={() => (expanded = !expanded)}
                 aria-expanded={expanded}
             >
                 <div class="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
-                    <div class="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center" style="background-color: {isHighSeverity ? 'rgba(220, 38, 38, 0.2)' : 'rgba(217, 119, 6, 0.2)'}; color: {isHighSeverity ? '#dc2626' : '#d97706'}">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center" style="background-color: {iconBg}; color: {iconColor}">
                         {#if isHighSeverity}
                             <AlertTriangle size={20} strokeWidth={2.5} />
                         {:else}
@@ -37,7 +43,7 @@
                     <div class="min-w-0 flex-1">
                         <h3 class="font-bold text-text-primary text-sm sm:text-base flex items-center gap-2 flex-wrap">
                             Compliance Alerts
-                            <span class="inline-flex items-center justify-center px-2 py-1 rounded-lg text-xs font-bold text-white" style="background-color: {isHighSeverity ? '#dc2626' : '#d97706'}">
+                            <span class="inline-flex items-center justify-center px-2 py-1 rounded-lg text-xs font-bold text-white" style="background-color: {badgeBg}">
                                 {totalCount}
                             </span>
                         </h3>
