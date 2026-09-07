@@ -37,8 +37,8 @@ export async function POST({ request }) {
     if (!file || !(file instanceof Blob)) throw error(400, 'Missing or invalid file');
     if (!key || typeof key !== 'string') throw error(400, 'Missing key');
 
-    // Check size limit (Vercel Serverless Function limit is 4.5MB, we fail gracefully at 4MB to be safe)
-    const MAX_SIZE = 4.2 * 1024 * 1024;
+    // Check size limit (Vercel Serverless Function limit is 4.5MB, we use 4.4MB to be safe)
+    const MAX_SIZE = 4.4 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
         throw error(413, 'File exceeds the 4.2MB limit for server-side uploads. Please compress your PDF.');
     }
