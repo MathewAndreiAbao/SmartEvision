@@ -30,7 +30,13 @@
             >
                 <div class="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
                     <!-- Icon -->
-                    <div class="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center" class:bg-gov-red/20={isHighSeverity} class:bg-gov-gold/20={!isHighSeverity} class:text-gov-red={isHighSeverity} class:text-gov-gold-dark={!isHighSeverity}>
+                    <div
+                        class="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
+                        class:bg-gov-red/20={isHighSeverity}
+                        class:bg-gov-gold/20={!isHighSeverity}
+                        class:text-gov-red={isHighSeverity}
+                        class:text-gov-gold-dark={!isHighSeverity}
+                    >
                         {#if isHighSeverity}
                             <AlertTriangle size={20} strokeWidth={2.5} />
                         {:else}
@@ -42,7 +48,11 @@
                     <div class="min-w-0 flex-1">
                         <h3 class="font-bold text-text-primary text-sm sm:text-base flex items-center gap-2 flex-wrap">
                             Compliance Alerts
-                            <span class="inline-flex items-center justify-center px-2 py-1 rounded-lg text-xs font-bold text-white" class:bg-gov-red={isHighSeverity} class:bg-gov-gold={!isHighSeverity}>
+                            <span
+                                class="inline-flex items-center justify-center px-2 py-1 rounded-lg text-xs font-bold text-white"
+                                class:bg-gov-red={isHighSeverity}
+                                class:bg-gov-gold={!isHighSeverity}
+                            >
                                 {totalCount}
                             </span>
                         </h3>
@@ -96,7 +106,11 @@
 
                                     <!-- Severity & Action -->
                                     <div class="flex items-center justify-between sm:flex-col sm:items-end gap-3 flex-shrink-0">
-                                        <span class="text-xs font-bold uppercase px-3 py-1.5 rounded-lg text-white" class:bg-gov-red={alert.severity === "high"} class:bg-gov-gold={alert.severity !== "high"}>
+                                        <span
+                                            class="text-xs font-bold uppercase px-3 py-1.5 rounded-lg text-white"
+                                            class:bg-gov-red={alert.severity === "high"}
+                                            class:bg-gov-gold={alert.severity !== "high"}
+                                        >
                                             {alert.severity}
                                         </span>
                                         <button class="text-xs font-bold text-gov-blue hover:text-gov-blue-dark transition-colors flex items-center gap-1 whitespace-nowrap">
