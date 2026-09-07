@@ -244,18 +244,19 @@
 	<!-- Logo Section — Enhanced -->
 	<a
 		href="/dashboard"
-		class="block border-b border-border-subtle px-6 py-6 no-underline hover:bg-gov-blue/5 transition-colors duration-200"
+		class="block border-b border-border-subtle px-6 py-6 no-underline hover:bg-gov-blue/5 transition-colors duration-200 relative z-10"
 		aria-label="Go to Dashboard"
 	>
 		<div class="flex items-center gap-4">
-			<div class="p-2.5 bg-gradient-to-br from-gov-blue to-gov-blue-vibrant rounded-xl shadow-md flex-shrink-0">
+			<div class="relative p-2.5 bg-gradient-to-br from-gov-blue to-gov-blue-vibrant rounded-xl shadow-md flex-shrink-0 z-20 flex items-center justify-center">
 				<img
 					src="/app_icon.png"
 					alt="CEDIMS"
-					class="h-8 w-8 rounded-md brightness-0 invert"
+					class="h-8 w-8 rounded-md brightness-0 invert flex-shrink-0"
+					loading="eager"
 				/>
 			</div>
-			<div>
+			<div class="relative z-10">
 				<h1
 					id="dashboard-title"
 					class="text-base font-bold text-text-primary leading-tight"

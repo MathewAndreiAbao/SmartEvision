@@ -98,7 +98,7 @@
         <div class="relative">
             <button
                 onclick={() => profileMenuOpen = !profileMenuOpen}
-                class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gov-blue/10 transition-colors duration-200"
+                class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gov-blue/10 transition-colors duration-200 relative z-20"
                 aria-expanded={profileMenuOpen}
                 aria-label="Profile menu"
             >
@@ -106,11 +106,12 @@
                     <img
                         src={$profile.avatar_url}
                         alt={$profile.full_name}
-                        class="h-8 w-8 rounded-lg border-2 border-gov-blue/20 object-cover"
+                        class="h-8 w-8 rounded-lg border-2 border-gov-blue/20 object-cover flex-shrink-0"
+                        loading="lazy"
                     />
                 {:else}
                     <div
-                        class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-gov-blue to-gov-blue-vibrant text-xs font-bold text-white"
+                        class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-gov-blue to-gov-blue-vibrant text-xs font-bold text-white flex-shrink-0"
                     >
                         {$profile?.full_name?.charAt(0) || "U"}
                     </div>
