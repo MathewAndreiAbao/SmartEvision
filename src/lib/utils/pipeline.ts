@@ -200,54 +200,120 @@ async function* runOnlinePipelineResilient(
     ) as { data: any };
     if (hashMatch) throw new Error(`Duplicate content detected on server: ${hashMatch.file_name}`);
 
-    // ─── Direct B2 Upload via Pre-signed URL ───
+    // ─── Server-Side Upload (CORS-Safe) with B2 Presigned Fallback ───
     yield { phase: 'uploading', progress: 40, message: 'Uploading securely via server...' };
     const session = await supabase.auth.getSession();
     const token = session.data.session?.access_token;
-    
+
     if (!token) throw new Error('Authentication required for archive.');
 
     const contentType = 'application/pdf';
-    const presignResponse = await withTimeout(
-        fetch('/api/storage/presign', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ key: filePath, contentType, intent: 'upload' })
-        }),
-        30000,
-        'Pre-signed URL request timed out.'
-    );
+    const MAX_SERVER_UPLOAD = 4.2 * 1024 * 1024; // 4.2MB limit for Vercel
+    const fileBlob = stampedBytes as Blob;
 
-    if (!presignResponse.ok) {
-        let errStr = presignResponse.statusText;
+    // Strategy 1: Try server-side upload first (avoids CORS entirely)
+    let uploadSuccess = false;
+    let uploadError: Error | null = null;
+
+    if (fileBlob.size <= MAX_SERVER_UPLOAD) {
+        yield { phase: 'uploading', progress: 45, message: 'Uploading via secure server route...' };
         try {
-            const errJson = await presignResponse.json();
-            errStr = errJson.message || errStr;
-        } catch { /* ignore */ }
-        throw new Error(`Pre-signed URL failed (${presignResponse.status}): ${errStr}`);
+            const formData = new FormData();
+            formData.append('file', fileBlob, 'document.pdf');
+            formData.append('key', filePath);
+
+            const serverUploadResponse = await withTimeout(
+                fetch('/api/storage/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: formData
+                }),
+                120000,
+                'Server upload timed out.'
+            );
+
+            if (serverUploadResponse.ok) {
+                uploadSuccess = true;
+                console.log('[pipeline] Server-side upload succeeded (CORS-safe)');
+            } else {
+                uploadError = new Error(`Server upload failed: ${serverUploadResponse.statusText}`);
+                console.warn('[pipeline] Server upload failed, trying presigned URL...', uploadError);
+            }
+        } catch (err: any) {
+            uploadError = err;
+            console.warn('[pipeline] Server upload error, trying presigned URL...', err.message);
+        }
+    } else {
+        console.log('[pipeline] File too large for server upload, using presigned URL');
     }
 
-    const { url: presignedUrl } = await presignResponse.json();
-    const uploadResponse = await withTimeout(
-        fetch(presignedUrl, {
-            method: 'PUT',
-            headers: { 'Content-Type': contentType },
-            body: stampedBytes as Blob
-        }),
-        120000,
-        'Secure archive upload timed out.'
-    );
-
-    if (!uploadResponse.ok) {
-        let errStr = uploadResponse.statusText;
+    // Strategy 2: Fallback to B2 presigned URL if server upload failed or file too large
+    if (!uploadSuccess) {
+        yield { phase: 'uploading', progress: 50, message: 'Uploading to cloud storage...' };
         try {
-            const errJson = await uploadResponse.json();
-            errStr = errJson.message || errStr;
-        } catch { /* ignore */ }
-        throw new Error(`Archive upload failed (${uploadResponse.status}): ${errStr}`);
+            const presignResponse = await withTimeout(
+                fetch('/api/storage/presign', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ key: filePath, contentType, intent: 'upload' })
+                }),
+                30000,
+                'Pre-signed URL request timed out.'
+            );
+
+            if (!presignResponse.ok) {
+                let errStr = presignResponse.statusText;
+                try {
+                    const errJson = await presignResponse.json();
+                    errStr = errJson.message || errStr;
+                } catch { /* ignore */ }
+                throw new Error(`Pre-signed URL failed (${presignResponse.status}): ${errStr}`);
+            }
+
+            const { url: presignedUrl } = await presignResponse.json();
+            const uploadResponse = await withTimeout(
+                fetch(presignedUrl, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': contentType },
+                    body: fileBlob
+                }),
+                120000,
+                'B2 archive upload timed out.'
+            );
+
+            if (!uploadResponse.ok) {
+                let errStr = uploadResponse.statusText;
+                try {
+                    const errJson = await uploadResponse.json();
+                    errStr = errJson.message || errStr;
+                } catch { /* ignore */ }
+
+                // CORS error detected - provide helpful message
+                if (errStr.includes('CORS') || errStr.includes('Access')) {
+                    throw new Error('B2 CORS not configured. See DEPLOYMENT_FIXES.md for setup instructions. Using server-side upload as fallback.');
+                }
+                throw new Error(`Archive upload failed (${uploadResponse.status}): ${errStr}`);
+            }
+
+            uploadSuccess = true;
+            console.log('[pipeline] B2 presigned URL upload succeeded');
+        } catch (err: any) {
+            // If B2 fails too, throw error with helpful guidance
+            const msg = err.message || 'Upload failed';
+            if (msg.includes('CORS')) {
+                throw new Error(`${msg} CORS configuration needed on B2 bucket for cedims.vercel.app`);
+            }
+            throw err;
+        }
+    }
+
+    if (!uploadSuccess) {
+        throw new Error('File upload failed on both server and B2 storage');
     }
 
     // DB Record
