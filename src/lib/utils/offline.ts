@@ -514,27 +514,61 @@ export async function processQueue(force = false): Promise<{ success: number; fa
 
                 const { url: presignedUrl } = await presignResponse.json();
 
-                // 2. Direct PUT browser -> B2 (no server-side 4.2 MB limit)
-                const putResponse = await withTimeout(
-                    fetch(presignedUrl, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': contentType },
-                        body: item.pdfBytes as Blob
-                    }),
-                    120000,
-                    'Sync archive upload timed out'
-                ).catch(err => {
-                    console.error('[sync] Fetch error during B2 direct upload.', err);
-                    throw err;
-                });
+                // 2a. Try server-side upload first (CORS-safe, avoids B2 preflight)
+                const MAX_SERVER = 4.4 * 1024 * 1024;
+                let uploadSuccess = false;
 
-                if (!putResponse.ok) {
-                    let errStr = putResponse.statusText;
+                if ((item.pdfBytes as Blob).size <= MAX_SERVER) {
                     try {
-                        const errJson = await putResponse.json();
-                        errStr = errJson.message || errStr;
-                    } catch { /* ignore */ }
-                    throw new Error(`Archive upload failed (${putResponse.status}): ${errStr}`);
+                        console.log('[sync] Attempting server-side upload (CORS-safe)...');
+                        const serverForm = new FormData();
+                        serverForm.append('file', item.pdfBytes as Blob, 'document.pdf');
+                        serverForm.append('key', item.key);
+
+                        const serverResponse = await withTimeout(
+                            fetch('/api/storage/upload', {
+                                method: 'POST',
+                                headers: { 'Authorization': `Bearer ${token}` },
+                                body: serverForm
+                            }),
+                            120000,
+                            'Server sync upload timed out'
+                        );
+
+                        if (serverResponse.ok) {
+                            console.log('[sync] ✅ Server-side upload succeeded in offline sync');
+                            uploadSuccess = true;
+                        } else {
+                            console.warn('[sync] Server upload failed, trying B2 presigned URL...');
+                        }
+                    } catch (err) {
+                        console.warn('[sync] Server upload error, falling back to B2...', (err as Error).message);
+                    }
+                }
+
+                // 2b. Fallback to direct PUT -> B2 if server upload failed or file too large
+                if (!uploadSuccess) {
+                    const putResponse = await withTimeout(
+                        fetch(presignedUrl, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': contentType },
+                            body: item.pdfBytes as Blob
+                        }),
+                        120000,
+                        'B2 sync archive upload timed out'
+                    ).catch(err => {
+                        console.error('[sync] Fetch error during B2 upload fallback.', err);
+                        throw err;
+                    });
+
+                    if (!putResponse.ok) {
+                        let errStr = putResponse.statusText;
+                        try {
+                            const errJson = await putResponse.json();
+                            errStr = errJson.message || errStr;
+                        } catch { /* ignore */ }
+                        throw new Error(`B2 Archive upload failed (${putResponse.status}): ${errStr}`);
+                    }
                 }
 
                 // ── Fetch deadline for compliance + calendar_id ──

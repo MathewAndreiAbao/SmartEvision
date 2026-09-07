@@ -208,12 +208,14 @@ async function* runOnlinePipelineResilient(
     if (!token) throw new Error('Authentication required for archive.');
 
     const contentType = 'application/pdf';
-    const MAX_SERVER_UPLOAD = 4.2 * 1024 * 1024; // 4.2MB limit for Vercel
+    const MAX_SERVER_UPLOAD = 4.4 * 1024 * 1024; // 4.4MB limit for Vercel (4.5MB - safety margin)
     const fileBlob = stampedBytes as Blob;
 
     // Strategy 1: Try server-side upload first (avoids CORS entirely)
     let uploadSuccess = false;
     let uploadError: Error | null = null;
+
+    console.log(`[pipeline] File size: ${(fileBlob.size / 1024 / 1024).toFixed(2)}MB, Max server: ${(MAX_SERVER_UPLOAD / 1024 / 1024).toFixed(2)}MB`);
 
     if (fileBlob.size <= MAX_SERVER_UPLOAD) {
         yield { phase: 'uploading', progress: 45, message: 'Uploading via secure server route...' };
@@ -221,6 +223,8 @@ async function* runOnlinePipelineResilient(
             const formData = new FormData();
             formData.append('file', fileBlob, 'document.pdf');
             formData.append('key', filePath);
+
+            console.log('[pipeline] Starting server-side upload via /api/storage/upload');
 
             const serverUploadResponse = await withTimeout(
                 fetch('/api/storage/upload', {
@@ -231,22 +235,24 @@ async function* runOnlinePipelineResilient(
                     body: formData
                 }),
                 120000,
-                'Server upload timed out.'
+                'Server upload timed out. Check internet connection.'
             );
 
             if (serverUploadResponse.ok) {
                 uploadSuccess = true;
-                console.log('[pipeline] Server-side upload succeeded (CORS-safe)');
+                console.log('[pipeline] ✅ Server-side upload succeeded (CORS-safe, no B2 needed)');
             } else {
-                uploadError = new Error(`Server upload failed: ${serverUploadResponse.statusText}`);
-                console.warn('[pipeline] Server upload failed, trying presigned URL...', uploadError);
+                const errText = await serverUploadResponse.text().catch(() => serverUploadResponse.statusText);
+                uploadError = new Error(`Server upload HTTP ${serverUploadResponse.status}: ${errText}`);
+                console.warn('[pipeline] Server upload failed, retrying with B2...', uploadError);
             }
         } catch (err: any) {
             uploadError = err;
-            console.warn('[pipeline] Server upload error, trying presigned URL...', err.message);
+            console.warn('[pipeline] Server upload error, falling back to B2...', err.message);
         }
     } else {
-        console.log('[pipeline] File too large for server upload, using presigned URL');
+        uploadError = new Error(`File size ${(fileBlob.size / 1024 / 1024).toFixed(2)}MB exceeds server limit`);
+        console.log(`[pipeline] ${uploadError.message}. Using B2 presigned URL...`);
     }
 
     // Strategy 2: Fallback to B2 presigned URL if server upload failed or file too large
