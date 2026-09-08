@@ -456,8 +456,18 @@
                 console.log('[archive] Filtered out', s.id, s.doc_type, '- canViewArchivedDocument returned false');
                 return false;
             }
-            // Additional check for ISP/ISR visibility (District Supervisor or uploader only)
-            const canView = canViewUploadedISPISR(role, s.doc_type, s.user_id, userId);
+            // Additional check for ISP/ISR visibility
+            const canView = canViewUploadedISPISR(
+                role,
+                userId,
+                s.user_id,
+                s.uploader?.role || 'Teacher',
+                s.doc_type,
+                $profile?.school_id || null,
+                s.uploader?.school_id || null,
+                $profile?.district_id || null,
+                s.uploader?.district_id || null
+            );
             if (!canView) {
                 console.log('[archive] Filtered out', s.id, s.doc_type, '- canViewUploadedISPISR returned false (userId:', s.user_id, 'currentUserId:', userId, ')');
             }
