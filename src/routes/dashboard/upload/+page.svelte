@@ -21,6 +21,7 @@
     import { settings } from "$lib/stores/settings";
     import { addToast } from "$lib/stores/toast";
     import { supabase } from "$lib/utils/supabase";
+    import { goto } from "$app/navigation";
     import { onMount, untrack } from "svelte";
     import { fade } from "svelte/transition";
     import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
@@ -277,6 +278,12 @@
     $effect(() => {
         if ($profile && dataLoadedForProfile !== $profile.id) {
             untrack(() => {
+                // District Supervisors cannot upload - redirect to archive
+                if ($profile!.role === 'District Supervisor') {
+                    addToast('info', 'District Supervisors use the Documents tab to review submissions and add remarks.');
+                    goto('/dashboard/archive');
+                    return;
+                }
                 fetchInitialData($profile!);
                 dataLoadedForProfile = $profile!.id;
             });
@@ -348,8 +355,10 @@
             teachingLoads = [];
             teachingLoadId = "";
             weekNumber = undefined;
-            if (navigator.onLine) {
-                addToast("error", "No teaching loads were found for your account. Please contact your administrator.");
+            // Only show error if uploading DLL (which requires teaching load)
+            // School Head and Master Teacher uploading ISP/ISR don't need teaching loads
+            if (navigator.onLine && docType === 'DLL') {
+                addToast("error", "No teaching loads found. Please configure at least one teaching load before uploading DLL documents.");
             }
         }
 
@@ -939,10 +948,16 @@
                     <div class="flex items-center justify-between mb-4">
                         <div class="flex flex-col">
                             <h3 class="text-lg font-bold text-text-primary">
-                                Document Review
+                                {docType === 'DLL' ? 'Document Review' : 'Document Details'}
                             </h3>
                             <p class="text-[10px] text-text-muted font-medium">
-                                Review the detected load and week before submission
+                                {docType === 'DLL'
+                                    ? 'Review the detected load and week before submission'
+                                    : docType === 'ISP'
+                                        ? 'Upload your Individual School Plan for review'
+                                        : docType === 'ISR'
+                                            ? 'Upload your Individual School Report for review'
+                                            : 'Review your document details before submission'}
                             </p>
                         </div>
                         {#if detectingMetadata}
@@ -1347,23 +1362,62 @@
         <div class="space-y-6">
             <div class="gov-card-static p-6">
                 <h3 class="text-lg font-bold text-text-primary mb-4">
-                    Before You Upload
+                    {docType === 'DLL' ? 'Before Uploading DLL' : `Uploading ${docType}`}
                 </h3>
                 <ul class="space-y-3 text-sm text-text-secondary">
-                    <li class="flex items-start gap-3">
-                        <span class="w-7 h-7 rounded-full bg-gov-blue/10 text-gov-blue text-xs font-bold flex items-center justify-center flex-shrink-0">1</span>
-                        <span>Confirm the detected teaching load and document type.</span>
-                    </li>
-                    <li class="flex items-start gap-3">
-                        <span class="w-7 h-7 rounded-full bg-gov-blue/10 text-gov-blue text-xs font-bold flex items-center justify-center flex-shrink-0">2</span>
-                        <span>Review the selected week before the file is archived.</span>
-                    </li>
-                    <li class="flex items-start gap-3">
-                        <span class="w-7 h-7 rounded-full bg-gov-blue/10 text-gov-blue text-xs font-bold flex items-center justify-center flex-shrink-0">3</span>
-                        <span>Wait for metadata detection to finish before uploading.</span>
-                    </li>
+                    {#if docType === 'DLL'}
+                        <li class="flex items-start gap-3">
+                            <span class="w-7 h-7 rounded-full bg-gov-blue/10 text-gov-blue text-xs font-bold flex items-center justify-center flex-shrink-0">1</span>
+                            <span>Confirm the detected teaching load and document type.</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="w-7 h-7 rounded-full bg-gov-blue/10 text-gov-blue text-xs font-bold flex items-center justify-center flex-shrink-0">2</span>
+                            <span>Review the selected week before the file is archived.</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="w-7 h-7 rounded-full bg-gov-blue/10 text-gov-blue text-xs font-bold flex items-center justify-center flex-shrink-0">3</span>
+                            <span>Wait for metadata detection to finish before uploading.</span>
+                        </li>
+                    {:else if docType === 'ISP'}
+                        <li class="flex items-start gap-3">
+                            <span class="w-7 h-7 rounded-full bg-gov-blue/10 text-gov-blue text-xs font-bold flex items-center justify-center flex-shrink-0">1</span>
+                            <span>Ensure your Individual School Plan is in PDF format.</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="w-7 h-7 rounded-full bg-gov-blue/10 text-gov-blue text-xs font-bold flex items-center justify-center flex-shrink-0">2</span>
+                            <span>Verify that all required information is complete.</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="w-7 h-7 rounded-full bg-gov-blue/10 text-gov-blue text-xs font-bold flex items-center justify-center flex-shrink-0">3</span>
+                            <span>Wait for metadata detection to finish before uploading.</span>
+                        </li>
+                    {:else if docType === 'ISR'}
+                        <li class="flex items-start gap-3">
+                            <span class="w-7 h-7 rounded-full bg-gov-blue/10 text-gov-blue text-xs font-bold flex items-center justify-center flex-shrink-0">1</span>
+                            <span>Ensure your Individual School Report is in PDF format.</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="w-7 h-7 rounded-full bg-gov-blue/10 text-gov-blue text-xs font-bold flex items-center justify-center flex-shrink-0">2</span>
+                            <span>Verify that all required information is included.</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="w-7 h-7 rounded-full bg-gov-blue/10 text-gov-blue text-xs font-bold flex items-center justify-center flex-shrink-0">3</span>
+                            <span>Wait for metadata detection to finish before uploading.</span>
+                        </li>
+                    {/if}
                 </ul>
             </div>
+
+            {#if $profile}
+                <div class="gov-card-static p-6 border-l-4 {$profile.role === 'Teacher' ? 'border-gov-blue' : $profile.role === 'Master Teacher' ? 'border-gov-green' : 'border-gov-purple'}">
+                    <h3 class="text-lg font-bold text-text-primary mb-3">
+                        Your Role: {$profile.role}
+                    </h3>
+                    <p class="text-sm text-text-secondary">
+                        {getUploadGuidance($profile.role)}
+                    </p>
+                </div>
+            {/if}
 
             <div class="gov-card-static p-6 border-l-4 border-gov-gold">
                 <h3 class="text-lg font-bold text-text-primary mb-3">

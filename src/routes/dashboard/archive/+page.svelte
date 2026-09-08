@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
     import { supabase, getRows } from "$lib/utils/supabase";
     import { profile } from "$lib/utils/auth";
     import StatusBadge from "$lib/components/StatusBadge.svelte";
@@ -8,6 +8,7 @@
     import {
         canViewArchivedDocument,
         canAddReviewRemarks,
+        canAddRemarkToISPISR,
         canViewUploadedISPISR,
     } from "$lib/utils/documentPermissions";
     import { shareVerification } from "$lib/utils/shareIntegration";
@@ -32,7 +33,7 @@
     import { cacheMetadata, getCachedMetadata } from "$lib/utils/offline";
     import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
 
-    // â”€â”€ Types â”€â”€
+    // â"€â"€ Types â"€â"€
     interface Submission {
         id: string;
         user_id: string;
@@ -51,6 +52,7 @@
             school_id: string | null;
             district_id: string | null;
             avatar_url?: string | null;
+            role: string;
         };
         school_name?: string;
         school_avatar?: string | null;
@@ -71,7 +73,7 @@
         avatar_url?: string | null;
     }
 
-    // â”€â”€ State â”€â”€
+    // â"€â"€ State â"€â"€
     let allSubmissions = $state<Submission[]>([]);
     let schoolsMap = $state<Record<string, { label: string; avatar_url: string | null }>>({});
     let teachersMap = $state<Record<string, { label: string; avatar_url: string | null }>>({});
@@ -84,7 +86,7 @@
         { type: "root", id: "root", label: "Archive" },
     ]);
 
-    // â”€â”€ Remarks & Review Status â”€â”€
+    // â"€â"€ Remarks & Review Status â"€â"€
     let reviewsMap = $state<Record<string, { reviewer_comment: string | null; status: string | null; return_reason: string | null }>>({});
     let statusFilter = $state<"all" | "for-checking" | "checked">("all");
 
@@ -97,6 +99,20 @@
     const canReview = $derived(
         $profile ? canAddReviewRemarks($profile.role) : false,
     );
+
+    function canAddRemarkToSubmission(sub: Submission): boolean {
+        if (!$profile) return false;
+        // For ISP/ISR, check the specific uploader role
+        if (sub.doc_type === 'ISP' || sub.doc_type === 'ISR') {
+            return canAddRemarkToISPISR(
+                $profile.role,
+                sub.uploader?.role || 'Teacher',
+                sub.doc_type
+            );
+        }
+        // For DLL, anyone who can review can add remarks
+        return canReview;
+    }
 
     function openRemarkModal(sub: Submission) {
         remarkTarget = sub;
@@ -112,14 +128,14 @@
     }
 
     async function saveRemark() {
-        if (!canReview) {
+        if (!remarkTarget || !canAddRemarkToSubmission(remarkTarget)) {
             addToast(
                 "error",
-                "You don't have permission to add remarks",
+                "You don't have permission to add remarks to this document",
             );
             return;
         }
-        if (!remarkTarget || !remarkText.trim() || !$profile) return;
+        if (!remarkText.trim() || !$profile) return;
         savingRemark = true;
         const { error } = await supabase.from("dll_reviews").upsert({
             submission_id: remarkTarget.id,
@@ -141,13 +157,13 @@
         }
     }
 
-    // â”€â”€ Lifecycle â”€â”€
+    // â"€â"€ Lifecycle â"€â"€
     onMount(async () => {
         await loadData();
         loading = false;
     });
 
-    // â”€â”€ Data Fetching â”€â”€
+    // â"€â"€ Data Fetching â"€â"€
     async function loadData() {
         loadError = null;
         const userProfile = $profile;
@@ -156,8 +172,8 @@
         const role = userProfile.role;
         console.log('[archive] Loading with role:', role, 'userId:', userProfile.id, 'schoolId:', userProfile.school_id, 'districtId:', userProfile.district_id);
 
-        // â”€â”€ Offline: restore cached archive view ─â”€
-        if (typeof navigator !== “undefined” && !navigator.onLine) {
+        // Offline: restore cached archive view
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
             const cached = await getCachedMetadata(`archive_state_${role}_${userProfile.id}`);
             if (cached?.data) {
                 allSubmissions = cached.data.submissions || [];
@@ -188,13 +204,24 @@
             const { data } = await supabase
                 .from("submissions")
                 .select(
-                    "*, uploader:profiles!inner(full_name, school_id, district_id, avatar_url)",
+                    "*, uploader:profiles!inner(full_name, school_id, district_id, avatar_url, role)",
                 )
                 .eq("profiles.school_id", userProfile.school_id)
                 .in("doc_type", ["DLL", "ISP", "ISR"])
                 .order("created_at", { ascending: false });
 
-            allSubmissions = getRows<Submission>(data);
+            allSubmissions = getRows<Submission>(data)
+                .filter(s => canViewUploadedISPISR(
+                    role,
+                    userProfile.id,
+                    s.user_id,
+                    s.uploader?.role || 'Teacher',
+                    s.doc_type,
+                    userProfile.school_id,
+                    s.uploader?.school_id || null,
+                    userProfile.district_id,
+                    s.uploader?.district_id || null
+                ));
             console.log('[archive] Master Teacher loaded', allSubmissions.length, 'submissions:', allSubmissions.map(s => ({ id: s.id, docType: s.doc_type, userId: s.user_id })));
             teachersMap = buildTeachersMap(allSubmissions);
         } else if (role === "School Head") {
@@ -203,13 +230,24 @@
             const { data } = await supabase
                 .from("submissions")
                 .select(
-                    "*, uploader:profiles!inner(full_name, school_id, district_id, avatar_url)",
+                    "*, uploader:profiles!inner(full_name, school_id, district_id, avatar_url, role)",
                 )
                 .eq("profiles.school_id", userProfile.school_id)
                 .in("doc_type", ["DLL", "ISP", "ISR"])
                 .order("created_at", { ascending: false });
 
-            allSubmissions = getRows<Submission>(data);
+            allSubmissions = getRows<Submission>(data)
+                .filter(s => canViewUploadedISPISR(
+                    role,
+                    userProfile.id,
+                    s.user_id,
+                    s.uploader?.role || 'Teacher',
+                    s.doc_type,
+                    userProfile.school_id,
+                    s.uploader?.school_id || null,
+                    userProfile.district_id,
+                    s.uploader?.district_id || null
+                ));
             console.log('[archive] School Head loaded', allSubmissions.length, 'submissions:', allSubmissions.map(s => ({ id: s.id, docType: s.doc_type, userId: s.user_id })));
             teachersMap = buildTeachersMap(allSubmissions);
         } else if (role === "District Supervisor") {
@@ -239,7 +277,7 @@
             const { data } = await supabase
                 .from("submissions")
                 .select(
-                    "*, uploader:profiles!inner(full_name, school_id, district_id, avatar_url)",
+                    "*, uploader:profiles!inner(full_name, school_id, district_id, avatar_url, role)",
                 )
                 .in("profiles.school_id", schoolIds)
                 .in("doc_type", ["DLL", "ISP", "ISR"])
@@ -259,7 +297,7 @@
             teachersMap = buildTeachersMap(allSubmissions);
         }
 
-        // â”€â”€ Resolve missing school names â”€â”€
+        // â"€â"€ Resolve missing school names â"€â"€
         const missingSchoolIds = [...new Set(allSubmissions
             .filter(s => s.uploader?.school_id && !schoolsMap[s.uploader.school_id])
             .map(s => s.uploader!.school_id!)
@@ -276,7 +314,7 @@
             }
         }
 
-        // â”€â”€ Resolve missing subjects from teaching_loads â”€â”€
+        // â"€â"€ Resolve missing subjects from teaching_loads â"€â"€
         const missingSubjectLoadIds = [...new Set(allSubmissions
             .filter(s => !s.subject && s.teaching_load_id)
             .map(s => s.teaching_load_id!)
@@ -373,7 +411,7 @@
             }
         }
 
-        // â”€â”€ Cache finalized state for offline viewing ─â”€
+        // â"€â"€ Cache finalized state for offline viewing ─â"€
         try {
             await cacheMetadata(`archive_state_${role}_${userProfile.id}`, {
                 submissions: allSubmissions,
@@ -390,7 +428,7 @@
         }
     }
 
-    // â”€â”€ Navigation â”€â”€
+    // â"€â"€ Navigation â"€â"€
     function navigateTo(segment: PathSegment) {
         currentPath = [...currentPath, segment];
     }
@@ -405,7 +443,7 @@
         }
     }
 
-    // â”€â”€ Current Level & Filtering â”€â”€
+    // â"€â"€ Current Level & Filtering â"€â"€
     const currentLevel = $derived(currentPath[currentPath.length - 1]);
 
     // Get submissions filtered by the current path
@@ -499,7 +537,7 @@
                 currentFolders.length === 0),
     );
 
-    // â”€â”€ Pagination â”€â”€
+    // â"€â"€ Pagination â"€â"€
     const totalPages = $derived(Math.ceil(filteredByPath.length / pageSize) || 1);
     const paginatedData = $derived(filteredByPath.slice((currentPage - 1) * pageSize, currentPage * pageSize));
 
@@ -508,11 +546,11 @@
         currentPage = 1;
     });
 
-    // â”€â”€ Folder Generators â”€â”€
+    // â"€â"€ Folder Generators â"€â"€
     function getDocTypeFolders(subs: Submission[]): FolderItem[] {
         const grouped = new Map<string, number>();
         for (const s of subs) {
-            const dt = s.doc_type || “Other”;
+            const dt = s.doc_type || "Other";
             grouped.set(dt, (grouped.get(dt) || 0) + 1);
         }
         const result = Array.from(grouped.entries())
@@ -521,7 +559,7 @@
                 id: dt,
                 label: dt,
                 count,
-                type: “docType” as const,
+                type: "docType" as const,
             }));
         console.log('[archive] getDocTypeFolders created', result.length, 'folders:', result.map(f => f.label).join(', '));
         return result;
@@ -614,7 +652,7 @@
             }));
     }
 
-    // â”€â”€ File Helpers â”€â”€
+    // â"€â"€ File Helpers â"€â"€
     function formatDate(dateStr: string): string {
         return new Date(dateStr).toLocaleDateString("en-PH", {
             year: "numeric",
@@ -624,7 +662,7 @@
     }
 
     function formatSize(bytes: number): string {
-        if (!bytes) return "â€”";
+        if (!bytes) return "-";
         if (bytes < 1024) return bytes + " B";
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
         return (bytes / (1024 * 1024)).toFixed(1) + " MB";
@@ -811,7 +849,7 @@
 </script>
 
 <svelte:head>
-    <title>Archive â€” CEDIMS</title>
+    <title>Archive â€" CEDIMS</title>
 </svelte:head>
 
 <div>
@@ -1073,16 +1111,18 @@
                             >
                                 <Eye size={16} />
                             </button>
-                            <button
-                                onclick={(e) => {
-                                    e.stopPropagation();
-                                    openRemarkModal(sub);
-                                }}
-                                class="p-2 text-text-muted hover:text-gov-gold-dark hover:bg-gov-gold/10 rounded-lg transition-all"
-                                title="Remarks / Comments"
-                            >
-                                <MessageSquare size={16} />
-                            </button>
+                            {#if canAddRemarkToSubmission(sub)}
+                                <button
+                                    onclick={(e) => {
+                                        e.stopPropagation();
+                                        openRemarkModal(sub);
+                                    }}
+                                    class="p-2 text-text-muted hover:text-gov-gold-dark hover:bg-gov-gold/10 rounded-lg transition-all"
+                                    title="Add Remarks"
+                                >
+                                    <MessageSquare size={16} />
+                                </button>
+                            {/if}
                             <button
                                 onclick={(e) => {
                                     e.stopPropagation();
@@ -1156,18 +1196,21 @@
             tabindex="-1"
         >
             <div class="flex items-center justify-between px-6 py-4 border-b border-border-subtle">
-                <h3 class="text-lg font-bold text-text-primary">
-                    {#if existingRemark}
-                        Remark
-                    {:else if canReview}
-                        Add Remark
-                    {:else}
-                        View Remarks
-                    {/if}
-                </h3>
+                <div>
+                    <h3 class="text-lg font-bold text-text-primary">
+                        {#if existingRemark}
+                            Remark for {remarkTarget?.doc_type}
+                        {:else if canAddRemarkToSubmission(remarkTarget)}
+                            Add Remark to {remarkTarget?.doc_type}
+                        {:else}
+                            View Remarks
+                        {/if}
+                    </h3>
+                    <p class="text-xs text-text-muted mt-1">{remarkTarget?.file_name}</p>
+                </div>
                 <button
                     onclick={closeRemarkModal}
-                    class="p-1 text-text-muted hover:text-text-primary hover:bg-surface-muted rounded-lg transition-all"
+                    class="p-1 text-text-muted hover:text-text-primary hover:bg-surface-muted rounded-lg transition-all flex-shrink-0"
                 >
                     <X size={18} />
                 </button>
@@ -1201,11 +1244,11 @@
                         </button>
                     </div>
                 {:else}
-                    {#if canReview}
-                        <!-- Add new remark (Master Teacher, School Head, District Supervisor) -->
+                    {#if canAddRemarkToSubmission(remarkTarget)}
+                        <!-- Add new remark (School Head for Master Teacher ISP/ISR, District Supervisor for any ISP/ISR, anyone for DLL) -->
                         <textarea
                             bind:value={remarkText}
-                            placeholder="Enter your remarks for this DLL..."
+                            placeholder="Enter your remarks for this {remarkTarget?.doc_type || 'document'}..."
                             rows="4"
                             class="w-full p-3 border border-border-subtle rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-gov-blue/30"
                         ></textarea>
@@ -1245,3 +1288,4 @@
         </div>
     </div>
 {/if}
+

@@ -71,6 +71,11 @@ export function canAddRemarkToISPISR(
   return false;
 }
 
+export function canAddReviewRemarks(role: string): boolean {
+  // School Heads and District Supervisors can add remarks
+  return role === 'School Head' || role === 'District Supervisor';
+}
+
 export function getUploadGuidance(role: string): string {
   switch (role) {
     case 'Teacher':
