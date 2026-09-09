@@ -24,18 +24,20 @@
 		label: string;
 		icon: any;
 		roles: string[];
-		section: string;
 		mobileNav?: boolean;
 		onClick?: (e: Event) => void;
+		priority?: number; // 1-5: higher = show first
 	}
 
+	// Minimalist navigation: 4-5 items per role, no section grouping
 	const navItems: NavItem[] = [
+		// ========== SHARED ACROSS ALL ROLES ==========
 		{
 			href: "/dashboard",
 			label: "Dashboard",
 			icon: LayoutDashboard,
-			section: "Overview",
 			mobileNav: true,
+			priority: 1,
 			roles: [
 				"Teacher",
 				"School Head",
@@ -43,95 +45,142 @@
 				"District Supervisor",
 			],
 		},
+
+		// ========== TEACHER (4 tabs) ==========
 		{
 			href: "/dashboard/upload",
 			label: "Upload",
 			icon: CloudUpload,
-			section: "Management",
 			mobileNav: true,
-			roles: ["Teacher", "School Head", "Master Teacher", "District Supervisor"],
-		},
-		{
-			href: "/dashboard/archive",
-			label: "Archive",
-			icon: Archive,
-			section: "Management",
-			mobileNav: true,
-			roles: [
-				"Teacher",
-				"School Head",
-				"Master Teacher",
-				"District Supervisor",
-			],
-		},
-		{
-			href: "/dashboard/load",
-			label: "Teaching Load",
-			icon: Briefcase,
-			section: "Management",
+			priority: 2,
 			roles: ["Teacher"],
 		},
 		{
-			href: "/dashboard/calendar",
-			label: "Calendar",
-			icon: Calendar,
-			section: "Management",
+			href: "/dashboard/archive",
+			label: "My Files",
+			icon: Archive,
 			mobileNav: true,
-			roles: [
-				"Teacher",
-				"School Head",
-				"Master Teacher",
-				"District Supervisor",
-			],
-		},
-		{
-			href: "/dashboard/monitoring/school",
-			label: "School Monitor",
-			icon: ShieldCheck,
-			section: "Review",
-			mobileNav: true,
-			roles: ["School Head"],
-		},
-		{
-			href: "/dashboard/monitoring/district",
-			label: "District Monitor",
-			icon: Map,
-			section: "Review",
-			mobileNav: true,
-			roles: ["District Supervisor"],
-		},
-		{
-			href: "/dashboard/analytics",
-			label: "Analytics",
-			icon: TrendingUp,
-			section: "Review",
-			roles: ["School Head", "District Supervisor"],
+			priority: 3,
+			roles: ["Teacher"],
 		},
 		{
 			href: "/dashboard/settings",
 			label: "Settings",
 			icon: Settings,
-			section: "System",
-			roles: [
-				"Teacher",
-				"School Head",
-				"Master Teacher",
-				"District Supervisor",
-			],
+			mobileNav: true,
+			priority: 4,
+			roles: ["Teacher"],
+		},
+
+		// ========== MASTER TEACHER (5 tabs) ==========
+		{
+			href: "/dashboard/upload",
+			label: "Upload",
+			icon: CloudUpload,
+			mobileNav: true,
+			priority: 2,
+			roles: ["Master Teacher"],
 		},
 		{
-			href: "/dashboard/admin",
-			label: "Admin Panel",
+			href: "/dashboard/monitoring/school",
+			label: "School",
 			icon: ShieldCheck,
-			section: "System",
+			mobileNav: true,
+			priority: 3,
+			roles: ["Master Teacher"],
+		},
+		{
+			href: "/dashboard/archive",
+			label: "Documents",
+			icon: Archive,
+			mobileNav: true,
+			priority: 4,
+			roles: ["Master Teacher"],
+		},
+		{
+			href: "/dashboard/settings",
+			label: "Settings",
+			icon: Settings,
+			mobileNav: true,
+			priority: 5,
+			roles: ["Master Teacher"],
+		},
+
+		// ========== SCHOOL HEAD (5 tabs) ==========
+		{
+			href: "/dashboard/upload",
+			label: "Upload",
+			icon: CloudUpload,
+			mobileNav: true,
+			priority: 2,
+			roles: ["School Head"],
+		},
+		{
+			href: "/dashboard/monitoring/school",
+			label: "Staff",
+			icon: Briefcase,
+			mobileNav: true,
+			priority: 3,
+			roles: ["School Head"],
+		},
+		{
+			href: "/dashboard/archive",
+			label: "Submissions",
+			icon: Archive,
+			mobileNav: true,
+			priority: 4,
+			roles: ["School Head"],
+		},
+		{
+			href: "/dashboard/settings",
+			label: "Settings",
+			icon: Settings,
+			mobileNav: true,
+			priority: 5,
+			roles: ["School Head"],
+		},
+
+		// ========== DISTRICT SUPERVISOR (5 tabs) ==========
+		{
+			href: "/dashboard/monitoring/district",
+			label: "Schools",
+			icon: Map,
+			mobileNav: true,
+			priority: 2,
 			roles: ["District Supervisor"],
 		},
 		{
-			href: "#scan",
-			label: "Scan Document",
-			icon: QrCode,
-			section: "Tools",
+			href: "/dashboard/archive",
+			label: "Submissions",
+			icon: Archive,
 			mobileNav: true,
+			priority: 3,
+			roles: ["District Supervisor"],
+		},
+		{
+			href: "/dashboard/analytics",
+			label: "Alerts",
+			icon: TrendingUp,
+			mobileNav: true,
+			priority: 4,
+			roles: ["District Supervisor"],
+		},
+		{
+			href: "/dashboard/settings",
+			label: "Settings",
+			icon: Settings,
+			mobileNav: true,
+			priority: 5,
+			roles: ["District Supervisor"],
+		},
+
+		// ========== OPTIONAL TOOLS ==========
+		{
+			href: "#scan",
+			label: "Scan",
+			icon: QrCode,
+			mobileNav: false, // Don't show in tab bar
+			priority: 99,
 			roles: [
 				"Teacher",
 				"School Head",
@@ -145,33 +194,22 @@
 		},
 	];
 
-	const sectionOrder = ["Overview", "Management", "Review", "Tools", "System"];
-
 	let mobileOpen = $state(false);
 
+	// Filter items by current role
 	const filteredItems = $derived(
-		navItems.filter((item) => {
-			const currentRole = $profile?.role?.toLowerCase() || "";
-			return item.roles.some((r) =>
-				currentRole.includes(r.toLowerCase().trim()),
-			);
-		}),
+		navItems
+			.filter((item) => {
+				const currentRole = $profile?.role?.toLowerCase() || "";
+				return item.roles.some((r) =>
+					currentRole.includes(r.toLowerCase().trim()),
+				);
+			})
+			.sort((a, b) => (a.priority || 99) - (b.priority || 99)),
 	);
 
-	const groupedItems = $derived.by(() => {
-		const groups: { section: string; items: NavItem[] }[] = [];
-		for (const section of sectionOrder) {
-			const items = filteredItems.filter((i) => i.section === section);
-			if (items.length > 0) {
-				groups.push({ section, items });
-			}
-		}
-		return groups;
-	});
-
-	const mobileNavItems = $derived(
-		filteredItems.filter((item) => item.mobileNav).slice(0, 5),
-	);
+	// For mobile: show only mobileNav items
+	const mobileNavItems = $derived(filteredItems.filter((item) => item.mobileNav));
 
 	function isActive(href: string): boolean {
 		const currentPath = $page.url.pathname;
@@ -205,6 +243,78 @@
 		isSwiping = false;
 	}
 </script>
+
+<style>
+	:global(.mobile-nav-bar) {
+		border-top: 1px solid var(--color-border-subtle);
+		background: linear-gradient(to top, var(--color-surface-white), var(--color-surface-muted));
+		backdrop-filter: blur(12px);
+		box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+		padding-bottom: env(safe-area-inset-bottom);
+	}
+
+	:global(.mobile-nav-item) {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.25rem;
+		flex: 1;
+		padding: 0.75rem 0.5rem;
+		color: var(--color-text-secondary);
+		transition: all 200ms ease;
+	}
+
+	:global(.mobile-nav-item:hover) {
+		color: var(--color-gov-blue);
+	}
+
+	:global(.mobile-nav-item.active) {
+		color: var(--color-gov-blue);
+		font-weight: 600;
+		position: relative;
+	}
+
+	:global(.mobile-nav-item.active::after) {
+		content: '';
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		height: 3px;
+		background: linear-gradient(to right, var(--color-gov-blue), var(--color-gov-blue-vibrant));
+		border-radius: 2px 2px 0 0;
+	}
+
+	:global(.mobile-nav-icon) {
+		transition: transform 200ms ease;
+	}
+
+	:global(.mobile-nav-item:active .mobile-nav-icon) {
+		transform: scale(1.1);
+	}
+
+	:global(.cedims-scroll) {
+		scroll-behavior: smooth;
+	}
+
+	:global(.cedims-scroll::-webkit-scrollbar) {
+		width: 6px;
+	}
+
+	:global(.cedims-scroll::-webkit-scrollbar-track) {
+		background: transparent;
+	}
+
+	:global(.cedims-scroll::-webkit-scrollbar-thumb) {
+		background: var(--color-border-subtle);
+		border-radius: 3px;
+	}
+
+	:global(.cedims-scroll::-webkit-scrollbar-thumb:hover) {
+		background: var(--color-border-muted);
+	}
+</style>
 
 <svelte:window
 	ontouchstart={handleTouchStart}
@@ -272,57 +382,47 @@
 		</div>
 	</a>
 
-	<!-- Navigation — Professional Sidebar Menu -->
-	<nav class="flex-1 overflow-y-auto px-3 py-4 cedims-scroll" aria-label="Sidebar Menu">
-		{#each groupedItems as group}
-			<div class="mb-6 last:mb-2">
-				<p
-					class="px-4 mb-3 text-[11px] font-bold uppercase tracking-[0.25em] text-text-muted"
-					aria-hidden="true"
-				>
-					{group.section}
-				</p>
-				<ul class="space-y-1">
-					{#each group.items as item}
-						{@const Icon = item.icon}
-						<li>
-							<a
-								href={item.href}
-								class="flex items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm font-semibold transition-all duration-200
-									{isActive(item.href)
-									? 'bg-color-surface-muted text-gov-blue border-l-4 border-gov-blue pl-3 font-600'
-									: 'text-color-text-secondary hover:bg-color-surface-muted hover:text-gov-blue'}"
-								aria-current={isActive(item.href) ? "page" : undefined}
-								onclick={(e) => {
-									if (item.onClick) {
-										item.onClick(e);
-									}
-									mobileOpen = false;
-								}}
-							>
-								<div class="flex items-center gap-3 min-w-0">
-									<Icon
-										size={20}
-										strokeWidth={isActive(item.href) ? 2 : 1.75}
-										aria-hidden="true"
-										class="flex-shrink-0"
-									/>
-									<span class="truncate">{item.label}</span>
-								</div>
-								{#if isActive(item.href)}
-									<ChevronRight
-										size={16}
-										strokeWidth={2.5}
-										aria-hidden="true"
-										class="flex-shrink-0"
-									/>
-								{/if}
-							</a>
-						</li>
-					{/each}
-				</ul>
-			</div>
-		{/each}
+	<!-- Navigation — Minimalist Professional Menu (4-5 items per role) -->
+	<nav class="flex-1 overflow-y-auto px-3 py-6 cedims-scroll" aria-label="Main Navigation">
+		<ul class="space-y-2">
+			{#each filteredItems as item}
+				{@const Icon = item.icon}
+				<li>
+					<a
+						href={item.href}
+						class="flex items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm font-semibold transition-all duration-200
+							{isActive(item.href)
+							? 'bg-gov-blue/10 text-gov-blue border-l-4 border-gov-blue pl-3'
+							: 'text-text-secondary hover:bg-surface-muted hover:text-gov-blue'}"
+						aria-current={isActive(item.href) ? "page" : undefined}
+						onclick={(e) => {
+							if (item.onClick) {
+								item.onClick(e);
+							}
+							mobileOpen = false;
+						}}
+					>
+						<div class="flex items-center gap-3 min-w-0">
+							<Icon
+								size={20}
+								strokeWidth={isActive(item.href) ? 2.5 : 2}
+								aria-hidden="true"
+								class="flex-shrink-0 transition-colors duration-200"
+							/>
+							<span class="truncate">{item.label}</span>
+						</div>
+						{#if isActive(item.href)}
+							<ChevronRight
+								size={16}
+								strokeWidth={2.5}
+								aria-hidden="true"
+								class="flex-shrink-0"
+							/>
+						{/if}
+					</a>
+				</li>
+			{/each}
+		</ul>
 	</nav>
 
 	<!-- Footer Info — Improved -->

@@ -642,3 +642,69 @@ body {
   outline: 2px solid var(--color-gov-blue);
   outline-offset: 2px;
 }
+
+/* ── Mobile Bottom Navigation Bar (Minimalist Design) ── */
+.mobile-nav-bar {
+  border-top: 1px solid var(--color-border-subtle);
+  background: linear-gradient(to top, var(--color-surface-white), var(--color-surface-muted));
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  flex: 1;
+  padding: 0.75rem 0.5rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  border-radius: 8px 8px 0 0;
+}
+
+.mobile-nav-item:hover {
+  color: var(--color-gov-blue);
+  background-color: rgba(37, 99, 235, 0.05);
+}
+
+.mobile-nav-item:active {
+  transform: scale(0.95);
+}
+
+.mobile-nav-item.active {
+  color: var(--color-gov-blue);
+  font-weight: 600;
+}
+
+.mobile-nav-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(to right, var(--color-gov-blue), var(--color-gov-blue-vibrant));
+  border-radius: 2px 2px 0 0;
+}
+
+.mobile-nav-icon {
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.mobile-nav-item:active .mobile-nav-icon {
+  transform: scale(1.15);
+}
+
+.dark .mobile-nav-bar {
+  border-top-color: var(--color-border-subtle);
+  background: linear-gradient(to top, var(--color-surface-white), var(--color-surface-muted));
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.25);
+}

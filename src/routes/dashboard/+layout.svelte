@@ -79,7 +79,7 @@
         >
             <TopBar />
 
-            <div class="relative p-4 sm:p-6 lg:p-8 pb-24 sm:pb-20 lg:pb-6 flex-1 bg-surface">
+            <div class="relative p-4 sm:p-6 lg:p-8 pb-28 sm:pb-20 lg:pb-6 flex-1 bg-surface">
                 {@render children()}
             </div>
         </main>
