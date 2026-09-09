@@ -174,16 +174,20 @@
 	function highlightTab() {
 		if (!currentTarget) return;
 		removeHighlight();
+		// Search for the nav element with data-nav attribute
 		const navButton = document.querySelector(`[data-nav="${currentTarget}"]`);
 		if (navButton) {
 			navButton.classList.add('guide-highlight');
+			// Scroll into view
 			navButton.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 		}
 	}
 
 	$: if (isOpen && currentTarget) {
-		// Highlight tab after modal renders
-		setTimeout(highlightTab, 100);
+		// Highlight tab after modal renders - retry a few times
+		setTimeout(() => highlightTab(), 100);
+		setTimeout(() => highlightTab(), 300);
+		setTimeout(() => highlightTab(), 500);
 	}
 
 	function openGuide() {
@@ -325,8 +329,10 @@
 	.guide-modal {
 		background: white;
 		border-radius: 16px;
-		max-width: 600px;
-		width: 100%;
+		max-width: 700px;
+		width: 90%;
+		max-height: 85vh;
+		overflow-y: auto;
 		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 		animation: slideUp 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
 	}
@@ -366,10 +372,11 @@
 	}
 
 	.guide-title {
-		font-size: 1.5rem;
-		font-weight: 700;
+		font-size: 1.8rem;
+		font-weight: 800;
 		color: var(--color-text-primary);
 		margin: 0;
+		letter-spacing: -0.5px;
 	}
 
 	.guide-close {
@@ -390,27 +397,33 @@
 
 	.guide-content {
 		padding: 2rem;
-		min-height: 120px;
+		min-height: 100px;
+		max-height: 50vh;
+		overflow-y: auto;
 	}
 
 	.guide-content p {
-		font-size: 1rem;
-		line-height: 1.6;
-		color: #666;
-		margin: 0 0 1rem 0;
+		font-size: 1.05rem;
+		line-height: 1.7;
+		color: #444;
+		margin: 0 0 1.2rem 0;
+		font-weight: 500;
 	}
 
 	.guide-tip {
-		background: #fef3c7;
-		border-left: 4px solid var(--color-gov-gold);
-		padding: 1rem;
-		border-radius: 6px;
-		margin-top: 1rem;
+		background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+		border-left: 5px solid var(--color-gov-gold);
+		padding: 1.2rem;
+		border-radius: 8px;
+		margin-top: 1.5rem;
+		box-shadow: 0 2px 8px rgba(255, 193, 7, 0.15);
 	}
 
 	.guide-tip span {
-		font-size: 0.95rem;
-		color: #666;
+		font-size: 1rem;
+		color: #333;
+		font-weight: 600;
+		line-height: 1.6;
 	}
 
 	.guide-footer {
@@ -490,19 +503,21 @@
 	}
 
 	/* Tab highlighting */
-	:global(button[data-nav].guide-highlight) {
-		outline: 3px solid var(--color-gov-gold) !important;
-		outline-offset: 2px !important;
-		box-shadow: 0 0 0 8px rgba(255, 193, 7, 0.2) !important;
-		animation: tabPulse 1.5s ease-in-out infinite;
+	:global([data-nav].guide-highlight) {
+		outline: 4px solid var(--color-gov-gold) !important;
+		outline-offset: 3px !important;
+		box-shadow: 0 0 0 12px rgba(255, 193, 7, 0.3), 0 0 20px rgba(255, 193, 7, 0.6) !important;
+		animation: tabPulse 1.2s ease-in-out infinite;
+		position: relative !important;
+		z-index: 50 !important;
 	}
 
 	@keyframes tabPulse {
 		0%, 100% {
-			box-shadow: 0 0 0 8px rgba(255, 193, 7, 0.2);
+			box-shadow: 0 0 0 8px rgba(255, 193, 7, 0.2), 0 0 15px rgba(255, 193, 7, 0.4);
 		}
 		50% {
-			box-shadow: 0 0 0 12px rgba(255, 193, 7, 0.4);
+			box-shadow: 0 0 0 14px rgba(255, 193, 7, 0.4), 0 0 30px rgba(255, 193, 7, 0.8);
 		}
 	}
 
