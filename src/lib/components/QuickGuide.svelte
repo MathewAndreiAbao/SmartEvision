@@ -237,31 +237,24 @@
 {#if isOpen}
 	<div class="guide-overlay" on:click={closeGuide} on:keydown={(e) => e.key === 'Escape' && closeGuide()}>
 		<div class="guide-modal" on:click={(e) => e.stopPropagation()}>
-			<div class="guide-header">
-				<div class="guide-info">
-					<div class="guide-role-badge">
-						{currentGuide.emoji}
-						{$profile?.role}
-					</div>
-					<h2 class="guide-title">{currentGuideStep.title}</h2>
-				</div>
-				<button class="guide-close" on:click={closeGuide} aria-label="Close guide">
-					<X size={24} />
-				</button>
-			</div>
+			<!-- Close Button (Top Right) -->
+			<button class="guide-close" on:click={closeGuide} aria-label="Close guide">
+				<X size={20} />
+			</button>
 
+			<!-- Icon (Emoji) - Prominent at top -->
+			<div class="guide-icon">{currentGuide.emoji}</div>
+
+			<!-- Title & Description -->
 			<div class="guide-content">
-				<p>{currentGuideStep.content}</p>
-				{#if currentGuideStep.tips}
-					<div class="guide-tip">
-						<span>{currentGuideStep.tips}</span>
-					</div>
-				{/if}
+				<h2 class="guide-title">{currentGuideStep.title}</h2>
+				<p class="guide-description">{currentGuideStep.content}</p>
 			</div>
 
+			<!-- Step Counter, Progress, Buttons -->
 			<div class="guide-footer">
-				<div class="guide-steps">
-					<span class="guide-step-number">{currentStep + 1} of {totalSteps}</span>
+				<div class="guide-step-info">
+					<span class="guide-step-number">{currentStep + 1} OF {totalSteps}</span>
 					<div class="guide-progress">
 						<div class="guide-progress-fill" style="width: {progress}%"></div>
 					</div>
@@ -273,12 +266,10 @@
 						on:click={prevStep}
 						disabled={currentStep === 0}
 					>
-						<ChevronLeft size={20} />
 						Back
 					</button>
 					<button class="guide-btn guide-btn-primary" on:click={nextStep}>
 						{currentStep === totalSteps - 1 ? 'Done' : 'Next'}
-						<ChevronRight size={20} />
 					</button>
 				</div>
 			</div>
@@ -328,13 +319,15 @@
 
 	.guide-modal {
 		background: white;
-		border-radius: 12px;
+		border-radius: 16px;
 		max-width: 480px;
 		width: 90%;
-		box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+		box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
 		animation: slideUp 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
 		display: flex;
 		flex-direction: column;
+		position: relative;
+		padding-top: 60px;
 	}
 
 	@keyframes slideUp {
@@ -376,32 +369,62 @@
 	}
 
 	.guide-close {
+		position: absolute;
+		top: 12px;
+		right: 12px;
 		background: transparent;
 		border: none;
 		cursor: pointer;
 		color: #999;
-		padding: 0 0 0 1rem;
+		padding: 8px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		transition: color 200ms ease;
-		flex-shrink: 0;
+		z-index: 10;
 	}
 
 	.guide-close:hover {
 		color: #333;
 	}
 
+	/* Large Icon at Top */
+	.guide-icon {
+		position: absolute;
+		top: -30px;
+		left: 50%;
+		transform: translateX(-50%);
+		font-size: 5rem;
+		line-height: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 100px;
+		height: 100px;
+		background: white;
+		border-radius: 16px;
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+		z-index: 5;
+	}
+
 	.guide-content {
-		padding: 0.5rem 1.5rem 1.5rem 1.5rem;
+		padding: 1.5rem 1.5rem 2rem 1.5rem;
 		text-align: center;
 		flex-shrink: 0;
 	}
 
-	.guide-content p {
+	.guide-title {
+		font-size: 1.5rem;
+		font-weight: 700;
+		color: #1a202c;
+		margin: 0 0 0.8rem 0;
+		line-height: 1.3;
+	}
+
+	.guide-description {
 		font-size: 1rem;
 		line-height: 1.6;
-		color: #666;
+		color: #687790;
 		margin: 0;
 		font-weight: 400;
 	}
@@ -415,26 +438,26 @@
 	}
 
 	.guide-footer {
-		padding: 1.2rem 1.5rem 1.5rem 1.5rem;
+		padding: 1.5rem;
 		border-top: 1px solid #e5e7eb;
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: 1.2rem;
 		flex-shrink: 0;
 	}
 
-	.guide-steps {
+	.guide-step-info {
 		display: flex;
 		flex-direction: column;
 		gap: 0.6rem;
 	}
 
 	.guide-step-number {
-		font-size: 0.85rem;
-		font-weight: 600;
+		font-size: 0.8rem;
+		font-weight: 700;
 		color: #2563eb;
-		text-align: center;
-		letter-spacing: 0.5px;
+		text-align: left;
+		letter-spacing: 0.8px;
 	}
 
 	.guide-progress {
@@ -446,36 +469,35 @@
 
 	.guide-progress-fill {
 		height: 100%;
-		background: #2563eb;
+		background: linear-gradient(90deg, #2563eb, #3b82f6);
 		transition: width 300ms ease;
 	}
 
 	.guide-buttons {
 		display: flex;
-		gap: 0.6rem;
-		justify-content: space-between;
+		gap: 0.8rem;
 	}
 
 	.guide-btn {
-		padding: 0.65rem 1.2rem;
+		padding: 0.7rem 1.4rem;
 		border: none;
-		border-radius: 6px;
+		border-radius: 8px;
 		font-weight: 600;
 		cursor: pointer;
 		transition: all 150ms ease;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		gap: 0.3rem;
+		gap: 0.4rem;
 		font-size: 0.95rem;
-		min-height: 40px;
+		min-height: 44px;
 	}
 
 	.guide-btn-secondary {
 		background: #dbeafe;
-		color: #0284c7;
-		padding: 0.65rem 1rem;
-		min-width: 70px;
+		color: #0369a1;
+		flex: 0 1 auto;
+		min-width: 80px;
 	}
 
 	.guide-btn-secondary:hover:not(:disabled) {
@@ -486,7 +508,6 @@
 		background: #2563eb;
 		color: white;
 		flex: 1;
-		min-width: 120px;
 	}
 
 	.guide-btn-primary:hover {
@@ -494,7 +515,7 @@
 	}
 
 	.guide-btn:disabled {
-		opacity: 0.5;
+		opacity: 0.45;
 		cursor: not-allowed;
 	}
 
