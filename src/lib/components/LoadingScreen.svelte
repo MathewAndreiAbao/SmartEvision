@@ -32,36 +32,34 @@
 
 {#if isLoading}
 	<div class="loading-container">
-		<!-- Animated Gradient Blobs -->
-		<div class="gradient-blobs">
-			<div class="blob-1"></div>
-			<div class="blob-2"></div>
-			<div class="blob-3"></div>
-			<div class="blob-4"></div>
-		</div>
-
-		<!-- Loading Content -->
+		<!-- Minimalist CEDIMS Loading -->
 		<div class="loading-content">
-			<div class="loading-logo">
-				<span class="loading-logo-icon"></span>
-				<span>{appName}</span>
+			<!-- Minimalist Document Icon with Animation -->
+			<div class="cedims-icon">
+				<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+					<!-- Document background -->
+					<rect x="20" y="15" width="60" height="70" rx="4" fill="none" stroke="currentColor" stroke-width="2" opacity="0.6"/>
+					<!-- Document lines (animated) -->
+					<line x1="30" y1="30" x2="70" y2="30" stroke="currentColor" stroke-width="2" opacity="0.8" class="doc-line-1"/>
+					<line x1="30" y1="42" x2="70" y2="42" stroke="currentColor" stroke-width="2" opacity="0.7" class="doc-line-2"/>
+					<line x1="30" y1="54" x2="70" y2="54" stroke="currentColor" stroke-width="2" opacity="0.6" class="doc-line-3"/>
+					<line x1="30" y1="66" x2="55" y2="66" stroke="currentColor" stroke-width="2" opacity="0.5" class="doc-line-4"/>
+				</svg>
 			</div>
 
-			<div class="loading-subtitle">
-				{subtitle}
-			</div>
+			<!-- App Name -->
+			<h1 class="loading-title">{appName}</h1>
 
+			<!-- Subtitle -->
+			<p class="loading-subtitle">{subtitle}</p>
+
+			<!-- Progress Bar -->
 			<div class="progress-container">
 				<div class="progress-bar" style="width: {progress}%"></div>
 			</div>
 
-			<div class="loading-dots">
-				<div class="dot"></div>
-				<div class="dot"></div>
-				<div class="dot"></div>
-			</div>
-
-			<div class="loading-text">Loading</div>
+			<!-- Status -->
+			<p class="loading-status">Preparing your documents<span class="dots">.</span></p>
 		</div>
 	</div>
 {/if}
@@ -84,275 +82,114 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		background: linear-gradient(135deg, #1e88e5 0%, #0d47a1 100%);
+		background: linear-gradient(135deg, #f5f6f8 0%, #ebedf0 100%);
 		overflow: hidden;
 		z-index: 9999;
 	}
 
-	/* Gradient Blob Background */
-	.gradient-blobs {
-		position: absolute;
-		width: 100%;
-		height: 100%;
-		top: 0;
-		left: 0;
-		z-index: 1;
-		pointer-events: none;
-	}
-
-	/* Blob 1 - Top Left (Blue to Cyan) */
-	.blob-1 {
-		position: absolute;
-		top: -20%;
-		left: -15%;
-		width: 600px;
-		height: 600px;
-		background: radial-gradient(
-			circle at 50% 50%,
-			rgba(30, 136, 229, 0.8),
-			rgba(13, 71, 161, 0.4),
-			rgba(0, 172, 193, 0) 70%
-		);
-		border-radius: 50%;
-		filter: blur(40px);
-		animation: float-blob-1 6s ease-in-out infinite;
-	}
-
-	/* Blob 2 - Top Right (Cyan) */
-	.blob-2 {
-		position: absolute;
-		top: -10%;
-		right: -10%;
-		width: 500px;
-		height: 500px;
-		background: radial-gradient(
-			circle at 50% 50%,
-			rgba(0, 172, 193, 0.6),
-			rgba(0, 150, 180, 0.3),
-			rgba(13, 71, 161, 0) 70%
-		);
-		border-radius: 50%;
-		filter: blur(40px);
-		animation: float-blob-2 8s ease-in-out infinite;
-		animation-delay: -1s;
-	}
-
-	/* Blob 3 - Bottom Left (Deep Blue) */
-	.blob-3 {
-		position: absolute;
-		bottom: -15%;
-		left: 10%;
-		width: 450px;
-		height: 450px;
-		background: radial-gradient(
-			circle at 50% 50%,
-			rgba(13, 71, 161, 0.7),
-			rgba(30, 136, 229, 0.3),
-			rgba(0, 172, 193, 0) 70%
-		);
-		border-radius: 50%;
-		filter: blur(40px);
-		animation: float-blob-3 7s ease-in-out infinite;
-		animation-delay: -2s;
-	}
-
-	/* Blob 4 - Bottom Right (Light Blue) */
-	.blob-4 {
-		position: absolute;
-		bottom: -20%;
-		right: -5%;
-		width: 550px;
-		height: 550px;
-		background: radial-gradient(
-			circle at 50% 50%,
-			rgba(37, 99, 235, 0.5),
-			rgba(30, 136, 229, 0.2),
-			rgba(13, 71, 161, 0) 70%
-		);
-		border-radius: 50%;
-		filter: blur(40px);
-		animation: float-blob-4 9s ease-in-out infinite;
-		animation-delay: -3s;
-	}
-
 	/* Content Container */
 	.loading-content {
-		position: relative;
-		z-index: 2;
 		text-align: center;
-		color: white;
-		animation: fadeIn 0.8s ease-out forwards;
+		color: #111827;
+		animation: fadeIn 0.6s ease-out;
 	}
 
-	/* Logo/Branding */
-	.loading-logo {
-		font-size: 48px;
+	/* Minimalist Document Icon */
+	.cedims-icon {
+		width: 100px;
+		height: 100px;
+		margin: 0 auto 40px;
+		animation: documentFloat 3s ease-in-out infinite;
+	}
+
+	.cedims-icon svg {
+		width: 100%;
+		height: 100%;
+		color: #2563eb;
+		filter: drop-shadow(0 4px 12px rgba(37, 99, 235, 0.15));
+	}
+
+	.doc-line-1 {
+		animation: lineReveal 1.2s ease-out forwards;
+		animation-delay: 0s;
+		transform-origin: 30px 30px;
+	}
+
+	.doc-line-2 {
+		animation: lineReveal 1.2s ease-out forwards;
+		animation-delay: 0.15s;
+		transform-origin: 30px 42px;
+	}
+
+	.doc-line-3 {
+		animation: lineReveal 1.2s ease-out forwards;
+		animation-delay: 0.3s;
+		transform-origin: 30px 54px;
+	}
+
+	.doc-line-4 {
+		animation: lineReveal 1.2s ease-out forwards;
+		animation-delay: 0.45s;
+		transform-origin: 30px 66px;
+	}
+
+	/* App Name */
+	.loading-title {
+		font-size: 42px;
 		font-weight: 700;
-		margin-bottom: 30px;
-		letter-spacing: -1px;
-		animation: slideDown 0.8s ease-out forwards;
-		opacity: 0;
-	}
-
-	.loading-logo-icon {
-		display: inline-block;
-		width: 60px;
-		height: 60px;
-		background: linear-gradient(135deg, #00d4ff, #0099ff);
-		border-radius: 12px;
-		margin-right: 15px;
-		vertical-align: middle;
-		animation: rotate 8s linear infinite;
+		margin: 0 0 8px 0;
+		letter-spacing: -0.5px;
+		color: #111827;
+		animation: fadeInDown 0.8s ease-out;
 	}
 
 	/* Subtitle */
 	.loading-subtitle {
-		font-size: 16px;
-		color: rgba(255, 255, 255, 0.9);
-		margin-bottom: 50px;
-		font-weight: 300;
-		letter-spacing: 0.5px;
-		animation: slideUp 0.8s ease-out 0.2s forwards;
-		opacity: 0;
+		font-size: 14px;
+		color: #6b7590;
+		margin: 0 0 50px 0;
+		font-weight: 400;
+		letter-spacing: 0.3px;
+		animation: fadeInDown 0.8s ease-out 0.1s backwards;
 	}
 
 	/* Progress Bar */
 	.progress-container {
-		width: 280px;
-		height: 4px;
-		background: rgba(255, 255, 255, 0.2);
-		border-radius: 2px;
+		width: 200px;
+		height: 2px;
+		background: #e2e8f0;
+		border-radius: 1px;
 		overflow: hidden;
-		margin-bottom: 30px;
-		animation: slideUp 0.8s ease-out 0.4s forwards;
-		opacity: 0;
+		margin-bottom: 20px;
+		animation: fadeInDown 0.8s ease-out 0.2s backwards;
 	}
 
 	.progress-bar {
 		height: 100%;
-		background: linear-gradient(90deg, #00d4ff, #0099ff, #0055ff);
-		border-radius: 2px;
+		background: linear-gradient(90deg, #2563eb, #3b82f6);
+		border-radius: 1px;
 		transition: width 0.3s ease;
-		box-shadow: 0 0 20px rgba(0, 212, 255, 0.6);
+		box-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
 	}
 
-	/* Loading Dots */
-	.loading-dots {
-		display: flex;
-		gap: 8px;
-		justify-content: center;
-		animation: slideUp 0.8s ease-out 0.6s forwards;
-		opacity: 0;
-	}
-
-	.dot {
-		width: 10px;
-		height: 10px;
-		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.7);
-		animation: bounce 1.4s ease-in-out infinite;
-	}
-
-	.dot:nth-child(2) {
-		animation-delay: 0.2s;
-	}
-
-	.dot:nth-child(3) {
-		animation-delay: 0.4s;
-	}
-
-	/* Loading Text */
-	.loading-text {
-		margin-top: 30px;
+	/* Status Text */
+	.loading-status {
 		font-size: 13px;
-		color: rgba(255, 255, 255, 0.7);
-		letter-spacing: 1px;
-		text-transform: uppercase;
+		color: #6b7590;
+		margin: 0;
 		font-weight: 500;
-		animation: slideUp 0.8s ease-out 0.8s forwards;
-		opacity: 0;
+		letter-spacing: 0.2px;
+		animation: fadeInDown 0.8s ease-out 0.3s backwards;
 	}
 
-	.loading-text::after {
-		content: '';
+	.dots {
+		display: inline-block;
+		width: 1.2em;
+		text-align: left;
 		animation: dots 1.4s steps(4, end) infinite;
 	}
 
 	/* Animations */
-	@keyframes float-blob-1 {
-		0%,
-		100% {
-			transform: translate(0, 0) scale(1);
-		}
-		33% {
-			transform: translate(30px, -30px) scale(1.05);
-		}
-		66% {
-			transform: translate(-20px, 20px) scale(0.95);
-		}
-	}
-
-	@keyframes float-blob-2 {
-		0%,
-		100% {
-			transform: translate(0, 0) scale(1);
-		}
-		33% {
-			transform: translate(-30px, 30px) scale(0.95);
-		}
-		66% {
-			transform: translate(20px, -20px) scale(1.05);
-		}
-	}
-
-	@keyframes float-blob-3 {
-		0%,
-		100% {
-			transform: translate(0, 0) scale(1);
-		}
-		33% {
-			transform: translate(-25px, 25px) scale(1.02);
-		}
-		66% {
-			transform: translate(25px, -25px) scale(0.98);
-		}
-	}
-
-	@keyframes float-blob-4 {
-		0%,
-		100% {
-			transform: translate(0, 0) scale(1);
-		}
-		33% {
-			transform: translate(20px, -25px) scale(0.98);
-		}
-		66% {
-			transform: translate(-20px, 25px) scale(1.02);
-		}
-	}
-
-	@keyframes slideDown {
-		from {
-			opacity: 0;
-			transform: translateY(-30px);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
-	}
-
-	@keyframes slideUp {
-		from {
-			opacity: 0;
-			transform: translateY(30px);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
-	}
-
 	@keyframes fadeIn {
 		from {
 			opacity: 0;
@@ -362,29 +199,41 @@
 		}
 	}
 
-	@keyframes bounce {
-		0%,
-		60%,
-		100% {
-			transform: translateY(0);
+	@keyframes fadeInDown {
+		from {
+			opacity: 0;
+			transform: translateY(-10px);
 		}
-		30% {
-			transform: translateY(-15px);
+		to {
+			opacity: 1;
+			transform: translateY(0);
 		}
 	}
 
-	@keyframes rotate {
+	@keyframes documentFloat {
+		0%, 100% {
+			transform: translateY(0px);
+		}
+		50% {
+			transform: translateY(-12px);
+		}
+	}
+
+	@keyframes lineReveal {
 		from {
-			transform: rotate(0deg);
+			opacity: 0;
+			stroke-dasharray: 40;
+			stroke-dashoffset: 40;
 		}
 		to {
-			transform: rotate(360deg);
+			opacity: 1;
+			stroke-dasharray: 40;
+			stroke-dashoffset: 0;
 		}
 	}
 
 	@keyframes dots {
-		0%,
-		20% {
+		0%, 20% {
 			content: '';
 		}
 		40% {
@@ -393,53 +242,52 @@
 		60% {
 			content: '..';
 		}
-		80%,
-		100% {
+		80%, 100% {
 			content: '...';
 		}
 	}
 
 	/* Responsive */
 	@media (max-width: 768px) {
-		.loading-logo {
-			font-size: 36px;
+		.loading-title {
+			font-size: 32px;
 		}
 
 		.loading-subtitle {
-			font-size: 14px;
+			font-size: 13px;
 		}
 
-		.blob-1,
-		.blob-2,
-		.blob-3,
-		.blob-4 {
-			filter: blur(30px);
+		.cedims-icon {
+			width: 80px;
+			height: 80px;
 		}
 
 		.progress-container {
-			width: 220px;
+			width: 160px;
 		}
 	}
 
 	@media (max-width: 480px) {
-		.loading-logo {
-			font-size: 28px;
+		.loading-title {
+			font-size: 24px;
 		}
 
 		.loading-subtitle {
 			font-size: 12px;
 		}
 
-		.blob-1,
-		.blob-2,
-		.blob-3,
-		.blob-4 {
-			width: 350px;
-			height: 350px;
+		.cedims-icon {
+			width: 60px;
+			height: 60px;
+			margin-bottom: 30px;
 		}
 
 		.progress-container {
-			width: 180px;
+			width: 140px;
+		}
+
+		.loading-status {
+			font-size: 12px;
 		}
 	}
 </style>
