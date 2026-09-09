@@ -1,8 +1,10 @@
 <script lang="ts">
     import Sidebar from "$lib/components/Sidebar.svelte";
     import TopBar from "$lib/components/TopBar.svelte";
+    import DesktopNav from "$lib/components/DesktopNav.svelte";
     import InstallPrompt from "$lib/components/InstallPrompt.svelte";
     import UpdatePrompt from "$lib/components/UpdatePrompt.svelte";
+    import TutorialOverlay from "$lib/components/TutorialOverlay.svelte";
     import { notifications } from "$lib/stores/notifications";
     import { authLoading, profile, user, isChangingPassword } from "$lib/utils/auth";
     import {
@@ -11,6 +13,7 @@
     } from "$lib/utils/offline";
     import { settings } from "$lib/stores/settings";
     import { theme } from "$lib/stores/theme";
+    import { connectivity } from "$lib/stores/connectivity";
     import { goto } from "$app/navigation";
     import { onMount } from "svelte";
 
@@ -29,6 +32,7 @@
     onMount(() => {
         theme.init(); // Apply saved theme
         settings.init(); // Initialize real-time settings
+        connectivity.init(); // Track online/offline + pending sync queue globally
     });
 
     // Reactive prefetch: triggers as soon as profile is available
@@ -75,6 +79,9 @@
         <!-- Top navigation bar -->
         <TopBar />
 
+        <!-- Desktop primary navigation (lg+ only; mobile uses the bottom tab bar) -->
+        <DesktopNav />
+
         <!-- Main content area (full width, no sidebar) -->
         <main
             id="main-content"
@@ -90,5 +97,8 @@
         <!-- PWA prompts -->
         <InstallPrompt />
         <UpdatePrompt />
+
+        <!-- First-time role-based onboarding -->
+        <TutorialOverlay />
     </div>
 {/if}

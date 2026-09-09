@@ -3,6 +3,7 @@
     import { fly, fade } from "svelte/transition";
     import { Bell, BellOff, Check, ArrowRight, Trash } from "lucide-svelte";
     import { onMount } from "svelte";
+    import { focusTrap } from "$lib/actions/focusTrap";
 
     let isOpen = $state(false);
 
@@ -53,6 +54,10 @@
             out:fade={{ duration: 150 }}
             role="dialog"
             aria-modal="true"
+            aria-label="Notifications"
+            tabindex="-1"
+            use:focusTrap
+            onkeydown={(e) => { if (e.key === "Escape") isOpen = false; }}
         >
             <div
                 class="px-5 py-4 border-b border-border-subtle flex items-center justify-between bg-surface-muted flex-shrink-0"

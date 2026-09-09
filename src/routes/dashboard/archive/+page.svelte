@@ -32,6 +32,10 @@
     import type { ReportOptions } from "$lib/utils/excelExport";
     import { cacheMetadata, getCachedMetadata } from "$lib/utils/offline";
     import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
+    import SkeletonLoader from "$lib/components/SkeletonLoader.svelte";
+    import EmptyState from "$lib/components/EmptyState.svelte";
+    import BulkActionsBar from "$lib/components/BulkActionsBar.svelte";
+    import { focusTrap } from "$lib/actions/focusTrap";
 
     // â"€â"€ Types â"€â"€
     interface Submission {
@@ -95,6 +99,49 @@
     let remarkText = $state("");
     let existingRemark = $state<string | null>(null);
     let savingRemark = $state(false);
+
+    // â"€â"€ Bulk Selection (reviewers only) â"€â"€
+    let selectedIds = $state<Set<string>>(new Set());
+    let bulkBusy = $state(false);
+
+    function toggleSelect(id: string) {
+        const next = new Set(selectedIds);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        selectedIds = next;
+    }
+
+    function clearSelection() {
+        selectedIds = new Set();
+    }
+
+    async function bulkMarkChecked() {
+        if (!$profile || selectedIds.size === 0) return;
+        bulkBusy = true;
+        const ids = Array.from(selectedIds);
+        const rows = ids.map((id) => ({
+            submission_id: id,
+            reviewer_id: $profile!.id,
+            status: "approved",
+        }));
+        const { error } = await supabase
+            .from("dll_reviews")
+            .upsert(rows, { onConflict: "submission_id" });
+        bulkBusy = false;
+        if (error) {
+            addToast("error", "Bulk update failed: " + error.message);
+            return;
+        }
+        for (const id of ids) {
+            reviewsMap[id] = {
+                reviewer_comment: reviewsMap[id]?.reviewer_comment ?? null,
+                status: "approved",
+                return_reason: null,
+            };
+        }
+        addToast("success", `Marked ${ids.length} document${ids.length > 1 ? "s" : ""} as checked`);
+        clearSelection();
+    }
 
     const canReview = $derived(
         $profile ? canAddReviewRemarks($profile.role) : false,
@@ -974,9 +1021,7 @@
             </button>
         </div>
     {:else if loading}
-        <div class="gov-card-static">
-            <CEDIMSLoader label="Loading archive..." />
-        </div>
+        <SkeletonLoader variant="card-grid" count={8} />
     {:else if !isFileLevel && currentFolders.length > 0}
         <!-- Folder Grid -->
         <div
@@ -996,20 +1041,16 @@
         </div>
     {:else if filteredByPath.length === 0}
         <!-- Empty State -->
-        <div class="text-center py-20" in:fade={{ duration: 300 }}>
-            <div
-                class="w-16 h-16 rounded-md bg-surface-muted flex items-center justify-center mx-auto mb-4"
-            >
-                <FolderOpen size={28} class="text-text-muted" />
-            </div>
-            <p class="text-lg font-semibold text-text-primary">
-                {searchQuery ? "No matching files" : "This folder is empty"}
-            </p>
-            <p class="text-sm text-text-muted mt-2">
-                {searchQuery
-                    ? "Try a different search term"
-                    : "No documents have been uploaded yet"}
-            </p>
+        <div in:fade={{ duration: 300 }}>
+            <EmptyState
+                icon={FolderOpen}
+                title={searchQuery ? "No matching files" : "This folder is empty"}
+                description={searchQuery
+                    ? "Try a different search term."
+                    : "No documents have been uploaded yet."}
+                actionLabel={searchQuery ? "Clear Search" : ""}
+                onAction={searchQuery ? () => (searchQuery = "") : undefined}
+            />
         </div>
     {:else}
         <!-- File List -->
@@ -1027,6 +1068,27 @@
                     <div
                         class="p-5 flex-1 flex flex-col items-center text-center relative"
                     >
+                        {#if canAddRemarkToSubmission(sub)}
+                            <label
+                                class="absolute top-3 left-3 z-10 flex items-center justify-center w-5 h-5 rounded-md border-2 cursor-pointer transition-colors {selectedIds.has(sub.id)
+                                    ? 'bg-gov-blue border-gov-blue'
+                                    : 'bg-surface-white border-border-strong hover:border-gov-blue'}"
+                            >
+                                <input
+                                    type="checkbox"
+                                    class="sr-only"
+                                    checked={selectedIds.has(sub.id)}
+                                    onclick={(e) => e.stopPropagation()}
+                                    onchange={() => toggleSelect(sub.id)}
+                                    aria-label={`Select ${sub.file_name}`}
+                                />
+                                {#if selectedIds.has(sub.id)}
+                                    <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                {/if}
+                            </label>
+                        {/if}
                         <!-- Top Floating Status -->
                         <div class="absolute top-3 right-3">
                             <StatusBadge
@@ -1187,6 +1249,13 @@
     {/if}
 </div>
 
+<BulkActionsBar
+    count={selectedIds.size}
+    busy={bulkBusy}
+    onClear={clearSelection}
+    actions={[{ label: "Mark as Checked", onClick: bulkMarkChecked }]}
+/>
+
 <!-- Remarks Modal -->
 {#if remarkModalOpen && remarkTarget}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -1203,7 +1272,9 @@
             onkeydown={(e) => { if (e.key === 'Escape') closeRemarkModal(); }}
             role="dialog"
             aria-modal="true"
+            aria-label="Document remarks"
             tabindex="-1"
+            use:focusTrap
         >
             <div class="flex items-center justify-between px-6 py-4 border-b border-border-subtle">
                 <div>

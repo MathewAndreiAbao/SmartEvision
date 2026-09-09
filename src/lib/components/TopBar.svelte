@@ -3,9 +3,12 @@
     import { page } from "$app/stores";
     import { profile } from "$lib/utils/auth";
     import { theme } from "$lib/stores/theme";
+    import { connectivity } from "$lib/stores/connectivity";
+    const { isOnline: onlineStatus, pendingCount } = connectivity;
     import { fade } from "svelte/transition";
-    import { ChevronRight, Home, Sun, Moon, LogOut } from "lucide-svelte";
+    import { ChevronRight, Home, Sun, Moon, LogOut, WifiOff, RefreshCw } from "lucide-svelte";
     import { signOut } from "$lib/utils/auth";
+    import { goto } from "$app/navigation";
 
     const breadcrumbMap: Record<string, string> = {
         "dashboard": "Dashboard",
@@ -82,6 +85,27 @@
 
     <!-- Right: Actions & Profile -->
     <div class="flex items-center gap-1 sm:gap-2 flex-shrink-0 ml-4">
+        <!-- Global Connectivity / Pending Sync Indicator -->
+        {#if !$onlineStatus || $pendingCount > 0}
+            <button
+                onclick={() => goto("/dashboard/upload")}
+                class="hidden xs:flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors {$onlineStatus
+                    ? 'border-gov-gold/30 bg-gov-gold/10 text-gov-gold-dark hover:bg-gov-gold/20'
+                    : 'border-gov-red/30 bg-gov-red/10 text-gov-red hover:bg-gov-red/20'}"
+                title={$onlineStatus
+                    ? `${$pendingCount} file(s) waiting to sync`
+                    : "You are offline — changes will sync once reconnected"}
+            >
+                {#if $onlineStatus}
+                    <RefreshCw size={14} strokeWidth={2} />
+                    {$pendingCount} pending
+                {:else}
+                    <WifiOff size={14} strokeWidth={2} />
+                    Offline
+                {/if}
+            </button>
+        {/if}
+
         <!-- Theme Toggle -->
         <button
             onclick={() => theme.toggle()}

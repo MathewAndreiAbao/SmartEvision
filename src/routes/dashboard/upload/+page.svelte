@@ -19,6 +19,7 @@
     } from "$lib/utils/offlineSubmissionLedger";
     import { profile, type Profile } from "$lib/utils/auth";
     import { settings } from "$lib/stores/settings";
+    import { connectivity } from "$lib/stores/connectivity";
     import { addToast } from "$lib/stores/toast";
     import { supabase } from "$lib/utils/supabase";
     import { goto } from "$app/navigation";
@@ -33,6 +34,8 @@
         getUploadGuidance,
         requiresTeachingLoadSelection,
     } from "$lib/utils/documentPermissions";
+    import { focusTrap } from "$lib/actions/focusTrap";
+    import UploadSuccessModal from "$lib/components/UploadSuccessModal.svelte";
 
     import type { PageData } from "./$types";
 
@@ -57,6 +60,7 @@
     let message = $state("");
     let processing = $state(false);
     let result = $state<PipelineResult | null>(null);
+    let showSuccessModal = $state(false);
     let mismatchAlert = $state<any>(null);
     let queueCount = $state(0);
     let currentDeadline = $state<any>(null);
@@ -746,12 +750,11 @@
 
             if (event.phase === "done" && event.result) {
                 result = event.result;
+                showSuccessModal = true;
                 speak(VoicePrompts.UPLOAD_COMPLETE);
-                const successMsg = isOnline
-                    ? `Archived successfully! Hash: ${event.result.fileHash.slice(0, 12)}...`
-                    : `Saved offline! Will sync when connected. Hash: ${event.result.fileHash.slice(0, 12)}...`;
-                addToast("success", successMsg);
                 selectedFile = null;
+                await refreshPendingItems();
+                connectivity.refreshPendingCount();
             }
 
             if (event.phase === "error") {
@@ -779,6 +782,23 @@
             mismatchAlert = null;
         }
     });
+
+    function closeSuccessModal() {
+        showSuccessModal = false;
+    }
+
+    function handleUploadAnother() {
+        showSuccessModal = false;
+        result = null;
+        detectedMetadata = null;
+        ocrConfidence = null;
+        fileHash = "";
+    }
+
+    function handleViewArchive() {
+        showSuccessModal = false;
+        goto("/dashboard/archive");
+    }
 </script>
 
 <svelte:head>
@@ -1324,39 +1344,6 @@
 
             </div>
 
-            <!-- Result -->
-            {#if result}
-                <div
-                    class="gov-card-static p-6 border-l-4 border-gov-green animate-fade-in"
-                >
-                    <div class="flex items-center gap-3 mb-3">
-                        <h3 class="text-lg font-bold text-gov-green">
-                            Queued for Background Sync!
-                        </h3>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3 text-sm">
-                        <div>
-                            <span class="text-text-muted">File:</span>
-                            <span class="font-medium text-text-primary ml-1"
-                                >{result.fileName}</span
-                            >
-                        </div>
-                        <div>
-                            <span class="text-text-muted">Size:</span>
-                            <span class="font-medium text-text-primary ml-1"
-                                >{(result.fileSize / 1024).toFixed(0)} KB</span
-                            >
-                        </div>
-                        <div class="col-span-2">
-                            <span class="text-text-muted">SHA-256:</span>
-                            <code
-                                class="font-mono text-xs text-gov-blue ml-1 break-all"
-                                >{result.fileHash}</code
-                            >
-                        </div>
-                    </div>
-                </div>
-            {/if}
         </div>
 
         <div class="space-y-6">
@@ -1465,10 +1452,12 @@
         <div
             class="w-full max-w-lg bg-surface-white rounded-t-3xl sm:rounded-3xl shadow-sm overflow-hidden animate-slide-up sm:animate-scale-in"
             onclick={(e) => e.stopPropagation()}
-            onkeydown={(e) => e.stopPropagation()}
+            onkeydown={(e) => { e.stopPropagation(); if (e.key === "Escape") showLoadPicker = false; }}
             role="dialog"
             aria-modal="true"
-            tabindex="0"
+            aria-label="Select Teaching Load"
+            tabindex="-1"
+            use:focusTrap
         >
             <div
                 class="p-6 border-b border-border-subtle flex items-center justify-between"
@@ -1554,6 +1543,18 @@
     </div>
 {/if}
 
+{#if showSuccessModal && result}
+    <UploadSuccessModal
+        {result}
+        {isOnline}
+        {docType}
+        {weekNumber}
+        onClose={closeSuccessModal}
+        onUploadAnother={handleUploadAnother}
+        onViewArchive={handleViewArchive}
+    />
+{/if}
+
 {#if showWeekPicker}
     <div
         class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm transition-opacity"
@@ -1565,10 +1566,12 @@
         <div
             class="w-full max-w-sm bg-surface-white rounded-t-3xl sm:rounded-3xl shadow-sm overflow-hidden animate-slide-up sm:animate-scale-in"
             onclick={(e) => e.stopPropagation()}
-            onkeydown={(e) => e.stopPropagation()}
+            onkeydown={(e) => { e.stopPropagation(); if (e.key === "Escape") showWeekPicker = false; }}
             role="dialog"
             aria-modal="true"
-            tabindex="0"
+            aria-label="Select Week"
+            tabindex="-1"
+            use:focusTrap
         >
             <div
                 class="p-6 border-b border-border-subtle flex items-center justify-between"
