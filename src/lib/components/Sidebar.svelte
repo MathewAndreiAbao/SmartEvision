@@ -27,6 +27,7 @@
 		mobileNav?: boolean;
 		onClick?: (e: Event) => void;
 		priority?: number; // 1-5: higher = show first
+		navKey?: string; // For quick guide targeting
 	}
 
 	// Minimalist navigation: 4-5 items per role, no section grouping
@@ -38,6 +39,7 @@
 			icon: LayoutDashboard,
 			mobileNav: true,
 			priority: 1,
+			navKey: "dashboard",
 			roles: [
 				"Teacher",
 				"School Head",
@@ -53,6 +55,7 @@
 			icon: CloudUpload,
 			mobileNav: true,
 			priority: 2,
+			navKey: "upload",
 			roles: ["Teacher"],
 		},
 		{
@@ -61,6 +64,7 @@
 			icon: Archive,
 			mobileNav: true,
 			priority: 3,
+			navKey: "archive",
 			roles: ["Teacher"],
 		},
 		{
@@ -79,6 +83,7 @@
 			icon: CloudUpload,
 			mobileNav: true,
 			priority: 2,
+			navKey: "upload",
 			roles: ["Master Teacher"],
 		},
 		{
@@ -87,6 +92,7 @@
 			icon: ShieldCheck,
 			mobileNav: true,
 			priority: 3,
+			navKey: "school",
 			roles: ["Master Teacher"],
 		},
 		{
@@ -95,6 +101,7 @@
 			icon: Archive,
 			mobileNav: true,
 			priority: 4,
+			navKey: "documents",
 			roles: ["Master Teacher"],
 		},
 		{
@@ -113,6 +120,7 @@
 			icon: CloudUpload,
 			mobileNav: true,
 			priority: 2,
+			navKey: "upload",
 			roles: ["School Head"],
 		},
 		{
@@ -121,6 +129,7 @@
 			icon: Briefcase,
 			mobileNav: true,
 			priority: 3,
+			navKey: "staff",
 			roles: ["School Head"],
 		},
 		{
@@ -129,6 +138,7 @@
 			icon: Archive,
 			mobileNav: true,
 			priority: 4,
+			navKey: "submissions",
 			roles: ["School Head"],
 		},
 		{
@@ -147,6 +157,7 @@
 			icon: Map,
 			mobileNav: true,
 			priority: 2,
+			navKey: "schools",
 			roles: ["District Supervisor"],
 		},
 		{
@@ -155,6 +166,7 @@
 			icon: Archive,
 			mobileNav: true,
 			priority: 3,
+			navKey: "submissions",
 			roles: ["District Supervisor"],
 		},
 		{
@@ -163,6 +175,7 @@
 			icon: TrendingUp,
 			mobileNav: true,
 			priority: 4,
+			navKey: "alerts",
 			roles: ["District Supervisor"],
 		},
 		{
@@ -337,6 +350,7 @@
 				class="mobile-nav-item {isActive(item.href) ? 'active' : ''}"
 				aria-current={isActive(item.href) ? "page" : undefined}
 				aria-label={item.label}
+				data-nav={item.navKey || null}
 				onclick={(e) => {
 					if (item.onClick) {
 						item.onClick(e);

@@ -12,26 +12,37 @@
 			steps: [
 				{
 					title: 'Welcome to CEDIMS',
-					content: `Hi there! 👋 Welcome to CEDIMS, your intelligent document management system. Let's take a quick tour of the main features you'll use every day.`
+					content: `Hi there! 👋 Welcome to CEDIMS. Let's explore the main tabs and features you'll use every day.`,
+					target: null
 				},
 				{
-					title: 'Dashboard - Your Daily Overview',
-					content: `When you log in, the Dashboard is your home. It shows your compliance rate, next 3 deadlines, and recent feedback from your school head.`,
-					tips: '💡 Check your dashboard every morning to stay on top of deadlines!'
+					title: 'Dashboard Tab',
+					content: `Your home base. Shows your compliance rate, next 3 deadlines, and recent feedback.`,
+					tips: '💡 Check here every morning!',
+					target: 'dashboard'
 				},
 				{
-					title: 'Uploading Your DLL',
-					content: `Ready to upload? Tap Upload → Select your Teaching Load → Choose file → Upload. That's it!`,
-					tips: '⏰ Submit before midnight on the deadline date!'
+					title: 'Upload Tab',
+					content: `Upload → Select Teaching Load → Choose file → Done! Submit before midnight.`,
+					tips: '⏰ Deadline-aware uploads!',
+					target: 'upload'
 				},
 				{
-					title: 'Tracking Your Submissions',
-					content: `View all uploads in My Files. Status badges show: Green (✓ On-time), Yellow (⏰ Due soon), Red (! Late).`,
-					tips: '📊 Track your compliance rate over time!'
+					title: 'Archive Tab',
+					content: `View all your submissions. Status badges: Green (On-time), Yellow (Due soon), Red (Late).`,
+					tips: '📊 Track compliance over time!',
+					target: 'archive'
 				},
 				{
-					title: 'Getting Started',
-					content: `You're all set! Start with the Dashboard, then upload your first DLL. Good luck! 🎉`
+					title: 'Teaching Load Tab',
+					content: `Manage your teaching loads. Required before uploading documents. Keep it updated!`,
+					tips: '✏️ Update regularly!',
+					target: 'load'
+				},
+				{
+					title: 'You're Ready!',
+					content: `Start with Dashboard → Upload first DLL → Track progress. You've got this! 🎉`,
+					target: null
 				}
 			]
 		},
@@ -40,31 +51,37 @@
 			steps: [
 				{
 					title: 'Welcome, Master Teacher',
-					content: `Hi! 👋 As a Master Teacher, you manage both your teaching and oversee your school's DLL compliance.`
+					content: `You manage teaching AND oversee school compliance. Let's explore your key tabs.`,
+					target: null
 				},
 				{
-					title: 'Dashboard - School Overview',
-					content: `Your dashboard shows your compliance rate, school compliance, top teachers, and at-risk teachers.`,
-					tips: '🎯 Use this to identify who needs support!'
+					title: 'Dashboard Tab',
+					content: `Your compliance, school compliance, top teachers, at-risk teachers. Your command center.`,
+					tips: '🎯 Identify who needs support!',
+					target: 'dashboard'
 				},
 				{
-					title: 'Managing School Teachers',
-					content: `Tap School tab to see all teachers. Click a teacher to see their DLLs and add remarks to help improve quality.`,
-					tips: '📚 Support struggling teachers and recognize excellent work!'
+					title: 'School Tab',
+					content: `See all teachers ranked by compliance. Click a teacher to view DLLs and add remarks.`,
+					tips: '📚 Support and recognize excellence!',
+					target: 'school'
 				},
 				{
-					title: 'Uploading Your Documents',
-					content: `Upload DLL (with teaching load), ISP (school plan), or ISR (school report). Tap Upload and choose your document type.`,
-					tips: "✅ ISP/ISR don't need a teaching load!"
+					title: 'Upload Tab',
+					content: `Upload DLL (with teaching load), ISP (school plan), or ISR (school report).`,
+					tips: "✅ ISP/ISR don't need teaching load!",
+					target: 'upload'
 				},
 				{
-					title: 'Viewing School Documents',
-					content: `Documents tab shows all school submissions. Filter by teacher, sort by status, add remarks, export reports.`,
-					tips: '📊 Export reports for your school head!'
+					title: 'Documents Tab',
+					content: `All school submissions in one place. Filter, sort, add remarks, export reports.`,
+					tips: '📊 Reports impress your principal!',
+					target: 'documents'
 				},
 				{
-					title: 'Your Next Steps',
-					content: `Check Dashboard daily → Support teachers → Add remarks → Upload your ISP/ISR. You're ready to lead! 🚀`
+					title: 'Ready to Lead!',
+					content: `Dashboard → Support teachers → Upload ISP/ISR → Export reports. Lead with data! 🚀`,
+					target: null
 				}
 			]
 		},
@@ -73,31 +90,37 @@
 			steps: [
 				{
 					title: 'Welcome, School Head',
-					content: `Welcome! 👋 As School Head, you oversee the entire school's compliance and document management.`
+					content: `You oversee school compliance and document management. Let's master the key tabs.`,
+					target: null
 				},
 				{
-					title: 'Dashboard - School Performance',
-					content: `See school compliance rate, compliant/late DLLs, top teachers, and compliance trends at a glance.`,
-					tips: '📊 Use this data in staff meetings to celebrate wins and address issues!'
+					title: 'Dashboard Tab',
+					content: `School compliance rate, compliant/late DLLs, top teachers, trends. Your performance center.`,
+					tips: '📊 Use this in staff meetings!',
+					target: 'dashboard'
 				},
 				{
-					title: 'Managing Your Staff',
-					content: `Tap Staff to see all teachers ranked by compliance. Click a teacher to view their submissions and add remarks.`,
-					tips: '👨‍🏫 This is your main tool for teacher development!'
+					title: 'Staff Tab',
+					content: `All teachers ranked by compliance. Click any teacher to view submissions and add remarks.`,
+					tips: '👨‍🏫 Your main development tool!',
+					target: 'staff'
 				},
 				{
-					title: 'Uploading ISP/ISR',
-					content: `Tap Upload to submit ISP (School Plan) or ISR (School Report). No teaching load needed—you upload as School Head.`,
-					tips: '📌 District Supervisor will review and add remarks to your submissions!'
+					title: 'Upload Tab',
+					content: `Submit ISP (School Plan) or ISR (School Report). No teaching load needed. You upload as School Head.`,
+					tips: '📌 District Supervisor reviews these!',
+					target: 'upload'
 				},
 				{
-					title: 'Reviewing All Submissions',
-					content: `Submissions tab shows all school DLLs, Master Teacher ISP/ISR, and your own documents. Filter, sort, and add remarks.`,
-					tips: '✏️ Add remarks to guide improvement!'
+					title: 'Submissions Tab',
+					content: `All school DLLs, Master Teacher ISP/ISR, your documents. Filter, sort, add remarks, approve.`,
+					tips: '✏️ Guide improvement with remarks!',
+					target: 'submissions'
 				},
 				{
-					title: 'Your Daily Workflow',
-					content: `Morning: Check Dashboard → During day: Monitor staff → Afternoon: Add remarks → Weekly: Review trends. Lead your school to excellence! 🏆`
+					title: 'Lead with Excellence!',
+					content: `Dashboard daily → Monitor staff → Add remarks → Upload ISP/ISR → Lead your school! 🏆`,
+					target: null
 				}
 			]
 		},
@@ -106,31 +129,37 @@
 			steps: [
 				{
 					title: 'Welcome, District Supervisor',
-					content: `Welcome! 👋 As District Supervisor, you oversee all schools. Your dashboard shows district-wide performance.`
+					content: `You oversee ALL schools. Let's explore your district-wide management tabs.`,
+					target: null
 				},
 				{
-					title: 'District Dashboard',
-					content: `See your district's overall compliance rate, total compliant/late DLLs, and school rankings.`,
-					tips: '🎯 This is your executive summary for reports!'
+					title: 'Dashboard Tab',
+					content: `District compliance rate, total compliant/late, school rankings. Your executive summary.`,
+					tips: '🎯 Perfect for reports!',
+					target: 'dashboard'
 				},
 				{
-					title: 'Monitoring Schools',
-					content: `Schools tab shows all schools ranked by compliance. Low compliance schools highlighted. Click to see detailed submissions.`,
-					tips: '📍 Use this to prioritize support!'
+					title: 'Schools Tab',
+					content: `All schools ranked by compliance. Red schools = below 70%. Click to see detailed submissions.`,
+					tips: '📍 Prioritize support here!',
+					target: 'schools'
 				},
 				{
-					title: 'Reviewing District Submissions',
-					content: `Submissions tab shows all ISP/ISR from School Heads and Master Teachers. Filter, add remarks, and approve.`,
-					tips: '✅ Your remarks help schools improve their planning!'
+					title: 'Submissions Tab',
+					content: `All ISP/ISR from School Heads & Master Teachers. Filter, sort, add remarks, approve submissions.`,
+					tips: '✅ Your remarks drive improvement!',
+					target: 'submissions'
 				},
 				{
-					title: 'Alert System',
-					content: `Alerts tab shows schools below 70% compliance, overdue submissions, and teachers with zero DLLs. Click an alert to investigate.`,
-					tips: '🔍 Catch problems early!'
+					title: 'Alerts Tab',
+					content: `Schools below 70%, overdue submissions, missing DLLs. Click alerts to investigate and act fast.`,
+					tips: '🔍 Stay ahead of problems!',
+					target: 'alerts'
 				},
 				{
-					title: 'Your Strategic Role',
-					content: `Monitor daily → Support low-performing schools → Approve documents → Generate reports → Lead district excellence! 🌟`
+					title: 'Lead the District!',
+					content: `Monitor daily → Support struggling schools → Approve documents → Reports → Excellence! 🌟`,
+					target: null
 				}
 			]
 		}
@@ -140,6 +169,22 @@
 	$: totalSteps = currentGuide.steps.length;
 	$: currentGuideStep = currentGuide.steps[currentStep];
 	$: progress = ((currentStep + 1) / totalSteps) * 100;
+	$: currentTarget = currentGuideStep?.target || null;
+
+	function highlightTab() {
+		if (!currentTarget) return;
+		removeHighlight();
+		const navButton = document.querySelector(`[data-nav="${currentTarget}"]`);
+		if (navButton) {
+			navButton.classList.add('guide-highlight');
+			navButton.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+		}
+	}
+
+	$: if (isOpen && currentTarget) {
+		// Highlight tab after modal renders
+		setTimeout(highlightTab, 100);
+	}
 
 	function openGuide() {
 		isOpen = true;
@@ -148,6 +193,13 @@
 
 	function closeGuide() {
 		isOpen = false;
+		removeHighlight();
+	}
+
+	function removeHighlight() {
+		document.querySelectorAll('button[data-nav].guide-highlight').forEach(btn => {
+			btn.classList.remove('guide-highlight');
+		});
 	}
 
 	function nextStep() {
@@ -435,6 +487,23 @@
 	.guide-btn:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
+	}
+
+	/* Tab highlighting */
+	:global(button[data-nav].guide-highlight) {
+		outline: 3px solid var(--color-gov-gold) !important;
+		outline-offset: 2px !important;
+		box-shadow: 0 0 0 8px rgba(255, 193, 7, 0.2) !important;
+		animation: tabPulse 1.5s ease-in-out infinite;
+	}
+
+	@keyframes tabPulse {
+		0%, 100% {
+			box-shadow: 0 0 0 8px rgba(255, 193, 7, 0.2);
+		}
+		50% {
+			box-shadow: 0 0 0 12px rgba(255, 193, 7, 0.4);
+		}
 	}
 
 	@media (max-width: 768px) {
