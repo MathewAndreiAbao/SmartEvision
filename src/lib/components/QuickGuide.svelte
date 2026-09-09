@@ -329,11 +329,12 @@
 	.guide-modal {
 		background: white;
 		border-radius: 12px;
-		max-width: 500px;
+		max-width: 480px;
 		width: 90%;
 		box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
 		animation: slideUp 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
-		overflow: hidden;
+		display: flex;
+		flex-direction: column;
 	}
 
 	@keyframes slideUp {
@@ -351,12 +352,14 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-start;
-		padding: 1.5rem;
+		padding: 1.5rem 1.5rem 1rem 1.5rem;
 		border-bottom: none;
+		flex-shrink: 0;
 	}
 
 	.guide-info {
 		flex: 1;
+		min-width: 0;
 	}
 
 	.guide-role-badge {
@@ -364,11 +367,12 @@
 	}
 
 	.guide-title {
-		font-size: 1.4rem;
+		font-size: 1.3rem;
 		font-weight: 700;
-		color: #1a202c;
+		color: #1a1a1a;
 		margin: 0;
-		line-height: 1.3;
+		line-height: 1.4;
+		word-wrap: break-word;
 	}
 
 	.guide-close {
@@ -376,11 +380,12 @@
 		border: none;
 		cursor: pointer;
 		color: #999;
-		padding: 0;
+		padding: 0 0 0 1rem;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		transition: color 200ms ease;
+		flex-shrink: 0;
 	}
 
 	.guide-close:hover {
@@ -388,14 +393,15 @@
 	}
 
 	.guide-content {
-		padding: 0 1.5rem 1.5rem 1.5rem;
+		padding: 0.5rem 1.5rem 1.5rem 1.5rem;
 		text-align: center;
+		flex-shrink: 0;
 	}
 
 	.guide-content p {
 		font-size: 1rem;
 		line-height: 1.6;
-		color: #5a6c7d;
+		color: #666;
 		margin: 0;
 		font-weight: 400;
 	}
@@ -409,24 +415,26 @@
 	}
 
 	.guide-footer {
-		padding: 1.5rem;
+		padding: 1.2rem 1.5rem 1.5rem 1.5rem;
 		border-top: 1px solid #e5e7eb;
 		display: flex;
 		flex-direction: column;
-		gap: 1.2rem;
+		gap: 1rem;
+		flex-shrink: 0;
 	}
 
 	.guide-steps {
 		display: flex;
 		flex-direction: column;
-		gap: 0.8rem;
+		gap: 0.6rem;
 	}
 
 	.guide-step-number {
-		font-size: 0.9rem;
+		font-size: 0.85rem;
 		font-weight: 600;
 		color: #2563eb;
-		text-align: left;
+		text-align: center;
+		letter-spacing: 0.5px;
 	}
 
 	.guide-progress {
@@ -434,7 +442,6 @@
 		background: #e5e7eb;
 		border-radius: 1.5px;
 		overflow: hidden;
-		margin-top: 0.4rem;
 	}
 
 	.guide-progress-fill {
@@ -445,12 +452,12 @@
 
 	.guide-buttons {
 		display: flex;
-		gap: 0.8rem;
+		gap: 0.6rem;
 		justify-content: space-between;
 	}
 
 	.guide-btn {
-		padding: 0.65rem 1.5rem;
+		padding: 0.65rem 1.2rem;
 		border: none;
 		border-radius: 6px;
 		font-weight: 600;
@@ -459,25 +466,27 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		gap: 0.4rem;
+		gap: 0.3rem;
 		font-size: 0.95rem;
+		min-height: 40px;
 	}
 
 	.guide-btn-secondary {
-		background: #e0f2fe;
-		color: #0369a1;
-		flex: 0 1 auto;
-		min-width: 80px;
+		background: #dbeafe;
+		color: #0284c7;
+		padding: 0.65rem 1rem;
+		min-width: 70px;
 	}
 
 	.guide-btn-secondary:hover:not(:disabled) {
-		background: #cce9f7;
+		background: #bfdbfe;
 	}
 
 	.guide-btn-primary {
 		background: #2563eb;
 		color: white;
 		flex: 1;
+		min-width: 120px;
 	}
 
 	.guide-btn-primary:hover {
