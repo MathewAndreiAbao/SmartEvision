@@ -82,7 +82,7 @@
             aria-labelledby="dashboard-title"
         >
             <!-- Content with proper spacing (mobile + desktop) -->
-            <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-24 sm:pb-8 flex-1">
+            <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-32 sm:pb-24 lg:pb-28 flex-1">
                 {@render children()}
             </div>
         </main>
