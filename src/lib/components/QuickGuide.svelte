@@ -40,7 +40,7 @@
 					target: 'load'
 				},
 				{
-					title: 'You're Ready!',
+					title: "You're Ready!",
 					content: `Start with Dashboard → Upload first DLL → Track progress. You've got this! 🎉`,
 					target: null
 				}
