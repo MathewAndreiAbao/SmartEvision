@@ -31,7 +31,6 @@
     } from "$lib/utils/clusterAnalytics";
     import ClusterVisualization from "$lib/components/ClusterVisualization.svelte";
     import { cacheMetadata, getCachedMetadata } from "$lib/utils/offline";
-  import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
   import { canViewUploadedISPISR } from "$lib/utils/documentPermissions";
 
     // Data
@@ -505,11 +504,6 @@
         {/if}
     </div>
 
-    {#if loading}
-        <div class="gov-card-static">
-            <CEDIMSLoader label="Loading school data..." />
-        </div>
-    {:else}
         <!-- KPI Cards -->
         <!-- KPI Row -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
@@ -767,7 +761,6 @@
                 {/if}
             </div>
         {/if}
-    {/if}
 </div>
 
 <!-- Drill-Down Modal -->

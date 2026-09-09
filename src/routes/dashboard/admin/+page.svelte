@@ -16,7 +16,6 @@
         Eye,
         EyeOff,
     } from "lucide-svelte";
-    import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
 
     // â”€â”€ Settings State â”€â”€
     let settings = $state<any[]>([]);
@@ -423,11 +422,6 @@
             aria-labelledby="settings-tab"
             in:fade={{ duration: 200 }}
         >
-            {#if loading}
-                <div class="gov-card-static">
-                    <CEDIMSLoader label="Loading settings..." />
-                </div>
-            {:else}
                 <div class="grid gap-6">
                     {#each settings as s}
                         <div
@@ -507,7 +501,6 @@
                         </div>
                     {/each}
                 </div>
-            {/if}
         </div>
     {/if}
 
@@ -582,11 +575,6 @@
             </div>
 
             <!-- User Table -->
-            {#if loadingUsers}
-                <div class="gov-card-static">
-                    <CEDIMSLoader label="Loading users..." />
-                </div>
-            {:else}
                 <div class="gov-card-static overflow-hidden">
                     <div class="max-h-[65vh] overflow-y-auto">
                     <div class="overflow-x-auto">
@@ -734,7 +722,6 @@
                 <p class="text-xs text-text-muted mt-3 text-center">
                     {filteredUsers().length} of {users.length} users shown
                 </p>
-            {/if}
         </div>
     {/if}
 

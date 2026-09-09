@@ -9,7 +9,6 @@
     import { fly, fade } from "svelte/transition";
     import { goto } from "$app/navigation";
     import TeacherChecklist from "$lib/components/TeacherChecklist.svelte";
-    import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
     import {
         calculateCompliance,
         groupSubmissionsByWeek,
@@ -595,11 +594,7 @@
         </p>
     </div>
 
-    {#if loading}
-        <div class="gov-card-static">
-            <CEDIMSLoader label="Loading your dashboard..." />
-        </div>
-    {:else if $profile?.role === "Teacher"}
+    {#if $profile?.role === "Teacher"}
         <!-- ========== TEACHER DASHBOARD ========== -->
 
         <!-- Stats Row -->

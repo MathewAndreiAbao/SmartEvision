@@ -24,7 +24,6 @@
     getDynamicSchoolYear,
   } from "$lib/utils/useDashboardData";
   import { cacheMetadata, getCachedMetadata } from "$lib/utils/offline";
-  import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
 
   // Data Interfaces
   interface School {
@@ -407,11 +406,6 @@
     {/if}
   </div>
 
-  {#if loading}
-    <div class="gov-card-static">
-      <CEDIMSLoader label="Loading district data..." />
-    </div>
-  {:else}
     <!-- KPI Cards -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-6">
       <div in:fly={{ y: 20, duration: 400 }}>
@@ -614,7 +608,6 @@
         {/if}
       </div>
     </div>
-  {/if}
 </div>
 
 <!-- School Drill-Down Modal -->

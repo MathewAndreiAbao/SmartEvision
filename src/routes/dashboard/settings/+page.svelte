@@ -254,24 +254,24 @@
                         </button>
                     </div>
 
-                    <!-- Replay Tutorial -->
+                    <!-- Replay System Walkthrough -->
                     <div class="flex items-center justify-between p-4 bg-surface-muted rounded-2xl border-border-subtle">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-full bg-surface-white flex items-center justify-center text-gov-gold-dark shadow-sm">
                                 <ShieldCheck size={18} />
                             </div>
                             <div>
-                                <span class="block text-sm font-bold text-text-primary">Welcome Tour</span>
-                                <p class="text-[10px] text-text-muted font-medium">Replay the first-time walkthrough for your role.</p>
+                                <span class="block text-sm font-bold text-text-primary">System Walkthrough</span>
+                                <p class="text-[10px] text-text-muted font-medium">Replay the interactive tour of your dashboard's tabs and controls.</p>
                             </div>
                         </div>
                         <button
                             onclick={async () => {
                                 if (!$profile) return;
-                                const { resetTutorial, tutorialReplayRequested } = await import("$lib/stores/tutorial");
-                                resetTutorial($profile.id);
-                                tutorialReplayRequested.set(true);
-                                addToast("success", "Tutorial reopened");
+                                const { resetWalkthrough, walkthroughReplayRequested } = await import("$lib/stores/walkthrough");
+                                resetWalkthrough($profile.id);
+                                walkthroughReplayRequested.set(true);
+                                addToast("success", "Walkthrough reopened");
                             }}
                             class="px-3 py-1.5 text-xs font-bold text-gov-blue bg-gov-blue/10 rounded-lg hover:bg-gov-blue/20 transition-colors"
                         >

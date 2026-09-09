@@ -1,6 +1,5 @@
 <script lang="ts">
     import { profile } from "$lib/utils/auth";
-    import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
     import LineChart from "$lib/components/charts/LineChart.svelte";
     import BarChart from "$lib/components/charts/BarChart.svelte";
     import DonutChart from "$lib/components/charts/DonutChart.svelte";
@@ -80,11 +79,7 @@
     <title>Analytics — CEDIMS</title>
 </svelte:head>
 
-{#if loading}
-    <div class="flex items-center justify-center min-h-screen">
-        <CEDIMSLoader label="Analyzing data..." />
-    </div>
-{:else if $profile?.role === 'Teacher' || $profile?.role === 'Master Teacher'}
+{#if $profile?.role === 'Teacher' || $profile?.role === 'Master Teacher'}
     <div class="text-center py-12">
         <h2 class="text-2xl font-bold text-text-primary">Analytics Not Available</h2>
         <p class="text-text-secondary mt-2">Available for School Heads and District Supervisors</p>

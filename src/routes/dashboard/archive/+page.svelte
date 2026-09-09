@@ -31,8 +31,6 @@
     import { exportStyledExcel } from "$lib/utils/excelExport";
     import type { ReportOptions } from "$lib/utils/excelExport";
     import { cacheMetadata, getCachedMetadata } from "$lib/utils/offline";
-    import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
-    import SkeletonLoader from "$lib/components/SkeletonLoader.svelte";
     import EmptyState from "$lib/components/EmptyState.svelte";
     import BulkActionsBar from "$lib/components/BulkActionsBar.svelte";
     import { focusTrap } from "$lib/actions/focusTrap";
@@ -1020,8 +1018,6 @@
                 Try Again
             </button>
         </div>
-    {:else if loading}
-        <SkeletonLoader variant="card-grid" count={8} />
     {:else if !isFileLevel && currentFolders.length > 0}
         <!-- Folder Grid -->
         <div

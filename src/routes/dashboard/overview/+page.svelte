@@ -1,6 +1,5 @@
 <script lang="ts">
     import { profile } from "$lib/utils/auth";
-    import CEDIMSLoader from "$lib/components/CEDIMSLoader.svelte";
     import DashboardCards from "$lib/components/DashboardCards.svelte";
     import SubmissionTable from "$lib/components/SubmissionTable.svelte";
     import { onMount } from "svelte";
@@ -76,11 +75,6 @@
     <title>Dashboard Overview — CEDIMS</title>
 </svelte:head>
 
-{#if loading}
-    <div class="flex items-center justify-center min-h-screen">
-        <CEDIMSLoader label="Loading your dashboard..." />
-    </div>
-{:else}
     <div class="space-y-8">
         <!-- Header -->
         <div class="mb-8">
@@ -392,7 +386,6 @@
             />
         {/if}
     </div>
-{/if}
 
 <style>
     :global([data-theme="light"]) {

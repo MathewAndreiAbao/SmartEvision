@@ -6,7 +6,7 @@
 
 	let mobileOpen = $state(false);
 
-	// Filter items by current role (shared source of truth with DesktopNav.svelte)
+	// Filter items by current role (shared source of truth with AppHeader.svelte)
 	const filteredItems = $derived(getNavItemsForRole($profile?.role));
 
 	// For mobile: show only mobileNav items
@@ -123,11 +123,9 @@
 	ontouchend={handleTouchEnd}
 />
 
-<!-- Desktop Sidebar: HIDDEN (using bottom nav only) -->
-
-<!-- Mobile Bottom Navigation — Only Navigation (No Sidebar) -->
+<!-- Mobile Bottom Navigation — hidden on lg+ where AppHeader carries the section nav instead -->
 <nav
-	class="fixed bottom-0 left-0 right-0 z-40 mobile-nav-bar"
+	class="fixed bottom-0 left-0 right-0 z-40 mobile-nav-bar lg:hidden"
 	aria-label="Main Navigation"
 >
 	<div class="flex items-center justify-around w-full px-0 py-0">

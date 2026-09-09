@@ -1,10 +1,9 @@
 <script lang="ts">
     import Sidebar from "$lib/components/Sidebar.svelte";
-    import TopBar from "$lib/components/TopBar.svelte";
-    import DesktopNav from "$lib/components/DesktopNav.svelte";
+    import AppHeader from "$lib/components/AppHeader.svelte";
     import InstallPrompt from "$lib/components/InstallPrompt.svelte";
     import UpdatePrompt from "$lib/components/UpdatePrompt.svelte";
-    import TutorialOverlay from "$lib/components/TutorialOverlay.svelte";
+    import SystemWalkthrough from "$lib/components/SystemWalkthrough.svelte";
     import { notifications } from "$lib/stores/notifications";
     import { authLoading, profile, user, isChangingPassword } from "$lib/utils/auth";
     import {
@@ -76,11 +75,8 @@
         <!-- Mobile bottom navigation (Sidebar component, but only mobile nav rendered) -->
         <Sidebar />
 
-        <!-- Top navigation bar -->
-        <TopBar />
-
-        <!-- Desktop primary navigation (lg+ only; mobile uses the bottom tab bar) -->
-        <DesktopNav />
+        <!-- Unified top bar: logo, (desktop) section nav, and utility controls -->
+        <AppHeader />
 
         <!-- Main content area (full width, no sidebar) -->
         <main
@@ -89,7 +85,7 @@
             aria-labelledby="dashboard-title"
         >
             <!-- Content with proper spacing (mobile + desktop) -->
-            <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-32 sm:pb-24 lg:pb-28 flex-1">
+            <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-32 sm:pb-24 lg:pb-8 flex-1">
                 {@render children()}
             </div>
         </main>
@@ -98,7 +94,7 @@
         <InstallPrompt />
         <UpdatePrompt />
 
-        <!-- First-time role-based onboarding -->
-        <TutorialOverlay />
+        <!-- Full system interactive walkthrough -->
+        <SystemWalkthrough />
     </div>
 {/if}
