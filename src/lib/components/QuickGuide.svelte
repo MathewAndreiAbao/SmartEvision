@@ -55,7 +55,7 @@
 				{
 					title: 'Uploading Your Documents',
 					content: `Upload DLL (with teaching load), ISP (school plan), or ISR (school report). Tap Upload and choose your document type.`,
-					tips: '✅ ISP/ISR don't need a teaching load!'
+					tips: "✅ ISP/ISR don't need a teaching load!"
 				},
 				{
 					title: 'Viewing School Documents',
