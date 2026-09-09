@@ -435,6 +435,7 @@
                 <button
                     onclick={() => (showDrillDown = false)}
                     class="p-2 hover:bg-black/5 rounded-full transition-colors"
+                    aria-label="Close drill down view"
                 >
                     <svg
                         class="w-6 h-6 text-text-muted"
