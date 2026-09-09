@@ -3,7 +3,9 @@
 	import Toast from "$lib/components/Toast.svelte";
 	import QRScanner from "$lib/components/QRScanner.svelte";
 	import ChatBot from "$lib/components/ChatBot.svelte";
+	import LoadingScreen from "$components/LoadingScreen.svelte";
 	import { showQRScanner } from "$lib/stores/ui";
+	import { hideLoading } from "$stores/loadingStore";
 	import { goto } from "$app/navigation";
 	import { initAuth, profile } from "$lib/utils/auth";
 	import {
@@ -58,6 +60,9 @@
 				prefetchOfflineMetadata(user.id, user.district_id || undefined);
 			}
 
+			// Hide loading screen once app is initialized
+			hideLoading();
+
 			// Defer service worker registration
 			setTimeout(() => {
 				if ("serviceWorker" in navigator && import.meta.env.PROD) {
@@ -97,6 +102,12 @@
 <svelte:head>
 	<title>CEDIMS · Powered by Smart E-VISION</title>
 </svelte:head>
+
+<LoadingScreen
+	appName="CEDIMS"
+	subtitle="Intelligent Document Management System"
+	duration={3000}
+/>
 
 <Toast />
 
