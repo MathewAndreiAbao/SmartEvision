@@ -322,151 +322,12 @@
 	ontouchend={handleTouchEnd}
 />
 
-<!-- Mobile Hamburger Toggle -->
-<button
-	class="lg:hidden fixed top-4 left-4 z-50 w-11 h-11 flex items-center justify-center rounded-lg bg-gov-blue text-white shadow-md hover:bg-gov-blue-dark active:scale-95 transition-all duration-200"
-	onclick={() => (mobileOpen = !mobileOpen)}
-	aria-label="Toggle menu"
->
-	{#if mobileOpen}
-		<X size={22} strokeWidth={2} />
-	{:else}
-		<Menu size={22} strokeWidth={2} />
-	{/if}
-</button>
+<!-- Desktop Sidebar: HIDDEN (using bottom nav only) -->
 
-<!-- Backdrop -->
-{#if mobileOpen}
-	<div
-		class="lg:hidden fixed inset-0 bg-black/50 z-40 transition-opacity duration-300"
-		onclick={() => (mobileOpen = false)}
-		role="presentation"
-	></div>
-{/if}
-
-<!-- Sidebar — Modern, Education-Focused -->
-<aside
-	class="fixed top-0 left-0 h-full w-64 z-50 flex flex-col bg-gradient-to-b from-surface-white via-surface-white to-surface-muted border-r border-border-subtle shadow-lg transition-transform duration-300 ease-smooth
-		{mobileOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0"
-	role="navigation"
-	aria-label="Main Sidebar Navigation"
->
-	<!-- Logo Section — Enhanced -->
-	<a
-		href="/dashboard"
-		class="block border-b border-border-subtle px-6 py-6 no-underline hover:bg-gov-blue/5 transition-colors duration-200 relative z-10"
-		aria-label="Go to Dashboard"
-	>
-		<div class="flex items-center gap-4">
-			<div class="relative p-2.5 bg-gradient-to-br from-gov-blue to-gov-blue-vibrant rounded-xl shadow-md flex-shrink-0 z-20 flex items-center justify-center">
-				<img
-					src="/app_icon.png"
-					alt="CEDIMS"
-					class="h-8 w-8 rounded-md brightness-0 invert flex-shrink-0"
-					loading="eager"
-				/>
-			</div>
-			<div class="relative z-10">
-				<h1
-					id="dashboard-title"
-					class="text-base font-bold text-text-primary leading-tight"
-				>
-					CEDIMS
-				</h1>
-				<p
-					class="mt-1 text-[9px] font-bold uppercase tracking-[0.3em] text-gov-blue/80"
-				>
-					Calapan East District
-				</p>
-			</div>
-		</div>
-	</a>
-
-	<!-- Navigation — Minimalist Professional Menu (4-5 items per role) -->
-	<nav class="flex-1 overflow-y-auto px-3 py-6 cedims-scroll" aria-label="Main Navigation">
-		<ul class="space-y-2">
-			{#each filteredItems as item}
-				{@const Icon = item.icon}
-				<li>
-					<a
-						href={item.href}
-						class="flex items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm font-semibold transition-all duration-200
-							{isActive(item.href)
-							? 'bg-gov-blue/10 text-gov-blue border-l-4 border-gov-blue pl-3'
-							: 'text-text-secondary hover:bg-surface-muted hover:text-gov-blue'}"
-						aria-current={isActive(item.href) ? "page" : undefined}
-						onclick={(e) => {
-							if (item.onClick) {
-								item.onClick(e);
-							}
-							mobileOpen = false;
-						}}
-					>
-						<div class="flex items-center gap-3 min-w-0">
-							<Icon
-								size={20}
-								strokeWidth={isActive(item.href) ? 2.5 : 2}
-								aria-hidden="true"
-								class="flex-shrink-0 transition-colors duration-200"
-							/>
-							<span class="truncate">{item.label}</span>
-						</div>
-						{#if isActive(item.href)}
-							<ChevronRight
-								size={16}
-								strokeWidth={2.5}
-								aria-hidden="true"
-								class="flex-shrink-0"
-							/>
-						{/if}
-					</a>
-				</li>
-			{/each}
-		</ul>
-	</nav>
-
-	<!-- Footer Info — Improved -->
-	{#if $profile}
-		<div
-			class="border-t border-border-subtle bg-gov-blue/5 px-4 py-4"
-			role="contentinfo"
-			aria-label="User Profile Summary"
-		>
-			<div class="flex items-center gap-3 mb-3">
-				{#if $profile.avatar_url}
-					<img
-						src={$profile.avatar_url}
-						alt={$profile.full_name}
-						class="w-10 h-10 rounded-lg border-2 border-gov-blue/20 object-cover"
-					/>
-				{:else}
-					<div
-						class="w-10 h-10 rounded-lg bg-gradient-to-br from-gov-blue to-gov-blue-vibrant flex items-center justify-center text-sm font-bold text-white"
-						aria-hidden="true"
-					>
-						{$profile.full_name?.charAt(0) || "?"}
-					</div>
-				{/if}
-				<div class="flex-1 min-w-0">
-					<p class="truncate text-sm font-bold text-text-primary">
-						{$profile.full_name}
-					</p>
-					<p
-						class="truncate text-[10px] font-semibold uppercase tracking-[0.15em] text-gov-blue/80"
-					>
-						{$profile.role}
-					</p>
-				</div>
-			</div>
-			<SyncStatus />
-		</div>
-	{/if}
-</aside>
-
-<!-- Mobile Bottom Nav — Professional Design -->
+<!-- Mobile Bottom Navigation — Only Navigation (No Sidebar) -->
 <nav
-	class="lg:hidden fixed bottom-0 left-0 right-0 z-40 mobile-nav-bar"
-	aria-label="Mobile Navigation Bar"
+	class="fixed bottom-0 left-0 right-0 z-40 mobile-nav-bar"
+	aria-label="Main Navigation"
 >
 	<div class="flex items-center justify-around w-full px-0 py-0">
 		{#each mobileNavItems as item}
@@ -480,18 +341,17 @@
 					if (item.onClick) {
 						item.onClick(e);
 					}
-					mobileOpen = false;
 				}}
 			>
 				<div class="mobile-nav-icon">
 					<MobileIcon
-						size={22}
-						strokeWidth={isActive(item.href) ? 2 : 1.5}
+						size={24}
+						strokeWidth={isActive(item.href) ? 2.5 : 2}
 						aria-hidden="true"
 					/>
 				</div>
-				<span class="text-[10px] font-semibold"
-					>{item.label.split(" ")[0]}</span
+				<span class="text-[10px] font-semibold leading-tight"
+					>{item.label}</span
 				>
 			</a>
 		{/each}

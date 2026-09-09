@@ -68,18 +68,21 @@
 </a>
 
 {#if $user}
-    <div class="min-h-screen bg-surface">
+    <div class="min-h-screen bg-surface flex flex-col">
+        <!-- Mobile bottom navigation (Sidebar component, but only mobile nav rendered) -->
         <Sidebar />
 
-        <!-- Main content area -->
+        <!-- Top navigation bar -->
+        <TopBar />
+
+        <!-- Main content area (full width, no sidebar) -->
         <main
             id="main-content"
-            class="lg:ml-60 min-h-screen flex flex-col bg-surface"
+            class="flex-1 min-h-screen flex flex-col bg-surface"
             aria-labelledby="dashboard-title"
         >
-            <TopBar />
-
-            <div class="relative p-4 sm:p-6 lg:p-8 pb-28 sm:pb-20 lg:pb-6 flex-1 bg-surface">
+            <!-- Content with proper spacing (mobile + desktop) -->
+            <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-24 sm:pb-8 flex-1">
                 {@render children()}
             </div>
         </main>
