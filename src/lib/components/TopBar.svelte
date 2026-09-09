@@ -42,11 +42,18 @@
 </script>
 
 <header
-    class="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-border-subtle bg-surface-white/95 px-4 pl-12 backdrop-blur-md shadow-sm sm:px-6 lg:pl-6"
+    class="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-color-border-subtle bg-color-surface-white backdrop-blur-md shadow-sm px-4 sm:px-6 lg:px-8"
     in:fade={{ duration: 300 }}
 >
-    <!-- Left: Breadcrumbs -->
-    <div class="flex items-center gap-2 min-w-0 flex-1">
+    <!-- Left: Logo (hidden on desktop, shown on mobile) -->
+    <div class="lg:hidden shrink-0">
+        <div class="text-lg font-bold bg-gradient-to-br from-gov-blue to-gov-blue-vibrant bg-clip-text text-transparent">
+            CEDIMS
+        </div>
+    </div>
+
+    <!-- Center: Breadcrumbs (hidden on mobile) -->
+    <div class="hidden lg:flex items-center gap-2 min-w-0 flex-1 mx-6">
         <nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-sm min-w-0 overflow-hidden">
             <a
                 href="/dashboard"

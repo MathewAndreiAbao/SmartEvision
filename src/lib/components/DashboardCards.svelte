@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Clock, CheckCircle, AlertCircle, FileText, TrendingUp, Users, Building2, AlertTriangle } from "lucide-svelte";
+    import { TrendingUp } from "lucide-svelte";
 
     interface Props {
         title: string;
@@ -15,28 +15,31 @@
     let { title, value, unit, icon: IconComponent, variant = 'info', trend, trendLabel, subtitle } = $props<Props>();
 
     const variantClasses = {
-        success: 'bg-gov-green/10 border-gov-green/20 text-gov-green',
-        warning: 'bg-gov-gold/10 border-gov-gold/20 text-gov-gold-dark',
-        danger: 'bg-gov-red/10 border-gov-red/20 text-gov-red',
-        info: 'bg-gov-blue/10 border-gov-blue/20 text-gov-blue'
+        success: 'bg-gov-green/10',
+        warning: 'bg-gov-gold/10',
+        danger: 'bg-gov-red/10',
+        info: 'bg-gov-blue/10'
     };
 
     const iconClasses = {
-        success: 'bg-gov-green/20 text-gov-green',
-        warning: 'bg-gov-gold/20 text-gov-gold-dark',
-        danger: 'bg-gov-red/20 text-gov-red',
-        info: 'bg-gov-blue/20 text-gov-blue'
+        success: 'text-gov-green',
+        warning: 'text-gov-gold-dark',
+        danger: 'text-gov-red',
+        info: 'text-gov-blue'
     };
+
+    const trendColor = (trend: number) => trend >= 0 ? 'text-gov-green' : 'text-gov-red';
 </script>
 
-<div class="gov-card-static p-6 border-l-4 {variantClasses[variant]}">
+<!-- Professional Metric Card with hover effects -->
+<div class="metric-card">
     <div class="flex items-start justify-between gap-4">
         <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold text-text-secondary uppercase tracking-wide mb-2">
+            <div class="metric-label">
                 {title}
-            </p>
+            </div>
             <div class="flex items-baseline gap-2">
-                <p class="text-3xl font-bold text-text-primary">
+                <p class="metric-value">
                     {value}
                 </p>
                 {#if unit}
@@ -44,12 +47,12 @@
                 {/if}
             </div>
             {#if subtitle}
-                <p class="text-xs text-text-secondary mt-1">{subtitle}</p>
+                <p class="metric-subtitle">{subtitle}</p>
             {/if}
             {#if trend !== undefined}
                 <div class="flex items-center gap-1 mt-3">
-                    <TrendingUp size={16} class={trend >= 0 ? 'text-gov-green' : 'text-gov-red'} />
-                    <span class="text-xs font-semibold {trend >= 0 ? 'text-gov-green' : 'text-gov-red'}">
+                    <TrendingUp size={16} class={trendColor(trend)} strokeWidth={2} />
+                    <span class="text-xs font-semibold {trendColor(trend)}">
                         {trend >= 0 ? '+' : ''}{trend}%
                     </span>
                     {#if trendLabel}
@@ -58,8 +61,8 @@
                 </div>
             {/if}
         </div>
-        <div class="flex-shrink-0 p-3 rounded-xl {iconClasses[variant]}">
-            <svelte:component this={IconComponent} size={24} />
+        <div class="flex-shrink-0 p-3 rounded-lg {variantClasses[variant]} {iconClasses[variant]}">
+            <svelte:component this={IconComponent} size={24} strokeWidth={1.5} />
         </div>
     </div>
 </div>

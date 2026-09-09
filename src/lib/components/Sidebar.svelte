@@ -272,12 +272,12 @@
 		</div>
 	</a>
 
-	<!-- Navigation — Improved Styling -->
-	<nav class="flex-1 overflow-y-auto px-4 py-5 cedims-scroll" aria-label="Sidebar Menu">
+	<!-- Navigation — Professional Sidebar Menu -->
+	<nav class="flex-1 overflow-y-auto px-3 py-4 cedims-scroll" aria-label="Sidebar Menu">
 		{#each groupedItems as group}
 			<div class="mb-6 last:mb-2">
 				<p
-					class="px-4 mb-2.5 text-[11px] font-bold uppercase tracking-[0.25em] text-text-muted"
+					class="px-4 mb-3 text-[11px] font-bold uppercase tracking-[0.25em] text-text-muted"
 					aria-hidden="true"
 				>
 					{group.section}
@@ -290,8 +290,8 @@
 								href={item.href}
 								class="flex items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm font-semibold transition-all duration-200
 									{isActive(item.href)
-									? 'bg-gradient-to-r from-gov-blue to-gov-blue-vibrant text-white shadow-md'
-									: 'text-text-secondary hover:bg-gov-blue/10 hover:text-gov-blue'}"
+									? 'bg-color-surface-muted text-gov-blue border-l-4 border-gov-blue pl-3 font-600'
+									: 'text-color-text-secondary hover:bg-color-surface-muted hover:text-gov-blue'}"
 								aria-current={isActive(item.href) ? "page" : undefined}
 								onclick={(e) => {
 									if (item.onClick) {
@@ -363,20 +363,17 @@
 	{/if}
 </aside>
 
-<!-- Mobile Bottom Nav — Modern -->
+<!-- Mobile Bottom Nav — Professional Design -->
 <nav
-	class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface-white border-t border-border-subtle shadow-2xl"
+	class="lg:hidden fixed bottom-0 left-0 right-0 z-40 mobile-nav-bar"
 	aria-label="Mobile Navigation Bar"
 >
-	<div class="flex items-center justify-around px-2 py-2">
+	<div class="flex items-center justify-around w-full px-0 py-0">
 		{#each mobileNavItems as item}
 			{@const MobileIcon = item.icon}
 			<a
 				href={item.href}
-				class="flex flex-col items-center justify-center gap-1 px-3 py-2.5 rounded-lg transition-all duration-200 min-h-[56px] min-w-[56px] flex-1
-					{isActive(item.href)
-					? 'text-gov-blue bg-gov-blue/10'
-					: 'text-text-muted hover:bg-gov-blue/5 hover:text-gov-blue'}"
+				class="mobile-nav-item {isActive(item.href) ? 'active' : ''}"
 				aria-current={isActive(item.href) ? "page" : undefined}
 				aria-label={item.label}
 				onclick={(e) => {
@@ -386,11 +383,13 @@
 					mobileOpen = false;
 				}}
 			>
-				<MobileIcon
-					size={22}
-					strokeWidth={isActive(item.href) ? 2 : 1.5}
-					aria-hidden="true"
-				/>
+				<div class="mobile-nav-icon">
+					<MobileIcon
+						size={22}
+						strokeWidth={isActive(item.href) ? 2 : 1.5}
+						aria-hidden="true"
+					/>
+				</div>
 				<span class="text-[10px] font-semibold"
 					>{item.label.split(" ")[0]}</span
 				>
