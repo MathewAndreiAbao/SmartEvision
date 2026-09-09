@@ -1,6 +1,5 @@
 <script lang="ts">
     import NotificationCenter from "./NotificationCenter.svelte";
-    import QuickGuide from "./QuickGuide.svelte";
     import { page } from "$app/stores";
     import { profile } from "$lib/utils/auth";
     import { theme } from "$lib/stores/theme";
@@ -83,9 +82,6 @@
 
     <!-- Right: Actions & Profile -->
     <div class="flex items-center gap-1 sm:gap-2 flex-shrink-0 ml-4">
-        <!-- Quick Guide -->
-        <QuickGuide />
-
         <!-- Theme Toggle -->
         <button
             onclick={() => theme.toggle()}
