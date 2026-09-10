@@ -1,5 +1,6 @@
 <script lang="ts">
     import Sidebar from "$lib/components/Sidebar.svelte";
+    import AppSidebar from "$lib/components/AppSidebar.svelte";
     import AppHeader from "$lib/components/AppHeader.svelte";
     import InstallPrompt from "$lib/components/InstallPrompt.svelte";
     import UpdatePrompt from "$lib/components/UpdatePrompt.svelte";
@@ -71,23 +72,32 @@
 </a>
 
 {#if $user}
+    <!-- AppSidebar, Sidebar (bottom tabs), and the PWA/walkthrough overlays
+         are all position:fixed, so they don't participate in this flex
+         layout at all — flex-col only ever governs AppHeader vs <main>,
+         and AppHeader is lg:hidden, so there's nothing for flex-direction
+         to do at lg+. The sidebar offset is handled by <main>'s lg:ml-64. -->
     <div class="min-h-dvh bg-surface flex flex-col">
         <!-- Mobile bottom navigation (Sidebar component, but only mobile nav rendered) -->
         <Sidebar />
 
-        <!-- Unified top bar: logo, (desktop) section nav, and utility controls -->
+        <!-- Persistent left sidebar at lg+ — the desktop nav surface -->
+        <AppSidebar />
+
+        <!-- Mobile-only utility strip (logo, connectivity, theme, profile).
+             No top bar at all at lg+: AppSidebar covers that ground. -->
         <AppHeader />
 
-        <!-- Main content area (full width, no sidebar) -->
+        <!-- Main content area — offset past the fixed lg+ sidebar -->
         <main
             id="main-content"
-            class="flex-1 min-h-dvh flex flex-col bg-surface"
+            class="flex-1 min-h-dvh flex flex-col bg-surface lg:ml-64"
             aria-label="Dashboard content"
         >
             <!-- Content with proper spacing. Bottom padding clears the fixed
-                 bottom tab bar below lg; at lg+ that bar is hidden (a
-                 persistent header nav takes over), so the clearance drops
-                 to the ordinary section padding instead of wasting space. -->
+                 bottom tab bar below lg; at lg+ that bar is hidden (the
+                 sidebar takes over), so the clearance drops to the ordinary
+                 section padding instead of wasting space. -->
             <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-32 sm:pb-24 lg:pb-8 flex-1">
                 {@render children()}
             </div>

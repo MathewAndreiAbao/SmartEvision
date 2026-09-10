@@ -5,31 +5,15 @@
     import { connectivity } from "$lib/stores/connectivity";
     import { signOut } from "$lib/utils/auth";
     import { goto } from "$app/navigation";
-    import { page } from "$app/stores";
-    import { Sun, Moon, LogOut, WifiOff, RefreshCw, QrCode, Settings } from "lucide-svelte";
+    import { Sun, Moon, LogOut, WifiOff, RefreshCw, Settings } from "lucide-svelte";
     import { focusTrap } from "$lib/actions/focusTrap";
-    import { getNavItemsForRole } from "$lib/config/navigation";
-    import { showQRScanner } from "$lib/stores/ui";
 
     const { isOnline: onlineStatus, pendingCount } = connectivity;
 
-    // Section navigation as a persistent row at lg+ (a District Supervisor
-    // on a desktop workstation gets real navigation instead of a 5-tab
-    // phone bar stretched across an otherwise-empty header). Below lg the
-    // bottom tab bar (Sidebar.svelte) remains the single nav surface.
-    // Same role-filtered source of truth as the mobile bar; the "Scan"
-    // quick-action isn't a real route (href="#scan"), so it gets its own
-    // icon button instead of a broken nav-tab link.
-    const desktopNavItems = $derived(
-        getNavItemsForRole($profile?.role).filter((item) => !item.href.startsWith("#")),
-    );
-
-    function isActive(href: string): boolean {
-        const currentPath = $page.url.pathname;
-        if (href === "/dashboard") return currentPath === "/dashboard";
-        return currentPath.startsWith(href);
-    }
-
+    // Mobile-only utility strip (lg:hidden — AppSidebar.svelte covers lg+).
+    // No section nav here: the bottom tab bar is the single nav surface
+    // below lg, so this is logo + connectivity + theme + notifications +
+    // profile only, not a second navigation surface.
     let profileMenuOpen = $state(false);
     let profileMenuRef: HTMLDivElement | undefined = $state();
     let profileMenuDropdown: HTMLDivElement | undefined = $state();
@@ -59,9 +43,9 @@
 </script>
 
 <header
-    class="sticky top-0 z-30 w-full border-b border-border-subtle bg-surface-white/95 backdrop-blur-md shadow-sm"
+    class="lg:hidden sticky top-0 z-30 w-full border-b border-border-subtle bg-surface-white/95 backdrop-blur-md shadow-sm"
 >
-    <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+    <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         <!-- Left: Logo -->
         <div class="flex items-center gap-1 min-w-0 shrink-0">
             <a href="/dashboard" class="shrink-0" aria-label="CEDIMS Dashboard">
@@ -72,21 +56,6 @@
                 </span>
             </a>
         </div>
-
-        <!-- Center: Desktop section nav (lg+ only — bottom tab bar covers narrower viewports) -->
-        <nav class="hidden lg:flex nav-tabs border-b-0 bg-transparent min-w-0 overflow-x-auto" aria-label="Section navigation">
-            {#each desktopNavItems as item}
-                {@const NavIcon = item.icon}
-                <a
-                    href={item.href}
-                    class="nav-tab flex items-center gap-2 whitespace-nowrap {isActive(item.href) ? 'active' : ''}"
-                    aria-current={isActive(item.href) ? "page" : undefined}
-                >
-                    <NavIcon size={16} strokeWidth={isActive(item.href) ? 2.5 : 2} aria-hidden="true" />
-                    {item.label}
-                </a>
-            {/each}
-        </nav>
 
         <!-- Right: Actions & Profile -->
         <div class="flex items-center gap-1 sm:gap-2 flex-shrink-0">
@@ -108,26 +77,14 @@
                         : "You are offline — changes will sync once reconnected"}
                 >
                     {#if $onlineStatus}
-                        <RefreshCw size={14} strokeWidth={2} />
+                        <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
                         <span class="hidden xs:inline">{$pendingCount} pending</span>
                     {:else}
-                        <WifiOff size={14} strokeWidth={2} />
+                        <WifiOff size={14} strokeWidth={2} aria-hidden="true" />
                         <span class="hidden xs:inline">Offline</span>
                     {/if}
                 </button>
             {/if}
-
-            <!-- QR Scan — desktop-only icon button. The mobile bottom nav has
-                 no room for a 6th item on District Supervisor's 6-tab layout,
-                 so this quick action previously had a home only on the
-                 dashboard page itself. -->
-            <button
-                onclick={() => showQRScanner.set(true)}
-                class="hidden lg:flex h-10 w-10 items-center justify-center rounded-lg text-text-muted hover:text-gov-blue hover:bg-gov-blue/10 transition-colors duration-200"
-                aria-label="Scan QR code"
-            >
-                <QrCode size={20} strokeWidth={1.5} aria-hidden="true" />
-            </button>
 
             <!-- Theme Toggle -->
             <button
@@ -204,7 +161,7 @@
                             class="w-full text-left px-4 py-3 text-sm font-medium text-gov-red hover:bg-gov-red/10 last:rounded-b-lg transition-colors flex items-center gap-2"
                             role="menuitem"
                         >
-                            <LogOut size={16} strokeWidth={2} />
+                            <LogOut size={16} strokeWidth={2} aria-hidden="true" />
                             Sign Out
                         </button>
                     </div>
