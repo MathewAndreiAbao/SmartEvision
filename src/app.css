@@ -129,7 +129,7 @@
      dominant sizing lever: nearly all templates use Tailwind's own
      text-xs/sm/base/lg classes, which scale off the root, not these
      custom tokens (those are only consumed by the rarely-used
-     .text-heading-*/.text-body-* utilities). Dense/metadata roles
+     text-heading and text-body utility classes). Dense/metadata roles
      (xs, sm) stay compact — impeccable's typeset guidance permits a
      dense-role exception to the 16px body floor; primary reading text
      (base) now genuinely meets it. */
