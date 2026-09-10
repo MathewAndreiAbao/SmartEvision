@@ -155,8 +155,8 @@ export const walkthroughHeaderSteps: WalkthroughStep[] = [
         target: "profile-menu",
     },
     {
-        title: "Meet EVA",
-        content: "Your CEDIMS assistant. Ask EVA about your compliance rate, deadlines, or how to do something — she answers using your live data.",
+        title: "Meet Gabay",
+        content: "Your CEDIMS assistant. Ask Gabay about your compliance rate, deadlines, or how to do something — it answers using your live data.",
         tip: "Try: “When is the next deadline?”",
         target: "chatbot",
     },

@@ -1,11 +1,12 @@
 <script lang="ts">
-    import { MessageCircle, X, Send, Bot, ChevronDown } from "lucide-svelte";
+    import { MessageCircle, X, Send, ChevronDown } from "lucide-svelte";
     import { processQuery, loadDllDocumentsFromSupabase } from "$lib/utils/chatbot";
     import type { ChatResponse, Intent, ChatContext } from "$lib/utils/chatbot";
     import { supabase } from "$lib/utils/supabase";
     import { user, profile } from "$lib/utils/auth";
     import { onMount } from "svelte";
     import { page } from "$app/stores";
+    import GabayMascot from "./GabayMascot.svelte";
 
     // Dashboard pages carry a bottom tab bar at every screen size, so the
     // floating button/panel need extra clearance there; other pages don't.
@@ -35,7 +36,7 @@
     onMount(() => {
         messages.push({
             role: 'bot',
-            text: "Hi, I'm EVA — your CEDIMS assistant. I can help check your compliance rate, find DLLs, look up deadlines, and compare school performance using live data. Feel free to ask me anything.",
+            text: "Hi, I'm Gabay — your CEDIMS assistant. I can help check your compliance rate, find DLLs, look up deadlines, and compare school performance using live data. Feel free to ask me anything.",
             intent: 'general_help'
         });
         const unsubUser = user.subscribe((u) => currentUser = u as { id: string } | null);
@@ -95,12 +96,12 @@
     <button
         data-tour="chatbot"
         onclick={() => (isOpen = true)}
-        class="fixed right-6 z-50 w-14 h-14 bg-gov-blue hover:bg-gov-blue-dark text-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 {inDashboard
+        class="fixed right-6 z-50 w-16 h-16 bg-surface-white rounded-full shadow-lg border border-border-subtle flex items-center justify-center transition-all hover:scale-105 hover:shadow-xl active:scale-95 {inDashboard
             ? 'bottom-24'
             : 'bottom-6'}"
-        aria-label="Open EVA, the CEDIMS chat assistant"
+        aria-label="Open Gabay, the CEDIMS chat assistant"
     >
-        <Bot size={24} />
+        <GabayMascot size={44} />
     </button>
 {:else}
     <!-- Chat window -->
@@ -112,11 +113,11 @@
         <!-- Header -->
         <div class="bg-gov-blue text-white px-5 py-4 flex items-center justify-between shrink-0">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 bg-surface-white/20 rounded-full flex items-center justify-center">
-                    <Bot size={16} />
+                <div class="w-9 h-9 bg-surface-white rounded-full flex items-center justify-center shrink-0 overflow-hidden">
+                    <GabayMascot size={26} wave={false} />
                 </div>
                 <div>
-                    <p class="text-sm font-bold">EVA</p>
+                    <p class="text-sm font-bold">Gabay</p>
                     <p class="text-[10px] text-white/70">Your CEDIMS assistant</p>
                 </div>
             </div>
@@ -135,8 +136,8 @@
                 <div class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}">
                     {#if msg.role === 'bot'}
                         <div class="flex items-start gap-2 max-w-[85%]">
-                            <div class="w-7 h-7 bg-gov-blue/10 rounded-full flex items-center justify-center shrink-0 mt-0.5">
-                                <Bot size={14} class="text-gov-blue" />
+                            <div class="w-7 h-7 bg-surface-white border border-border-subtle rounded-full flex items-center justify-center shrink-0 mt-0.5 overflow-hidden">
+                                <GabayMascot size={20} wave={false} />
                             </div>
                             <div class="bg-surface-white border border-border-subtle rounded-2xl rounded-tl-sm px-4 py-2.5 text-xs text-text-primary leading-relaxed shadow-sm">
                                 {msg.text}
@@ -153,8 +154,8 @@
             {#if isLoading}
                 <div class="flex justify-start">
                     <div class="flex items-start gap-2 max-w-[85%]">
-                        <div class="w-7 h-7 bg-gov-blue/10 rounded-full flex items-center justify-center shrink-0 mt-0.5">
-                            <Bot size={14} class="text-gov-blue" />
+                        <div class="w-7 h-7 bg-surface-white border border-border-subtle rounded-full flex items-center justify-center shrink-0 mt-0.5 overflow-hidden">
+                            <GabayMascot size={20} wave={false} />
                         </div>
                         <div class="bg-surface-white border border-border-subtle rounded-2xl rounded-tl-sm px-4 py-2.5 shadow-sm">
                             <div class="flex gap-1">

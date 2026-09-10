@@ -145,11 +145,11 @@ const KNOWLEDGE_BASE: KnowledgeEntry[] = [
     },
     {
         keywords: ['greeting', 'hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening', 'kamusta', 'kumusta', 'kumusta', 'salamat', 'thanks', 'thank you'],
-        answer: 'Hello! I\u2019m EVA, your CEDIMS assistant. I can check your compliance, find DLLs, look up deadlines, compare schools, and show teacher stats. What would you like to know?'
+        answer: 'Hello! I\u2019m Gabay, your CEDIMS assistant. I can check your compliance, find DLLs, look up deadlines, compare schools, and show teacher stats. What would you like to know?'
     },
     {
         keywords: ['who are you', 'your name', 'about yourself', 'what are you', 'sino ka', 'tell me about you'],
-        answer: 'I\u2019m EVA \u2014 short for E-VISION Assistant. I live right in the app and answer your questions using live data \u2014 no internet bill needed. Ask me anything about compliance, DLLs, deadlines, or school performance!'
+        answer: 'I\u2019m Gabay \u2014 Filipino for "guide." I live right in the app and answer your questions using live data \u2014 no internet bill needed. Ask me anything about compliance, DLLs, deadlines, or school performance!'
     }
 ];
 
@@ -926,7 +926,10 @@ async function generateDatabaseResponse(
         }
     } catch (err) {
         console.error('[chatbot] DB response error:', err);
-        return "Sorry, I ran into an error fetching data. Please try again.";
+        const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+        return offline
+            ? "Looks like you're offline right now, so I can't check the live data for that — but I'm still here! Ask me again once you're back online, or try a general question in the meantime."
+            : "Hmm, I couldn't fetch that just now. Give it another try in a moment — I'll be right here.";
     }
 }
 
