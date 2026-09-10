@@ -597,7 +597,34 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                 }
 
                 // ── Insert database record ──
-                const complianceStatus = calculateComplianceStatus(new Date(), deadlineDate);
+                // Detect whether this is an ADDITIONAL DLL for an already-covered
+                // slot (same teaching load + week + doc type). If so, mark it
+                // 'supplementary' so it's archived but doesn't affect compliance /
+                // missing / late / rate — mirrors the same check in
+                // pipeline.ts's runOnlinePipelineResilient, which this offline
+                // sync path had been missing (multiple uploads per week are
+                // intentionally allowed; only the first counts toward compliance).
+                let complianceStatus: 'compliant' | 'late' | 'supplementary' = calculateComplianceStatus(new Date(), deadlineDate);
+                if (item.options.teachingLoadId && item.options.weekNumber) {
+                    try {
+                        const { data: slotMatch } = await withTimeout(
+                            supabase
+                                .from('submissions')
+                                .select('id')
+                                .eq('teaching_load_id', item.options.teachingLoadId)
+                                .eq('week_number', item.options.weekNumber)
+                                .eq('doc_type', item.options.docType || 'DLL')
+                                .limit(1) as any,
+                            20000,
+                            'Duplicate slot check timed out.'
+                        ) as { data: any };
+                        if (slotMatch && slotMatch.length > 0) {
+                            complianceStatus = 'supplementary';
+                        }
+                    } catch (e) {
+                        console.warn('[sync] Duplicate slot check failed, continuing as normal:', e);
+                    }
+                }
 
                 const insertPromise = supabase.from('submissions').insert({
                     user_id: item.options.userId,
