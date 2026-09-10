@@ -420,6 +420,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
             if (!item) {
                 console.warn(`[offline] Found ghost key ${key}, removing...`);
                 await del(key);
+                await updatePendingCount();
                 continue;
             }
 
@@ -447,6 +448,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                     if (metaMatch) {
                         console.warn(`[offline] Slot already taken on server: ${item.fileName}`);
                         await del(key);
+                        await updatePendingCount();
                         await markSynced(item.fileHash); // Update ledger to 'synced'
                         addToast('warning', `Already archived: ${item.options.docType || 'DLL'} for Week ${item.options.weekNumber}.`);
                         success++;
@@ -470,6 +472,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                 if (existing) {
                     console.warn(`[offline] Duplicate hash on server: ${item.fileName}`);
                     await del(key);
+                    await updatePendingCount();
                     await markSynced(item.fileHash);
                     addToast('warning', `Skipped duplicate content: ${item.fileName}`);
                     success++;
@@ -625,6 +628,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                     if (dbError.code === '23505' || dbError.message?.includes('unique_submission_per_load_week')) {
                         console.warn(`[sync] Duplicate constraint — removing: ${item.fileName}`);
                         await del(key);
+                        await updatePendingCount();
                         await markSynced(item.fileHash);
                         addToast('warning', `Already archived: ${item.fileName}`);
                         success++;

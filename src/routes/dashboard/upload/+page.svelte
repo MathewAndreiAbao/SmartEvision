@@ -12,6 +12,7 @@
         processQueue,
         cacheMetadata,
         getCachedMetadata,
+        pendingSyncCount,
     } from "$lib/utils/offline";
     import {
         syncLedgerFromServer,
@@ -209,11 +210,16 @@
         }
     }
 
-    onMount(() => {
-        getQueueSize().then((s) => {
-            queueCount = s;
-        });
+    // Keep this page's pending-sync panel in sync with the shared queue store
+    // the instant it changes (e.g. right after a background sync finishes
+    // elsewhere), instead of only refreshing on this page's own online/mount
+    // events. This also provides the initial fetch on mount.
+    $effect(() => {
+        $pendingSyncCount;
         refreshPendingItems();
+    });
+
+    onMount(() => {
         // Delay pre-warming slightly to not block initial page render
         setTimeout(preWarmLibraries, 3000);
 
