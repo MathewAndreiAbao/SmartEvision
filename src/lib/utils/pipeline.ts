@@ -210,7 +210,12 @@ async function* runOnlinePipelineResilient(
 
     const contentType = 'application/pdf';
     const MAX_SERVER_UPLOAD = 4.4 * 1024 * 1024; // 4.4MB limit for Vercel (4.5MB - safety margin)
-    const fileBlob = stampedBytes as Blob;
+    // `stampedBytes` is a Uint8Array; `as Blob` is only a compile-time type
+    // assertion and does NOT convert it at runtime. That left fileBlob.size
+    // as undefined, so the size check below always evaluated to false and
+    // EVERY upload — regardless of actual size — was misrouted to the
+    // CORS-sensitive direct-to-B2 path instead of the safe server route.
+    const fileBlob = new Blob([stampedBytes as BlobPart], { type: contentType });
 
     // Strategy 1: Try server-side upload first (avoids CORS entirely)
     let uploadSuccess = false;
