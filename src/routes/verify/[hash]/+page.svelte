@@ -335,7 +335,10 @@
                                             : result.compliance_status ===
                                                 "late"
                                               ? "late"
-                                              : "missing"}
+                                              : result.compliance_status ===
+                                                  "supplementary"
+                                                ? "supplementary"
+                                                : "missing"}
                                         size="sm"
                                     />
                                 </div>

@@ -5,6 +5,7 @@
         AlertCircle,
         Search,
         Loader2,
+        Copy,
         type Icon,
     } from "lucide-svelte";
 
@@ -52,6 +53,13 @@
             border: "border-border-strong/30",
             label: "Pending",
             icon: Loader2,
+        },
+        supplementary: {
+            bg: "bg-gov-blue/10",
+            text: "text-gov-blue",
+            border: "border-gov-blue/30",
+            label: "Supplementary",
+            icon: Copy,
         },
         review: {
             bg: "bg-gov-blue/15",
