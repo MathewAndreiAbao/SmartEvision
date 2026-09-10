@@ -34,17 +34,9 @@
 	<div class="loading-container">
 		<!-- Minimalist CEDIMS Loading -->
 		<div class="loading-content">
-			<!-- Minimalist Document Icon with Animation -->
+			<!-- Official DepEd Calapan East District seal -->
 			<div class="cedims-icon">
-				<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-					<!-- Document background -->
-					<rect x="20" y="15" width="60" height="70" rx="4" fill="none" stroke="currentColor" stroke-width="2" opacity="0.6"/>
-					<!-- Document lines (animated) -->
-					<line x1="30" y1="30" x2="70" y2="30" stroke="currentColor" stroke-width="2" opacity="0.8" class="doc-line-1"/>
-					<line x1="30" y1="42" x2="70" y2="42" stroke="currentColor" stroke-width="2" opacity="0.7" class="doc-line-2"/>
-					<line x1="30" y1="54" x2="70" y2="54" stroke="currentColor" stroke-width="2" opacity="0.6" class="doc-line-3"/>
-					<line x1="30" y1="66" x2="55" y2="66" stroke="currentColor" stroke-width="2" opacity="0.5" class="doc-line-4"/>
-				</svg>
+				<img src="/app_icon.png" alt="CEDIMS — DepEd Calapan East District" />
 			</div>
 
 			<!-- App Name -->
@@ -102,35 +94,11 @@
 		animation: documentFloat 3s ease-in-out infinite;
 	}
 
-	.cedims-icon svg {
+	.cedims-icon img {
 		width: 100%;
 		height: 100%;
-		color: #2563eb;
+		object-fit: contain;
 		filter: drop-shadow(0 4px 12px rgba(37, 99, 235, 0.15));
-	}
-
-	.doc-line-1 {
-		animation: lineReveal 1.2s ease-out forwards;
-		animation-delay: 0s;
-		transform-origin: 30px 30px;
-	}
-
-	.doc-line-2 {
-		animation: lineReveal 1.2s ease-out forwards;
-		animation-delay: 0.15s;
-		transform-origin: 30px 42px;
-	}
-
-	.doc-line-3 {
-		animation: lineReveal 1.2s ease-out forwards;
-		animation-delay: 0.3s;
-		transform-origin: 30px 54px;
-	}
-
-	.doc-line-4 {
-		animation: lineReveal 1.2s ease-out forwards;
-		animation-delay: 0.45s;
-		transform-origin: 30px 66px;
 	}
 
 	/* App Name */
@@ -216,19 +184,6 @@
 		}
 		50% {
 			transform: translateY(-12px);
-		}
-	}
-
-	@keyframes lineReveal {
-		from {
-			opacity: 0;
-			stroke-dasharray: 40;
-			stroke-dashoffset: 40;
-		}
-		to {
-			opacity: 1;
-			stroke-dasharray: 40;
-			stroke-dashoffset: 0;
 		}
 	}
 

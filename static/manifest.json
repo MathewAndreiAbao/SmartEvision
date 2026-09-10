@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Smart E-VISION",
-  "short_name": "E-VISION",
-  "description": "A Progressive Web App for Instructional Supervision Archiving — DepEd Calapan City, Calapan East District",
+  "name": "CEDIMS",
+  "short_name": "CEDIMS",
+  "description": "Calapan East District Instructional Monitoring System — Powered by Smart E-VISION. DepEd Calapan City, Calapan East District.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

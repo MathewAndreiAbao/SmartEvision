@@ -10,6 +10,12 @@ import { supabase } from '$lib/utils/supabase';
 // ===========================
 
 export async function getSchoolHeadAnalytics(schoolId: string, districtId: string) {
+    // NOTE: every query below embeds `profiles!inner(...)` (not the plain
+    // `profiles(...)` left-join form) so that `.eq('profiles.school_id', ...)`
+    // actually restricts the top-level `submissions` rows returned. Without
+    // `!inner`, PostgREST treats it as a left join and the school_id filter
+    // does not narrow the result set — every query here previously returned
+    // submissions from every school in the system instead of just this one.
     const [complianceTrend, teacherPerformance, weeklyBreakdown, docTypeStats, atRiskTeachers] = await Promise.all([
         // Compliance trend over last 12 weeks
         supabase
@@ -19,9 +25,10 @@ export async function getSchoolHeadAnalytics(schoolId: string, districtId: strin
                 created_at,
                 compliance_status,
                 doc_type,
-                week_number
+                week_number,
+                profiles!inner(school_id)
             `)
-            .in('profiles.school_id', [schoolId])
+            .eq('profiles.school_id', schoolId)
             .order('created_at', { ascending: true })
             .limit(500),
 
@@ -33,9 +40,9 @@ export async function getSchoolHeadAnalytics(schoolId: string, districtId: strin
                 compliance_status,
                 doc_type,
                 created_at,
-                profiles(full_name, role)
+                profiles!inner(full_name, role, school_id)
             `)
-            .in('profiles.school_id', [schoolId])
+            .eq('profiles.school_id', schoolId)
             .order('created_at', { ascending: false })
             .limit(300),
 
@@ -45,9 +52,10 @@ export async function getSchoolHeadAnalytics(schoolId: string, districtId: strin
             .select(`
                 week_number,
                 compliance_status,
-                doc_type
+                doc_type,
+                profiles!inner(school_id)
             `)
-            .in('profiles.school_id', [schoolId])
+            .eq('profiles.school_id', schoolId)
             .order('week_number', { ascending: true })
             .limit(400),
 
@@ -56,9 +64,10 @@ export async function getSchoolHeadAnalytics(schoolId: string, districtId: strin
             .from('submissions')
             .select(`
                 doc_type,
-                compliance_status
+                compliance_status,
+                profiles!inner(school_id)
             `)
-            .in('profiles.school_id', [schoolId])
+            .eq('profiles.school_id', schoolId)
             .limit(500),
 
         // Teachers below compliance threshold (< 70%)
@@ -67,9 +76,9 @@ export async function getSchoolHeadAnalytics(schoolId: string, districtId: strin
             .select(`
                 user_id,
                 compliance_status,
-                profiles(full_name, role, avatar_url)
+                profiles!inner(full_name, role, avatar_url, school_id)
             `)
-            .in('profiles.school_id', [schoolId])
+            .eq('profiles.school_id', schoolId)
             .order('user_id')
             .limit(300)
     ]);
@@ -88,6 +97,8 @@ export async function getSchoolHeadAnalytics(schoolId: string, districtId: strin
 // ===========================
 
 export async function getDistrictSupervisorAnalytics(districtId: string) {
+    // See the !inner note in getSchoolHeadAnalytics above — same fix applies
+    // here, scoped to district_id instead of school_id.
     const [complianceTrend, schoolPerformance, teacherDistribution, weeklyBreakdown, docTypeStats, alertData] = await Promise.all([
         // District compliance trend
         supabase
@@ -96,9 +107,9 @@ export async function getDistrictSupervisorAnalytics(districtId: string) {
                 id,
                 created_at,
                 compliance_status,
-                profiles(schools(name))
+                profiles!inner(district_id, schools(name))
             `)
-            .in('profiles.district_id', [districtId])
+            .eq('profiles.district_id', districtId)
             .order('created_at', { ascending: true })
             .limit(1000),
 
@@ -107,9 +118,9 @@ export async function getDistrictSupervisorAnalytics(districtId: string) {
             .from('submissions')
             .select(`
                 compliance_status,
-                profiles(school_id, schools(name))
+                profiles!inner(district_id, school_id, schools(name))
             `)
-            .in('profiles.district_id', [districtId])
+            .eq('profiles.district_id', districtId)
             .limit(1000),
 
         // Teacher performance distribution (for k-means clustering)
@@ -120,9 +131,9 @@ export async function getDistrictSupervisorAnalytics(districtId: string) {
                 compliance_status,
                 doc_type,
                 created_at,
-                profiles(full_name, school_id, schools(name))
+                profiles!inner(full_name, district_id, school_id, schools(name))
             `)
-            .in('profiles.district_id', [districtId])
+            .eq('profiles.district_id', districtId)
             .order('user_id')
             .limit(500),
 
@@ -132,9 +143,9 @@ export async function getDistrictSupervisorAnalytics(districtId: string) {
             .select(`
                 week_number,
                 compliance_status,
-                profiles(schools(name))
+                profiles!inner(district_id, schools(name))
             `)
-            .in('profiles.district_id', [districtId])
+            .eq('profiles.district_id', districtId)
             .order('week_number', { ascending: true })
             .limit(500),
 
@@ -143,9 +154,10 @@ export async function getDistrictSupervisorAnalytics(districtId: string) {
             .from('submissions')
             .select(`
                 doc_type,
-                compliance_status
+                compliance_status,
+                profiles!inner(district_id)
             `)
-            .in('profiles.district_id', [districtId])
+            .eq('profiles.district_id', districtId)
             .limit(500),
 
         // Critical alerts
@@ -155,9 +167,9 @@ export async function getDistrictSupervisorAnalytics(districtId: string) {
                 id,
                 compliance_status,
                 created_at,
-                profiles(full_name, schools(name))
+                profiles!inner(full_name, district_id, schools(name))
             `)
-            .in('profiles.district_id', [districtId])
+            .eq('profiles.district_id', districtId)
             .in('compliance_status', ['late', 'missing'])
             .order('created_at', { ascending: false })
             .limit(100)

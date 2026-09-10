@@ -45,8 +45,8 @@
         <div class="rounded-2xl border border-border-subtle bg-surface-white backdrop-blur-sm p-6 sm:p-8 shadow-xl">
             <!-- Header -->
             <div class="mb-7 sm:mb-8 text-center">
-                <div class="mx-auto w-16 h-16 bg-gradient-to-br from-gov-blue to-gov-blue-vibrant rounded-2xl flex items-center justify-center shadow-lg mb-4">
-                    <img src="/app_icon.png" alt="CEDIMS" class="h-8 w-8 brightness-0 invert" />
+                <div class="mx-auto w-16 h-16 bg-surface-white border border-border-subtle rounded-2xl flex items-center justify-center shadow-lg mb-4">
+                    <img src="/app_icon.png" alt="CEDIMS — DepEd Calapan East District" class="h-12 w-12 object-contain" />
                 </div>
 
                 {#if sent}
