@@ -192,9 +192,10 @@ async function* runOnlinePipelineResilient(
     // Local check
     if (await lookupOfflineDoc(fileHash)) throw new Error('Duplicate file detected (local).');
 
-    // Server check
+    // Server check — cross-teacher, so it goes through a narrow RPC rather
+    // than a direct table select (see migrations/20260910_*.sql).
     const { data: hashMatch } = await withTimeout(
-        supabase.from('submissions').select('file_name, week_number').eq('file_hash', fileHash).maybeSingle() as any,
+        supabase.rpc('check_duplicate_submission_hash', { p_hash: fileHash }).maybeSingle() as any,
         30000,
         'Server integrity check timed out.'
     ) as { data: any };
@@ -495,21 +496,18 @@ export async function* runPipeline(
         if (!core) throw new Error('Processing failed.');
 
         if (isOnline) {
-            try {
-                yield* runOnlinePipelineResilient(core, options);
-                return;
-            } catch (err: any) {
-                const msg = err.message?.toLowerCase() || '';
-                const isStall = msg.includes('time') || msg.includes('fetch') || msg.includes('network');
-                if (isStall) {
-                    console.warn('[pipeline] Online stall, falling back to offline vault.');
-                    yield { phase: 'uploading', progress: 0, message: 'Upload taking longer than expected. Saving locally to ensure no data loss...' };
-                } else {
-                    throw err; // Hard error (Duplicate)
-                }
-            }
+            // When online, always upload directly — no silent fallback to the
+            // offline vault on a stall/timeout. That fallback made the upload
+            // experience feel inconsistent (a file that should have completed
+            // online could unexpectedly end up "saved offline" instead), so
+            // any failure here now surfaces as a real error the user can see
+            // and retry, rather than being quietly rerouted.
+            yield* runOnlinePipelineResilient(core, options);
+            return;
         }
 
+        // Only reached when genuinely offline (navigator.onLine was false
+        // before this upload even started).
         yield* runOfflinePipelineResilient(core, options);
 
     } catch (err: any) {

@@ -110,12 +110,15 @@
             }
 
             if (navigator.onLine) {
-                const { data: serverHashMatch } = await supabase
-                    .from("submissions")
-                    .select("id, file_name, doc_type, week_number")
-                    .eq("file_hash", fileHash)
-                    .limit(1)
-                    .maybeSingle();
+                // Cross-teacher duplicate check — needs to see whether ANY
+                // user already archived this hash, not just the current
+                // uploader's own rows, so it goes through a narrow RPC rather
+                // than a direct table select (see migrations/20260910_*.sql).
+                const { data: serverHashMatch } = (await supabase
+                    .rpc("check_duplicate_submission_hash", { p_hash: fileHash })
+                    .maybeSingle()) as {
+                    data: { id: string; file_name: string; doc_type: string; week_number: number | null } | null;
+                };
 
                 if (serverHashMatch) {
                     submissionAlreadyExists = true;

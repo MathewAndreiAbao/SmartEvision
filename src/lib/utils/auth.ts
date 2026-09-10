@@ -19,6 +19,10 @@ export const isChangingPassword = writable<boolean>(false);
 let authInitialized = false;
 let authInitPromise: Promise<void> | null = null;
 
+// Tracks which account last signed in on this browser, so the instant-cache
+// bootstrap in performAuthInit() never guesses from localStorage key order.
+const LAST_USER_KEY = 'auth_last_user_id';
+
 export async function initAuth(): Promise<void> {
     // Prevent multiple simultaneous initialization attempts
     if (authInitialized) {
@@ -40,18 +44,26 @@ async function performAuthInit(): Promise<void> {
 
     // 1. INSTANT: Load cached profile + user from localStorage BEFORE any network call.
     // This makes the dashboard render immediately even when fully offline.
+    //
+    // IMPORTANT: localStorage persists across every account that has ever
+    // signed in on this browser/device (e.g. a shared school computer), and
+    // old auth_profile_<id> entries are never cleared automatically. We must
+    // only ever load the entry for the specific user who last signed in here
+    // (tracked separately in LAST_USER_KEY) — never "whichever key happens to
+    // be first" (Object.keys() order has nothing to do with the current
+    // session), or one teacher's device can briefly render another teacher's
+    // cached profile/data on the next load, before the real session check
+    // corrects it.
     let hasCachedProfile = false;
-    const cachedKeys = Object.keys(localStorage).filter(k => k.startsWith('auth_profile_'));
-    if (cachedKeys.length > 0) {
+    const lastUserId = localStorage.getItem(LAST_USER_KEY);
+    if (lastUserId) {
         try {
-            const cached = localStorage.getItem(cachedKeys[0]);
+            const cached = localStorage.getItem(`auth_profile_${lastUserId}`);
             if (cached) {
                 const parsed = JSON.parse(cached);
                 profile.set(parsed);
-                // Extract userId from the cache key (format: auth_profile_{userId})
-                const cachedUserId = cachedKeys[0].replace('auth_profile_', '');
                 // Set a minimal user object so dashboard layout guard ($user) passes
-                user.set({ id: cachedUserId } as any);
+                user.set({ id: lastUserId } as any);
                 hasCachedProfile = true;
                 console.log('[v0] Auth: Instant profile + user set from cache');
             }
@@ -138,6 +150,7 @@ async function fetchProfile(userId: string): Promise<void> {
         } else if (data) {
             profile.set(data as Profile);
             localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+            localStorage.setItem(LAST_USER_KEY, userId);
         }
     } catch (err) {
         console.warn('[v0] Auth: fetchProfile failed (ignoring if offline):', err);
@@ -163,6 +176,16 @@ export async function signOut(): Promise<void> {
     await supabase.auth.signOut();
     user.set(null);
     profile.set(null);
+
+    // Clear every cached profile on this device, not just the current one —
+    // this is what a shared/school computer needs so the next person to open
+    // the app never has a chance to see a previous teacher's cached identity.
+    localStorage.removeItem(LAST_USER_KEY);
+    for (const key of Object.keys(localStorage)) {
+        if (key.startsWith('auth_profile_')) {
+            localStorage.removeItem(key);
+        }
+    }
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<{ error: string | null }> {

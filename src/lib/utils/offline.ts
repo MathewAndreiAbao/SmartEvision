@@ -456,11 +456,11 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                     }
                 }
 
-                // 2. Strict File Hash Check (No identical content)
+                // 2. Strict File Hash Check (No identical content) — cross-teacher,
+                // so it goes through a narrow RPC rather than a direct table
+                // select (see migrations/20260910_*.sql).
                 const hashCheckPromise = supabase
-                    .from('submissions')
-                    .select('id')
-                    .eq('file_hash', item.fileHash)
+                    .rpc('check_duplicate_submission_hash', { p_hash: item.fileHash })
                     .maybeSingle();
 
                 const { data: existing } = await withTimeout(

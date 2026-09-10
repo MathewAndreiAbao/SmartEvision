@@ -2,7 +2,6 @@
     import { supabase, getRows } from "$lib/utils/supabase";
     import { profile } from "$lib/utils/auth";
     import StatusBadge from "$lib/components/StatusBadge.svelte";
-    import { onMount } from "svelte";
     import FolderCard from "$lib/components/FolderCard.svelte";
     import { normalizeComplianceStatus } from "$lib/utils/useDashboardData";
     import {
@@ -203,9 +202,22 @@
     }
 
     // â"€â"€ Lifecycle â"€â"€
-    onMount(async () => {
-        await loadData();
-        loading = false;
+    // Reactive on $profile?.id (not just onMount) as defense-in-depth: if the
+    // resolved profile ever changes after mount (auth state event, token
+    // refresh resolving a different cached vs. server profile, etc.), this
+    // re-fetches scoped to whichever account is actually current instead of
+    // being locked to whatever was true at the moment this page first mounted.
+    let loadedForProfileId: string | null = null;
+    $effect(() => {
+        const currentId = $profile?.id ?? null;
+        if (currentId && currentId !== loadedForProfileId) {
+            loadedForProfileId = currentId;
+            loading = true;
+            allSubmissions = [];
+            loadData().then(() => {
+                loading = false;
+            });
+        }
     });
 
     // â"€â"€ Data Fetching â"€â"€

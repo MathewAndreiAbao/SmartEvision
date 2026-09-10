@@ -74,36 +74,23 @@
             loading = false;
         }
 
-        // 2. Try fetching fresh data from Supabase
+        // 2. Try fetching fresh data from Supabase.
+        //
+        // This calls a SECURITY DEFINER RPC (verify_submission_by_hash) instead
+        // of selecting from `submissions` directly. The table's RLS used to
+        // carry a blanket "USING (true)" SELECT policy meant to support this
+        // exact page, but a per-row policy can't be scoped to "only when the
+        // client filters by hash" — it just made the whole table readable by
+        // anyone regardless of what a query actually asked for. The RPC
+        // achieves the same public-verification goal without that exposure:
+        // it only ever returns the single row matching the exact hash given.
         try {
-            const { data, error } = await supabase
-                .from("submissions")
-                .select(
-                    `
-                    file_name, file_path, doc_type, compliance_status, created_at, file_size, week_number, subject, school_year, user_id,
-                    profiles:user_id ( full_name, school_id ),
-                    teaching_loads ( subject, grade_level )
-                `,
-                )
-                .eq("file_hash", hash)
-                .maybeSingle();
+            const { data, error } = (await supabase
+                .rpc("verify_submission_by_hash", { p_hash: hash })
+                .maybeSingle()) as { data: VerifyResult | null; error: unknown };
 
             if (data) {
-                const profileData = data.profiles as any;
-                const teachingLoadData = data.teaching_loads as any;
-
-                // Resolve school name with a separate query to avoid FK join issues
-                let schoolName: string | null = null;
-                if (profileData?.school_id) {
-                    const { data: schoolData } = await supabase
-                        .from('schools')
-                        .select('name')
-                        .eq('id', profileData.school_id)
-                        .single();
-                    schoolName = schoolData?.name || null;
-                }
-
-                const freshResult = {
+                const freshResult: VerifyResult = {
                     file_name: data.file_name,
                     file_path: data.file_path,
                     doc_type: data.doc_type,
@@ -113,12 +100,12 @@
                     week_number: data.week_number,
                     subject: data.subject,
                     school_year: data.school_year,
-                    teacher_name: profileData?.full_name || null,
-                    school_name: schoolName,
-                    teaching_load_subject: teachingLoadData?.subject || null,
-                    teaching_load_grade: teachingLoadData?.grade_level || null,
-                    uploader_id: data.user_id || null,
-                    uploader_school_id: profileData?.school_id || null,
+                    teacher_name: data.teacher_name || null,
+                    school_name: data.school_name || null,
+                    teaching_load_subject: data.teaching_load_subject || null,
+                    teaching_load_grade: data.teaching_load_grade || null,
+                    uploader_id: data.uploader_id || null,
+                    uploader_school_id: data.uploader_school_id || null,
                 };
 
                 result = freshResult;
