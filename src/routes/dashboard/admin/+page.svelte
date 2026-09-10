@@ -3,6 +3,8 @@
     import { supabase } from "$lib/utils/supabase";
     import { logAudit } from "$lib/utils/audit";
     import { onMount } from "svelte";
+    import { goto } from "$app/navigation";
+    import { addToast } from "$lib/stores/toast";
     import { fly, fade, slide } from "svelte/transition";
     import {
         Settings,
@@ -64,14 +66,21 @@
         "District Supervisor",
     ];
 
-    onMount(() => {
+    // Guard: only District Supervisors (and the legacy "Admin" role, if any
+    // profile still carries it) may view this panel. Runs reactively so it
+    // also catches a profile that loads in after this page has mounted.
+    $effect(() => {
         if (
-            $profile?.role !== "District Supervisor" &&
-            $profile?.role !== "Admin"
+            $profile &&
+            $profile.role !== "District Supervisor" &&
+            $profile.role !== "Admin"
         ) {
-            // Unauthorized â€” could redirect
+            addToast("error", "You don't have access to the Admin panel.");
+            goto("/dashboard");
         }
+    });
 
+    onMount(() => {
         // Initial Load
         loadSettings();
         loadSchoolsAndDistricts().then(() => loadUsers()).then(() => {

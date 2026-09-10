@@ -1,29 +1,17 @@
 <script lang="ts">
     import NotificationCenter from "./NotificationCenter.svelte";
-    import { page } from "$app/stores";
     import { profile } from "$lib/utils/auth";
     import { theme } from "$lib/stores/theme";
     import { connectivity } from "$lib/stores/connectivity";
     import { signOut } from "$lib/utils/auth";
     import { goto } from "$app/navigation";
-    import { getNavItemsForRole } from "$lib/config/navigation";
     import { Sun, Moon, LogOut, WifiOff, RefreshCw } from "lucide-svelte";
 
     const { isOnline: onlineStatus, pendingCount } = connectivity;
 
-    // Single unified bar: replaces the old breadcrumb-only TopBar plus the
-    // separate DesktopNav strip. Mobile keeps its bottom tab bar (Sidebar.svelte)
-    // for primary navigation, so this shows just the logo + utility controls there;
-    // on lg+ screens it also carries the section nav links, so there is only
-    // ever one bar at the top of the page instead of two stacked ones.
-    const navItems = $derived(getNavItemsForRole($profile?.role));
-
-    function isActive(href: string): boolean {
-        const currentPath = $page.url.pathname;
-        if (href === "/dashboard") return currentPath === "/dashboard";
-        return currentPath.startsWith(href);
-    }
-
+    // Logo + utility controls only. Section navigation lives exclusively in
+    // the bottom tab bar (Sidebar.svelte), shown at every screen size, so
+    // there is a single, consistent place to switch tabs instead of two.
     let profileMenuOpen = $state(false);
 
     async function handleLogout() {
@@ -35,33 +23,13 @@
     class="sticky top-0 z-30 w-full border-b border-border-subtle bg-surface-white/95 backdrop-blur-md shadow-sm"
 >
     <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <!-- Left: Logo + (desktop) primary nav -->
+        <!-- Left: Logo -->
         <div class="flex items-center gap-1 min-w-0">
-            <a href="/dashboard" class="shrink-0 mr-2 lg:mr-4" aria-label="CEDIMS Dashboard">
+            <a href="/dashboard" class="shrink-0" aria-label="CEDIMS Dashboard">
                 <span class="text-lg font-bold bg-gradient-to-br from-gov-blue to-gov-blue-vibrant bg-clip-text text-transparent">
                     CEDIMS
                 </span>
             </a>
-
-            <nav class="hidden lg:flex items-center gap-1" aria-label="Primary">
-                {#each navItems as item (item.href + item.label)}
-                    {@const ItemIcon = item.icon}
-                    <a
-                        href={item.href}
-                        class="group relative flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors {isActive(item.href)
-                            ? 'text-gov-blue bg-gov-blue/10'
-                            : 'text-text-secondary hover:text-gov-blue hover:bg-gov-blue/5'}"
-                        aria-current={isActive(item.href) ? "page" : undefined}
-                        data-nav={item.navKey || null}
-                        onclick={(e) => {
-                            if (item.onClick) item.onClick(e);
-                        }}
-                    >
-                        <ItemIcon size={16} strokeWidth={isActive(item.href) ? 2.5 : 2} aria-hidden="true" />
-                        {item.label}
-                    </a>
-                {/each}
-            </nav>
         </div>
 
         <!-- Right: Actions & Profile -->

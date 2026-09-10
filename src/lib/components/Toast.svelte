@@ -8,6 +8,11 @@
 		X,
 	} from "lucide-svelte";
 	import { fly } from "svelte/transition";
+	import { page } from "$app/stores";
+
+	// Dashboard pages have a bottom tab bar at every screen size now, so
+	// toasts need extra clearance there; marketing/auth pages don't.
+	const inDashboard = $derived($page.url.pathname.startsWith("/dashboard"));
 
 	const icons: Record<ToastMessage["type"], any> = {
 		success: CheckCircle2,
@@ -41,9 +46,12 @@
 </script>
 
 <div
-	class="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999] flex flex-col gap-2 max-w-sm w-full sm:w-96 pointer-events-none px-4 sm:px-0"
+	class="fixed right-4 sm:right-6 z-[9999] flex flex-col gap-2 max-w-sm w-full sm:w-96 pointer-events-none px-4 sm:px-0 {inDashboard
+		? 'bottom-24'
+		: 'bottom-4 sm:bottom-6'}"
 >
 	{#each $toasts as toast (toast.id)}
+		{@const ToastIcon = icons[toast.type]}
 		<div
 			class="pointer-events-auto flex items-start gap-3 px-4 sm:px-5 py-4 rounded-lg shadow-xl {styles[toast.type].bg} {styles[toast.type].text} border border-white/20"
 			role="alert"
@@ -51,7 +59,7 @@
 			out:fly={{ x: 400, duration: 300 }}
 		>
 			<div class="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg {styles[toast.type].icon}">
-				<svelte:component this={icons[toast.type]} size={20} strokeWidth={2} />
+				<ToastIcon size={20} strokeWidth={2} />
 			</div>
 			<div class="flex-1 min-w-0 py-0.5">
 				<p class="text-sm font-bold leading-tight">

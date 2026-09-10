@@ -123,9 +123,9 @@
 	ontouchend={handleTouchEnd}
 />
 
-<!-- Mobile Bottom Navigation — hidden on lg+ where AppHeader carries the section nav instead -->
+<!-- Bottom Tab Bar — the single navigation surface at every screen size -->
 <nav
-	class="fixed bottom-0 left-0 right-0 z-40 mobile-nav-bar lg:hidden"
+	class="fixed bottom-0 left-0 right-0 z-40 mobile-nav-bar"
 	aria-label="Main Navigation"
 >
 	<div class="flex items-center justify-around w-full px-0 py-0">

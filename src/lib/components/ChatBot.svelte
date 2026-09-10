@@ -5,6 +5,11 @@
     import { supabase } from "$lib/utils/supabase";
     import { user, profile } from "$lib/utils/auth";
     import { onMount } from "svelte";
+    import { page } from "$app/stores";
+
+    // Dashboard pages carry a bottom tab bar at every screen size, so the
+    // floating button/panel need extra clearance there; other pages don't.
+    const inDashboard = $derived($page.url.pathname.startsWith("/dashboard"));
 
     let isOpen = $state(false);
     let messages: { role: 'user' | 'bot'; text: string; intent?: Intent }[] = $state([]);
@@ -30,7 +35,7 @@
     onMount(() => {
         messages.push({
             role: 'bot',
-            text: "Hello! I am SmartE Vision's AI assistant. I can help check your compliance rate, find DLLs, look up deadlines, and compare school performance using live data. Feel free to ask me anything.",
+            text: "Hi, I'm EVA — your CEDIMS assistant. I can help check your compliance rate, find DLLs, look up deadlines, and compare school performance using live data. Feel free to ask me anything.",
             intent: 'general_help'
         });
         const unsubUser = user.subscribe((u) => currentUser = u as { id: string } | null);
@@ -88,15 +93,22 @@
 <!-- Floating button -->
 {#if !isOpen}
     <button
+        data-tour="chatbot"
         onclick={() => (isOpen = true)}
-        class="fixed bottom-6 right-6 z-50 w-14 h-14 bg-gov-blue hover:bg-gov-blue-dark text-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-        aria-label="Open chat assistant"
+        class="fixed right-6 z-50 w-14 h-14 bg-gov-blue hover:bg-gov-blue-dark text-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 {inDashboard
+            ? 'bottom-24'
+            : 'bottom-6'}"
+        aria-label="Open EVA, the CEDIMS chat assistant"
     >
         <Bot size={24} />
     </button>
 {:else}
     <!-- Chat window -->
-    <div class="fixed bottom-6 right-6 z-50 w-96 h-[32rem] bg-surface-white rounded-2xl shadow-2xl border border-border-subtle flex flex-col overflow-hidden transition-all duration-200">
+    <div
+        class="fixed right-6 z-50 w-96 h-[32rem] bg-surface-white rounded-2xl shadow-2xl border border-border-subtle flex flex-col overflow-hidden transition-all duration-200 {inDashboard
+            ? 'bottom-24'
+            : 'bottom-6'}"
+    >
         <!-- Header -->
         <div class="bg-gov-blue text-white px-5 py-4 flex items-center justify-between shrink-0">
             <div class="flex items-center gap-3">
@@ -104,8 +116,8 @@
                     <Bot size={16} />
                 </div>
                 <div>
-                    <p class="text-sm font-bold">SmartE Vision Assistant</p>
-                    <p class="text-[10px] text-white/70">Ask me anything about the system</p>
+                    <p class="text-sm font-bold">EVA</p>
+                    <p class="text-[10px] text-white/70">Your CEDIMS assistant</p>
                 </div>
             </div>
             <button

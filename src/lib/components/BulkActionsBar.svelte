@@ -21,7 +21,7 @@
 
 {#if count > 0}
     <div
-        class="fixed inset-x-0 bottom-20 sm:bottom-6 z-40 flex justify-center px-4"
+        class="fixed inset-x-0 bottom-20 z-40 flex justify-center px-4"
         in:fly={{ y: 24, duration: 200 }}
         out:fly={{ y: 24, duration: 150 }}
     >

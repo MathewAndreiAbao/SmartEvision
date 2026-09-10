@@ -66,7 +66,7 @@
 
 {#if showPrompt && !isInstalled && !dismissed}
     <div
-        class="fixed bottom-28 lg:bottom-6 left-4 right-4 lg:left-auto lg:right-6 lg:w-96 z-50"
+        class="fixed bottom-28 left-4 right-4 lg:left-auto lg:right-6 lg:w-96 z-50"
         in:fly={{ y: 20, duration: 300 }}
         out:fly={{ y: 20, duration: 300 }}
     >

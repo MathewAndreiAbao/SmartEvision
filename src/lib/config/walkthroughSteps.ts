@@ -128,6 +128,12 @@ export const walkthroughGuides: Record<string, WalkthroughGuide> = {
                 tip: "Stay ahead of compliance problems.",
                 target: "alerts",
             },
+            {
+                title: "Admin",
+                content: "Manage system settings and user accounts — create teachers and staff, adjust roles, and configure submission rules.",
+                tip: "This is also where you create new accounts.",
+                target: "admin",
+            },
         ],
     },
 };
@@ -147,5 +153,11 @@ export const walkthroughHeaderSteps: WalkthroughStep[] = [
         title: "Profile & Sign Out",
         content: "Manage your profile, change your password, and sign out from here.",
         target: "profile-menu",
+    },
+    {
+        title: "Meet EVA",
+        content: "Your CEDIMS assistant. Ask EVA about your compliance rate, deadlines, or how to do something — she answers using your live data.",
+        tip: "Try: “When is the next deadline?”",
+        target: "chatbot",
     },
 ];

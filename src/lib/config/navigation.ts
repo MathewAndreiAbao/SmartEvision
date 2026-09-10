@@ -4,6 +4,7 @@ import {
     Archive,
     Briefcase,
     ShieldCheck,
+    Shield,
     Map,
     TrendingUp,
     Settings,
@@ -140,7 +141,7 @@ export const navItems: NavItem[] = [
         roles: ["School Head"],
     },
 
-    // ========== DISTRICT SUPERVISOR (5 tabs) ==========
+    // ========== DISTRICT SUPERVISOR (6 tabs) ==========
     {
         href: "/dashboard/monitoring/district",
         label: "Schools",
@@ -169,11 +170,20 @@ export const navItems: NavItem[] = [
         roles: ["District Supervisor"],
     },
     {
+        href: "/dashboard/admin",
+        label: "Admin",
+        icon: Shield,
+        mobileNav: true,
+        priority: 5,
+        navKey: "admin",
+        roles: ["District Supervisor"],
+    },
+    {
         href: "/dashboard/settings",
         label: "Settings",
         icon: Settings,
         mobileNav: true,
-        priority: 5,
+        priority: 6,
         roles: ["District Supervisor"],
     },
 
@@ -193,8 +203,11 @@ export const navItems: NavItem[] = [
 ];
 
 export function getNavItemsForRole(role: string | undefined | null): NavItem[] {
-    const currentRole = role?.toLowerCase() || "";
+    // Exact match only — a substring check here (e.g. currentRole.includes(r))
+    // would wrongly match "Master Teacher" against "Teacher"-only items, since
+    // "master teacher" contains "teacher" as a substring, producing duplicate tabs.
+    const currentRole = (role || "").trim().toLowerCase();
     return navItems
-        .filter((item) => item.roles.some((r) => currentRole.includes(r.toLowerCase().trim())))
+        .filter((item) => item.roles.some((r) => r.trim().toLowerCase() === currentRole))
         .sort((a, b) => (a.priority || 99) - (b.priority || 99));
 }

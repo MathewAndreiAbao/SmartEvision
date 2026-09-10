@@ -145,11 +145,11 @@ const KNOWLEDGE_BASE: KnowledgeEntry[] = [
     },
     {
         keywords: ['greeting', 'hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening', 'kamusta', 'kumusta', 'kumusta', 'salamat', 'thanks', 'thank you'],
-        answer: 'Hello! I\u2019m SmartE Vision\u2019s AI assistant. I can check your compliance, find DLLs, look up deadlines, compare schools, and show teacher stats. What would you like to know?'
+        answer: 'Hello! I\u2019m EVA, your CEDIMS assistant. I can check your compliance, find DLLs, look up deadlines, compare schools, and show teacher stats. What would you like to know?'
     },
     {
         keywords: ['who are you', 'your name', 'about yourself', 'what are you', 'sino ka', 'tell me about you'],
-        answer: 'I\u2019m SmartE Vision\u2019s built-in AI assistant. I live right in the app and answer your questions using live data \u2014 no internet bill needed. Ask me anything about compliance, DLLs, deadlines, or school performance!'
+        answer: 'I\u2019m EVA \u2014 short for E-VISION Assistant. I live right in the app and answer your questions using live data \u2014 no internet bill needed. Ask me anything about compliance, DLLs, deadlines, or school performance!'
     }
 ];
 
