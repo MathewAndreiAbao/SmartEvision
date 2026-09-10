@@ -162,7 +162,7 @@
         </div>
         <button
             onclick={openAdd}
-            class="px-6 py-3 bg-gov-blue text-white text-xs font-bold uppercase tracking-widest rounded-xl shadow-lg hover:shadow-gov-blue/20 transition-all flex items-center gap-2 group"
+            class="px-6 py-3 bg-gov-blue text-white text-xs font-bold uppercase tracking-widest rounded-xl shadow-lg hover:shadow-gov-blue/20 transition-colors flex items-center gap-2 group"
         >
             <Plus
                 size={16}
@@ -191,7 +191,7 @@
             </p>
             <button
                 onclick={openAdd}
-                class="mt-8 px-8 py-3 bg-gov-blue text-white text-xs font-bold uppercase tracking-widest rounded-xl shadow-md hover:bg-gov-blue-dark transition-all"
+                class="mt-8 px-8 py-3 bg-gov-blue text-white text-xs font-bold uppercase tracking-widest rounded-xl shadow-md hover:bg-gov-blue-dark transition-colors"
             >
                 Setup Initial Load
             </button>
@@ -202,21 +202,21 @@
         >
             {#each loads as load}
                 <div
-                    class="bg-surface-white border border-border-subtle rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-gov-blue/20 transition-all group relative flex flex-col h-full"
+                    class="bg-surface-white border border-border-subtle rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-gov-blue/20 transition-colors group relative flex flex-col h-full"
                     in:fly={{ y: 20, duration: 400 }}
                 >
                     <!-- Status Badge -->
                     <div class="absolute top-6 right-6">
                         <button
                             onclick={() => toggleActive(load)}
-                            class="w-10 h-5.5 rounded-full relative transition-all shadow-inner {load.is_active
+                            class="w-10 h-5.5 rounded-full relative transition-colors shadow-inner {load.is_active
                                 ? 'bg-gov-green'
                                 : 'bg-surface-muted'}"
                             aria-label="Toggle active status"
                             title={load.is_active ? "Active" : "Inactive"}
                         >
                             <span
-                                class="absolute top-0.5 transition-all w-4.5 h-4.5 rounded-full bg-surface-white shadow-sm {load.is_active
+                                class="absolute top-0.5 transition-colors w-4.5 h-4.5 rounded-full bg-surface-white shadow-sm {load.is_active
                                     ? 'translate-x-5'
                                     : 'translate-x-0.5'}"
                             ></span>
@@ -251,7 +251,7 @@
                         <div class="flex items-center gap-1">
                             <button
                                 onclick={() => openEdit(load)}
-                                class="p-2 text-text-muted hover:text-gov-blue hover:bg-gov-blue/5 rounded-lg transition-all"
+                                class="p-2 text-text-muted hover:text-gov-blue hover:bg-gov-blue/5 rounded-lg transition-colors"
                                 aria-label="Edit Load"
                                 title="Edit Load"
                             >
@@ -259,7 +259,7 @@
                             </button>
                             <button
                                 onclick={() => handleDelete(load.id)}
-                                class="p-2 text-text-muted hover:text-gov-red hover:bg-gov-red/5 rounded-lg transition-all"
+                                class="p-2 text-text-muted hover:text-gov-red hover:bg-gov-red/5 rounded-lg transition-colors"
                                 aria-label="Delete Load"
                                 title="Delete Load"
                             >
@@ -400,7 +400,7 @@
                 </button>
                 <button
                     onclick={handleSave}
-                    class="flex-1 py-3 bg-gradient-to-r from-gov-blue to-gov-blue-dark text-white font-semibold rounded-xl min-h-[48px] shadow-md hover:shadow-lg transition-all"
+                    class="flex-1 py-3 bg-gradient-to-r from-gov-blue to-gov-blue-dark text-white font-semibold rounded-xl min-h-[48px] shadow-md hover:shadow-lg transition-colors"
                 >
                     {editingId ? "Update" : "Add"}
                 </button>

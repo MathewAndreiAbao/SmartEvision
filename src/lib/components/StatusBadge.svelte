@@ -91,7 +91,7 @@
 </script>
 
 <span
-    class="inline-flex items-center rounded-lg border-1.5 font-bold {c.bg} {c.text} {c.border} {sizeClass} transition-all duration-200"
+    class="inline-flex items-center rounded-lg border-1.5 font-bold {c.bg} {c.text} {c.border} {sizeClass} transition-colors duration-200"
 >
     <IconComponent size={size === "sm" ? 12 : 16} strokeWidth={2} />
     {c.label}

@@ -3,10 +3,14 @@
 
 <head>
     <script>(function(){var t=localStorage.getItem('cedims-theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.classList.add('dark')})();</script>
-    <style>:root{--color-surface:#f5f6f8;--color-surface-white:#fff;--color-surface-muted:#ebedf0;--color-text-primary:#1a202c;--color-text-secondary:#4a5568;--color-text-muted:#718096;--color-border-subtle:#e2e8f0;--color-border-strong:#cbd5e0}.dark{--color-surface:#08080b;--color-surface-white:#0d0d14;--color-surface-muted:#12121c;--color-text-primary:#ededf0;--color-text-secondary:#9d9db0;--color-text-muted:#585870;--color-border-subtle:#1e1e2e;--color-border-strong:#2a2a40}</style>
+    <!-- Values below must stay byte-identical to the canonical tokens in
+         app.css (@theme block + .dark block) or the page recolors visibly
+         on hydration. text-muted matches the WCAG-AA-passing values. -->
+    <style>:root{--color-surface:#f5f6f8;--color-surface-white:#fff;--color-surface-muted:#ebedf0;--color-text-primary:#1a202c;--color-text-secondary:#4a5568;--color-text-muted:#64748b;--color-border-subtle:#e2e8f0;--color-border-strong:#cbd5e0}.dark{--color-surface:#0a0e17;--color-surface-white:#0f1623;--color-surface-muted:#151d2d;--color-text-primary:#f0f3f8;--color-text-secondary:#a8b0c2;--color-text-muted:#7e8aa3;--color-border-subtle:#1f2742;--color-border-strong:#2d3855}</style>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#1a3a5c" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f1623" />
     <meta name="description"
         content="CEDIMS — Calapan East District Instructional Monitoring System. A DepEd-aligned platform for DLL submission, compliance tracking, and instructional supervision." />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -17,9 +21,6 @@
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" href="/app_icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="/app_icon.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     %sveltekit.head%
 </head>
 

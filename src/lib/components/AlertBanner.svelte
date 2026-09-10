@@ -16,13 +16,17 @@
     const totalCount = $derived(alerts.length);
     const isHighSeverity = $derived(highSeverityAlerts.length > 0);
 
-    const cardClass = $derived(
-        isHighSeverity ? "gov-card overflow-hidden border-l-4 border-l-gov-red" : "gov-card overflow-hidden border-l-4 border-l-gov-gold"
-    );
-    const iconBg = $derived(isHighSeverity ? "rgba(220, 38, 38, 0.2)" : "rgba(217, 119, 6, 0.2)");
-    const iconColor = $derived(isHighSeverity ? "#dc2626" : "#d97706");
-    const badgeBg = $derived(isHighSeverity ? "#dc2626" : "#d97706");
-    const cardBg = $derived(isHighSeverity ? "rgba(220, 38, 38, 0.05)" : "rgba(217, 119, 6, 0.05)");
+    // Severity is already conveyed by the icon (shape + color) and the
+    // tinted background below — a colored border-left would be a third,
+    // redundant signal for the same thing (craft-floor bans it outright).
+    const cardClass = "gov-card overflow-hidden";
+    // var() resolves against the live theme at render time, unlike a
+    // hardcoded hex duplicate of the same token — correct today and stays
+    // correct if a dark-mode-specific gov-red/gov-gold is ever added.
+    const iconBg = $derived(isHighSeverity ? "color-mix(in srgb, var(--color-gov-red) 20%, transparent)" : "color-mix(in srgb, var(--color-gov-gold) 20%, transparent)");
+    const iconColor = $derived(isHighSeverity ? "var(--color-gov-red)" : "var(--color-gov-gold)");
+    const badgeBg = $derived(isHighSeverity ? "var(--color-gov-red)" : "var(--color-gov-gold)");
+    const cardBg = $derived(isHighSeverity ? "color-mix(in srgb, var(--color-gov-red) 5%, transparent)" : "color-mix(in srgb, var(--color-gov-gold) 5%, transparent)");
 </script>
 
 {#if totalCount > 0}
@@ -78,7 +82,7 @@
                 <div class="border-t border-border-subtle bg-surface-muted/30" transition:slide={{ duration: 250 }}>
                     <div class="max-h-[400px] overflow-y-auto cedims-scroll p-3 sm:p-4 space-y-2.5">
                         {#each alerts as alert}
-                            <div class="p-3 sm:p-4 rounded-lg bg-surface-white border border-border-subtle hover:border-gov-blue/40 transition-all duration-200">
+                            <div class="p-3 sm:p-4 rounded-lg bg-surface-white border border-border-subtle hover:border-gov-blue/40 transition-colors duration-200">
                                 <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                                     <div class="min-w-0 flex-1">
                                         <div class="flex items-center gap-2 mb-2 flex-wrap">
@@ -95,7 +99,7 @@
                                     </div>
 
                                     <div class="flex items-center justify-between sm:flex-col sm:items-end gap-3 flex-shrink-0">
-                                        <span class="text-xs font-bold uppercase px-3 py-1.5 rounded-lg text-white" style="background-color: {alert.severity === "high" ? "#dc2626" : "#d97706"}">
+                                        <span class="text-xs font-bold uppercase px-3 py-1.5 rounded-lg text-white" style="background-color: {alert.severity === "high" ? "var(--color-gov-red)" : "var(--color-gov-gold)"}">
                                             {alert.severity}
                                         </span>
                                         <button class="text-xs font-bold text-gov-blue hover:text-gov-blue-dark transition-colors flex items-center gap-1 whitespace-nowrap">

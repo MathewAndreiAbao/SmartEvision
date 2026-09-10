@@ -56,7 +56,7 @@
     <title>Sign In — CEDIMS · Powered by Smart E-VISION</title>
 </svelte:head>
 
-<div class="min-h-screen bg-gradient-to-br from-gov-blue/5 via-surface-white to-surface-muted px-4 py-8 sm:px-6 sm:py-12 lg:px-8 flex items-center">
+<div class="min-h-dvh bg-gradient-to-br from-gov-blue/5 via-surface-white to-surface-muted px-4 py-8 sm:px-6 sm:py-12 lg:px-8 flex items-center">
     <div class="mx-auto w-full flex max-w-7xl flex-col gap-8 sm:gap-10 lg:flex-row lg:items-center lg:justify-between">
         <!-- Left Section — Value Proposition -->
         <div class="max-w-2xl space-y-6 sm:space-y-8">

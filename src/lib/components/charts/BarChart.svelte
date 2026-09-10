@@ -64,7 +64,7 @@
                     </div>
                     <div class="w-full bg-surface-muted rounded-lg h-6 overflow-hidden">
                         <div
-                            class="h-full flex items-center justify-end pr-2 transition-all duration-300"
+                            class="h-full flex items-center justify-end pr-2 transition-colors duration-300"
                             style="width: {item.percentage}%; background-color: {item.color};"
                         >
                             {#if item.percentage > 20 && showValue}

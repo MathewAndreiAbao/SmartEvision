@@ -42,7 +42,7 @@
 </script>
 
 <div
-    class="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm"
+    class="fixed inset-0 z-[var(--z-modal)] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm"
     transition:fade={{ duration: 150 }}
     onclick={onClose}
     onkeydown={(e) => { if (e.key === "Escape") onClose(); }}
@@ -54,7 +54,7 @@
         onkeydown={(e) => { e.stopPropagation(); if (e.key === "Escape") onClose(); }}
         role="dialog"
         aria-modal="true"
-        aria-label="Upload successful"
+        aria-label={isOnline ? "Document archived" : "Saved offline, not yet synced"}
         tabindex="-1"
         use:focusTrap
         transition:scale={{ start: 0.96, duration: 180 }}

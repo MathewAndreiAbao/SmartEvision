@@ -23,7 +23,7 @@
 
 <div class="flex flex-col items-center justify-center text-center py-16 px-6">
     <div class="w-16 h-16 rounded-md bg-surface-muted flex items-center justify-center mb-4">
-        <IconComponent size={28} class="text-text-muted" />
+        <IconComponent size={28} class="text-text-muted" aria-hidden="true" />
     </div>
     <p class="text-lg font-semibold text-text-primary">{title}</p>
     {#if description}

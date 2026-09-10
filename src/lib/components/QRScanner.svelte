@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount, onDestroy } from "svelte";
     import { fade } from "svelte/transition";
+    import { focusTrap } from "$lib/actions/focusTrap";
 
     interface Props {
         onScan?: (data: string) => void;
@@ -143,8 +144,19 @@
 </script>
 
 <div
-    class="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-6"
+    class="fixed inset-0 z-[var(--z-modal)] bg-black/90 flex flex-col items-center justify-center p-6"
     transition:fade
+    role="dialog"
+    aria-modal="true"
+    aria-label="Scan QR code"
+    tabindex="-1"
+    use:focusTrap
+    onkeydown={(e) => {
+        if (e.key === "Escape") {
+            stopScanning();
+            onClose?.();
+        }
+    }}
 >
     <!-- Scanner Overlay -->
     <div
@@ -202,7 +214,7 @@
             stopScanning();
             onClose?.();
         }}
-        class="mt-16 py-3 px-8 rounded-full bg-surface-white/10 border border-white/20 text-white text-xs font-semibold uppercase tracking-wide hover:bg-surface-white/20 active:scale-95 transition-all cursor-pointer"
+        class="mt-16 py-3 px-8 rounded-full bg-surface-white/10 border border-white/20 text-white text-xs font-semibold uppercase tracking-wide hover:bg-surface-white/20 active:scale-95 transition-[color,background-color,border-color,transform] duration-200 ease-out cursor-pointer"
     >
         CLOSE
     </button>

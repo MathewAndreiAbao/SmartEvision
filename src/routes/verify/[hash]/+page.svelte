@@ -7,6 +7,7 @@
     import { onMount } from "svelte";
     import { lookupOfflineDoc, cacheVerifiedDoc } from "$lib/utils/offline";
     import { profile } from "$lib/utils/auth";
+    import { addToast } from "$lib/stores/toast";
     import {
         CheckCircle2,
         ShieldCheck,
@@ -159,7 +160,7 @@
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token;
             if (!token) {
-                alert('Please sign in to view this document.');
+                addToast('error', 'Please sign in to view this document.');
                 return;
             }
 
@@ -182,7 +183,7 @@
             }
         } catch (err) {
             console.error('[CEDIMS] Failed to open document:', err);
-            alert('Unable to open document. Please try again.');
+            addToast('error', 'Unable to open document. Please try again.');
         } finally {
             openingDoc = false;
         }
@@ -201,7 +202,7 @@
     />
 {/if}
 
-<div class="min-h-screen gradient-mesh flex items-center justify-center p-6">
+<div class="min-h-dvh gradient-mesh flex items-center justify-center p-6">
     <div class="w-full max-w-lg animate-slide-up">
         <!-- Logo -->
         <div class="text-center mb-8">
@@ -231,7 +232,7 @@
             </div>
         {:else if notFound}
             <div
-                class="gov-card-static p-10 text-center border-l-4 border-gov-red animate-shake"
+                class="gov-card-static bg-gov-red/5 p-10 text-center animate-shake"
                 role="alert"
             >
                 <AlertCircle size={48} class="text-gov-red mx-auto mb-4" />
@@ -426,7 +427,7 @@
                             {#if !isLoggedIn}
                                 <a
                                     href="/login"
-                                    class="w-full flex items-center justify-center gap-2 py-3.5 px-6 bg-gray-100 text-text-muted font-bold text-sm uppercase tracking-wide rounded-md border border-gray-200 hover:bg-gray-200 transition-all min-h-[48px]"
+                                    class="w-full flex items-center justify-center gap-2 py-3.5 px-6 bg-gray-100 text-text-muted font-bold text-sm uppercase tracking-wide rounded-md border border-gray-200 hover:bg-gray-200 transition-colors min-h-[48px]"
                                 >
                                     <LogIn size={18} />
                                     Sign In to View Document
@@ -435,7 +436,7 @@
                                 <button
                                     onclick={handleOpenDocument}
                                     disabled={openingDoc}
-                                    class="w-full flex items-center justify-center gap-2 py-3.5 px-6 bg-gradient-to-r from-gov-green to-emerald-600 text-white font-bold text-sm uppercase tracking-wide rounded-md shadow-lg hover:shadow-xl active:scale-[0.98] transition-all min-h-[48px] disabled:opacity-60 disabled:cursor-wait"
+                                    class="w-full flex items-center justify-center gap-2 py-3.5 px-6 bg-gradient-to-r from-gov-green to-emerald-600 text-white font-bold text-sm uppercase tracking-wide rounded-md shadow-lg hover:shadow-xl active:scale-[0.98] transition-[color,background-color,border-color,transform] duration-200 ease-out min-h-[48px] disabled:opacity-60 disabled:cursor-wait"
                                 >
                                     {#if openingDoc}
                                         <Loader2 size={18} class="animate-spin" />
@@ -464,7 +465,7 @@
             <!-- Scan Another Document Button (WBS 13.4 — Continuous Mobile QR) -->
             <button
                 onclick={openScanner}
-                class="w-full flex items-center justify-center gap-2 py-3.5 px-6 bg-gradient-to-r from-gov-blue to-gov-blue-dark text-white font-bold text-sm uppercase tracking-wide rounded-md shadow-lg hover:shadow-xl active:scale-[0.98] transition-all min-h-[48px]"
+                class="w-full flex items-center justify-center gap-2 py-3.5 px-6 bg-gradient-to-r from-gov-blue to-gov-blue-dark text-white font-bold text-sm uppercase tracking-wide rounded-md shadow-lg hover:shadow-xl active:scale-[0.98] transition-[color,background-color,border-color,transform] duration-200 ease-out min-h-[48px]"
                 aria-label="Scan another QR code to verify a different document"
             >
                 <ScanLine size={18} />

@@ -63,7 +63,7 @@
 </script>
 
 <div
-    class="relative rounded-xl border-2 border-dashed transition-all duration-300 cursor-pointer min-h-[240px] flex items-center justify-center
+    class="relative rounded-xl border-2 border-dashed transition-colors duration-300 cursor-pointer min-h-[240px] flex items-center justify-center
 		{disabled
             ? 'opacity-50 cursor-not-allowed border-border-subtle bg-surface-muted'
             : dragOver

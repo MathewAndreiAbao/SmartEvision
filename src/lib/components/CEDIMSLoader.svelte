@@ -17,9 +17,12 @@
         />
     </div>
 
-    <!-- Text Label -->
+    <!-- Text Label. This is a reusable component mounted mid-page (e.g.
+         upload/+page.svelte uses it twice, inline, while the real page <h1>
+         is already on screen) — decorative branding text here must never be
+         a heading element, or every mount adds a duplicate <h1> to the page. -->
     <div class="text-container">
-        <h1 class="cedims-text">CEDIMS</h1>
+        <p class="cedims-text">CEDIMS</p>
         <p class="subtitle">Calapan East District Instructional Monitoring System</p>
     </div>
 

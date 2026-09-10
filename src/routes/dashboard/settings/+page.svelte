@@ -159,7 +159,7 @@
                             type="text"
                             bind:value={fullName}
                             placeholder="Enter your full name"
-                            class="w-full px-4 py-3 text-sm bg-surface-muted border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none transition-all font-bold"
+                            class="w-full px-4 py-3 text-sm bg-surface-muted border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none transition-colors font-bold"
                         />
                     </div>
 
@@ -183,7 +183,7 @@
                         <button
                             onclick={updateProfile}
                             disabled={saving}
-                            class="px-8 py-3 bg-gov-blue text-white font-bold rounded-xl text-xs uppercase tracking-widest hover:bg-gov-blue-dark active:scale-95 transition-all disabled:opacity-50 shadow-sm"
+                            class="px-8 py-3 bg-gov-blue text-white font-bold rounded-xl text-xs uppercase tracking-widest hover:bg-gov-blue-dark active:scale-95 transition-[color,background-color,border-color,transform] duration-200 ease-out disabled:opacity-50 shadow-sm"
                         >
                             {saving ? 'Syncing...' : 'Update Identity'}
                         </button>
@@ -292,7 +292,7 @@
                     <div>
                         <label for="currentPassword" class="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">Current Password</label>
                         <div class="relative">
-                            <input id="currentPassword" type={showCurrent ? "text" : "password"} bind:value={currentPassword} placeholder="Enter current password" class="w-full px-4 py-3 text-sm bg-surface-muted border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none transition-all font-bold pr-11" />
+                            <input id="currentPassword" type={showCurrent ? "text" : "password"} bind:value={currentPassword} placeholder="Enter current password" class="w-full px-4 py-3 text-sm bg-surface-muted border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none transition-colors font-bold pr-11" />
                             <button type="button" onclick={() => showCurrent = !showCurrent} class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors p-1" tabindex="-1" aria-label={showCurrent ? "Hide password" : "Show password"}>
                                 {#if showCurrent}<EyeOff size={16} />{:else}<Eye size={16} />{/if}
                             </button>
@@ -301,7 +301,7 @@
                     <div>
                         <label for="newPassword" class="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">New Password</label>
                         <div class="relative">
-                            <input id="newPassword" type={showNew ? "text" : "password"} bind:value={newPassword} placeholder="At least 6 characters" class="w-full px-4 py-3 text-sm bg-surface-muted border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none transition-all font-bold pr-11" minlength="6" />
+                            <input id="newPassword" type={showNew ? "text" : "password"} bind:value={newPassword} placeholder="At least 6 characters" class="w-full px-4 py-3 text-sm bg-surface-muted border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none transition-colors font-bold pr-11" minlength="6" />
                             <button type="button" onclick={() => showNew = !showNew} class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors p-1" tabindex="-1" aria-label={showNew ? "Hide password" : "Show password"}>
                                 {#if showNew}<EyeOff size={16} />{:else}<Eye size={16} />{/if}
                             </button>
@@ -310,7 +310,7 @@
                     <div>
                         <label for="confirmPassword" class="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">Confirm New Password</label>
                         <div class="relative">
-                            <input id="confirmPassword" type={showConfirm ? "text" : "password"} bind:value={confirmPassword} placeholder="Re-enter new password" class="w-full px-4 py-3 text-sm bg-surface-muted border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none transition-all font-bold pr-11" />
+                            <input id="confirmPassword" type={showConfirm ? "text" : "password"} bind:value={confirmPassword} placeholder="Re-enter new password" class="w-full px-4 py-3 text-sm bg-surface-muted border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none transition-colors font-bold pr-11" />
                             <button type="button" onclick={() => showConfirm = !showConfirm} class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors p-1" tabindex="-1" aria-label={showConfirm ? "Hide password" : "Show password"}>
                                 {#if showConfirm}<EyeOff size={16} />{:else}<Eye size={16} />{/if}
                             </button>
@@ -320,7 +320,7 @@
                         <button
                             onclick={handleChangePassword}
                             disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
-                            class="px-8 py-3 bg-gov-blue text-white font-bold rounded-xl text-xs uppercase tracking-widest hover:bg-gov-blue-dark active:scale-95 transition-all disabled:opacity-50 shadow-sm flex items-center gap-2"
+                            class="px-8 py-3 bg-gov-blue text-white font-bold rounded-xl text-xs uppercase tracking-widest hover:bg-gov-blue-dark active:scale-95 transition-[color,background-color,border-color,transform] duration-200 ease-out disabled:opacity-50 shadow-sm flex items-center gap-2"
                         >
                             {#if changingPassword}
                                 <span class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
@@ -338,7 +338,7 @@
             <div class="pt-4">
                 <button
                     onclick={handleSignOut}
-                    class="w-full py-4 border-2 border-gov-red/20 text-gov-red font-bold rounded-2xl text-xs uppercase tracking-widest hover:bg-gov-red/5 transition-all flex items-center justify-center gap-2 group"
+                    class="w-full py-4 border-2 border-gov-red/20 text-gov-red font-bold rounded-2xl text-xs uppercase tracking-widest hover:bg-gov-red/5 transition-colors flex items-center justify-center gap-2 group"
                 >
                     <LogOut size={16} class="group-hover:translate-x-1 transition-transform" />
                     Sign Out Securely

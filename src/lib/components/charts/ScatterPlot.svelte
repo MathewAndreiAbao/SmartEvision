@@ -184,7 +184,7 @@
                             opacity="0.8"
                             stroke="white"
                             stroke-width="2"
-                            class="transition-all hover:r-8"
+                            class="transition-[r] duration-200 ease-out hover:r-8"
                         />
 
                         <!-- Invisible larger circle for easier hover -->

@@ -29,7 +29,7 @@
         in:fly={{ y: 20, duration: 400 }}
         out:fade
     >
-        <div class="gov-card-static p-4 space-y-3">
+        <div class="gov-card-static p-4 space-y-3" role="status" aria-live="polite">
             <div class="flex items-center justify-between">
                 <span
                     class="text-[14px] font-medium text-text-primary flex items-center gap-2"
@@ -54,7 +54,7 @@
                 <button
                     onclick={handleSync}
                     disabled={isSyncing}
-                    class="w-full py-2.5 bg-gov-blue text-white rounded-xl text-[14px] font-bold hover:bg-gov-blue-dark transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                    class="w-full py-2.5 bg-gov-blue text-white rounded-xl text-[14px] font-bold hover:bg-gov-blue-dark transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                     {#if isSyncing}
                         Syncing...

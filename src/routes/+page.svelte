@@ -104,7 +104,7 @@
     <title>CEDIMS — Calapan East District Instructional Monitoring System · Powered by Smart E-VISION</title>
 </svelte:head>
 
-<div class="min-h-screen bg-surface-muted text-text-primary">
+<div class="min-h-dvh bg-surface-muted text-text-primary">
     <header class="border-b border-border-subtle bg-surface-white/90 backdrop-blur">
         <div class="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
             <a href="/" class="flex shrink-0 items-center gap-2 sm:gap-3">

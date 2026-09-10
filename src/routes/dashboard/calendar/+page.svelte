@@ -483,7 +483,7 @@
                                 {#if d.id}
                                     <button
                                         onclick={() => toggleActive(d)}
-                                        class="px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide transition-all shadow-sm flex items-center gap-1.5 {d.is_active
+                                        class="px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide transition-colors shadow-sm flex items-center gap-1.5 {d.is_active
                                             ? 'bg-gov-green/10 text-gov-green hover:bg-gov-green hover:text-white'
                                             : 'bg-surface-muted text-text-muted border border-border-subtle hover:bg-gov-gold/10 hover:text-gov-gold-dark'}"
                                         title="Week {d.week_number} is {d.is_active ? 'open' : 'scheduled'} — click to {d.is_active ? 'close (hide from teachers)' : 'open this week to teachers'}"
@@ -493,7 +493,7 @@
                                 {/if}
                                 <button
                                     onclick={() => saveWeek(d)}
-                                    class="p-2.5 rounded-xl bg-gov-blue/5 text-gov-blue hover:bg-gov-blue hover:text-white active:scale-95 transition-all shadow-sm flex items-center justify-center"
+                                    class="p-2.5 rounded-xl bg-gov-blue/5 text-gov-blue hover:bg-gov-blue hover:text-white active:scale-95 transition-[color,background-color,border-color,transform] duration-200 ease-out shadow-sm flex items-center justify-center"
                                     title="Save Week {d.week_number}"
                                 >
                                     <Save size={20} strokeWidth={2.5} />
@@ -515,7 +515,7 @@
                                     id="date-{i}"
                                     type="date"
                                     bind:value={d.deadline_date}
-                                    class="w-full px-4 py-3.5 bg-surface-muted border border-border-subtle rounded-md focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none text-sm font-semibold transition-all"
+                                    class="w-full px-4 py-3.5 bg-surface-muted border border-border-subtle rounded-md focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none text-sm font-semibold transition-colors"
                                 />
                             {:else}
                                 <p
@@ -548,7 +548,7 @@
                                     type="text"
                                     bind:value={d.description}
                                     placeholder="e.g. DLL Submission..."
-                                    class="w-full px-4 py-3.5 bg-surface-muted border border-border-subtle rounded-md focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none text-sm font-medium placeholder:text-text-muted transition-all"
+                                    class="w-full px-4 py-3.5 bg-surface-muted border border-border-subtle rounded-md focus:ring-2 focus:ring-gov-blue/20 focus:border-gov-blue outline-none text-sm font-medium placeholder:text-text-muted transition-colors"
                                 />
                             {:else}
                                 <p
@@ -569,7 +569,7 @@
             >
                     <div class="flex items-start gap-4">
                         <div
-                            class="p-2.5 rounded-xl bg-gov-blue/10 text-gov-blue group-hover:bg-gov-blue group-hover:text-white transition-all"
+                            class="p-2.5 rounded-xl bg-gov-blue/10 text-gov-blue group-hover:bg-gov-blue group-hover:text-white transition-colors"
                         >
                             <Info size={24} />
                         </div>
@@ -595,7 +595,7 @@
                                 type="button"
                                 onclick={() => generateFromDepEd()}
                                 disabled={generating}
-                                class="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gov-blue text-white text-sm font-bold hover:bg-gov-blue-dark active:scale-95 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                                class="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gov-blue text-white text-sm font-bold hover:bg-gov-blue-dark active:scale-95 transition-[color,background-color,border-color,transform] duration-200 ease-out shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 <CalendarDays size={18} />
                                 {generating
@@ -632,10 +632,11 @@
         {/if}
 </div>
 
-<style>
-    /* Premium glass/card aesthetics */
-    :global(.gov-card-static) {
-        background: rgba(255, 255, 255, 0.7);
-        backdrop-filter: blur(20px);
-    }
-</style>
+<!-- The former <style> block here globally overrode .gov-card-static's
+     background to a hardcoded translucent white with a glass blur — every
+     card using that shared class anywhere on this page, not just this
+     component. Two problems: it never adapted for dark mode (a white glass
+     panel over a near-black surface), and per the plan's design
+     arbitration (§5.2), glassmorphism was explicitly rejected for this
+     government tool. Removed; .gov-card-static's own definition in
+     app.css already provides consistent elevation. -->

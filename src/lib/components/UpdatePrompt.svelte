@@ -57,11 +57,15 @@
 
 {#if showUpdate}
     <div
-        class="fixed top-4 left-4 right-4 lg:left-auto lg:right-6 lg:w-96 z-[60]"
+        class="fixed top-4 left-4 right-4 lg:left-auto lg:right-6 lg:w-96 z-[var(--z-overlay)]"
         in:fly={{ y: -20, duration: 300 }}
         out:fly={{ y: -20, duration: 300 }}
     >
-        <div class="gov-card border-l-4 border-gov-green shadow-xl p-5 sm:p-6">
+        <!-- The colored icon chip already conveys category; a background
+             tint replaces the banned border-left as the ambient cue.
+             gov-card already declares elevation via border, so shadow-xl
+             is dropped rather than stacked on top of it. -->
+        <div class="gov-card bg-gov-green/5 p-5 sm:p-6">
             <div class="flex items-start gap-4">
                 <div class="p-3 bg-gov-green/20 rounded-lg flex-shrink-0">
                     <RefreshCw size={20} class="text-gov-green" strokeWidth={2.5} />

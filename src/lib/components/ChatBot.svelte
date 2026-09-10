@@ -96,7 +96,7 @@
     <button
         data-tour="chatbot"
         onclick={() => (isOpen = true)}
-        class="fixed right-6 z-50 w-16 h-16 bg-surface-white rounded-full shadow-lg border border-border-subtle flex items-center justify-center transition-all hover:scale-105 hover:shadow-xl active:scale-95 {inDashboard
+        class="fixed right-6 z-50 w-16 h-16 bg-surface-white rounded-full shadow-lg border border-border-subtle flex items-center justify-center transition-[color,background-color,border-color,transform] duration-200 ease-out hover:scale-105 hover:shadow-xl active:scale-95 {inDashboard
             ? 'bottom-24'
             : 'bottom-6'}"
         aria-label="Open Gabay, the CEDIMS chat assistant"
@@ -106,7 +106,7 @@
 {:else}
     <!-- Chat window -->
     <div
-        class="fixed right-6 z-50 w-96 h-[32rem] bg-surface-white rounded-2xl shadow-2xl border border-border-subtle flex flex-col overflow-hidden transition-all duration-200 {inDashboard
+        class="fixed right-6 z-50 w-96 h-[32rem] bg-surface-white rounded-2xl shadow-2xl border border-border-subtle flex flex-col overflow-hidden transition-colors duration-200 {inDashboard
             ? 'bottom-24'
             : 'bottom-6'}"
     >

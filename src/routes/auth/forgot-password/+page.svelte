@@ -40,7 +40,7 @@
     <title>Forgot Password — CEDIMS</title>
 </svelte:head>
 
-<div class="min-h-screen bg-gradient-to-br from-gov-blue/5 via-surface-white to-surface-muted px-4 py-8 sm:px-6 sm:py-12 lg:px-8 flex items-center justify-center">
+<div class="min-h-dvh bg-gradient-to-br from-gov-blue/5 via-surface-white to-surface-muted px-4 py-8 sm:px-6 sm:py-12 lg:px-8 flex items-center justify-center">
     <div class="w-full max-w-md">
         <div class="rounded-2xl border border-border-subtle bg-surface-white backdrop-blur-sm p-6 sm:p-8 shadow-xl">
             <!-- Header -->
@@ -54,7 +54,7 @@
                         <CheckCircle2 size={16} class="text-gov-green" strokeWidth={2.5} />
                         <span class="text-xs font-bold uppercase tracking-wider text-gov-green">Email Sent</span>
                     </div>
-                    <h2 class="text-xl sm:text-2xl font-bold text-text-primary">Check your inbox</h2>
+                    <h1 class="text-xl sm:text-2xl font-bold text-text-primary">Check your inbox</h1>
                     <p class="mt-2.5 text-sm text-text-secondary leading-relaxed">
                         We sent a password reset link to<br class="sm:hidden" />
                         <strong class="text-text-primary">{email}</strong>.<br class="hidden sm:block" />
@@ -62,7 +62,7 @@
                         Click the link in the email to reset your password. The link expires in 1 hour.
                     </p>
                 {:else}
-                    <h2 class="text-xl sm:text-2xl font-bold text-text-primary">Forgot password?</h2>
+                    <h1 class="text-xl sm:text-2xl font-bold text-text-primary">Forgot password?</h1>
                     <p class="mt-2 text-sm text-text-secondary">
                         Enter your email address and we'll send you a password reset link.
                     </p>

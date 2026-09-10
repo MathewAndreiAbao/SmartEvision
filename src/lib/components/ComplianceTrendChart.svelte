@@ -85,13 +85,13 @@
             labels: {
               usePointStyle: true,
               padding: 16,
-              font: { family: "Inter", size: 12 },
+              font: { family: "'Segoe UI', Roboto, system-ui, sans-serif", size: 12 },
             },
           },
           tooltip: {
             backgroundColor: "rgba(26, 26, 46, 0.9)",
-            titleFont: { family: "Inter", size: 13 },
-            bodyFont: { family: "Inter", size: 12 },
+            titleFont: { family: "'Segoe UI', Roboto, system-ui, sans-serif", size: 13 },
+            bodyFont: { family: "'Segoe UI', Roboto, system-ui, sans-serif", size: 12 },
             cornerRadius: 8,
             padding: 10,
             callbacks: {
@@ -105,7 +105,7 @@
             max: 100,
             ticks: {
               callback: (v: any) => v + "%",
-              font: { family: "Inter", size: 10, weight: "bold" },
+              font: { family: "'Segoe UI', Roboto, system-ui, sans-serif", size: 10, weight: "bold" },
               color: "#64748b",
             },
             grid: { color: "rgba(0,0,0,0.06)" },
@@ -113,7 +113,7 @@
           },
           x: {
             ticks: {
-              font: { family: "Inter", size: 10, weight: "bold" },
+              font: { family: "'Segoe UI', Roboto, system-ui, sans-serif", size: 10, weight: "bold" },
               color: "#64748b",
             },
             grid: { display: false },

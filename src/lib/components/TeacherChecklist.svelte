@@ -178,6 +178,11 @@
                 <p>No active schedule or teaching loads found.</p>
             </div>
         {:else}
+            <!-- The only one of the app's 7 tables missing this wrapper — a
+                 sticky-left timeline column plus one min-w-[110px] column per
+                 subject has no ceiling on total width, and had no scroll
+                 mechanism at all below that width. -->
+            <div class="overflow-x-auto cedims-scroll">
             <table class="w-full text-left border-collapse text-sm">
                 <thead>
                     <tr class="bg-surface-muted border-b border-border-subtle">
@@ -222,6 +227,7 @@
                     {/each}
                 </tbody>
             </table>
+            </div>
         {/if}
     </div>
 

@@ -173,12 +173,12 @@
 </script>
 
 {#if visible && currentStep}
-    <!-- Dim backdrop. Sits below the spotlighted element (z-505) so that
-         element stays genuinely clickable, but blocks stray clicks on the
-         rest of the page so the tour doesn't get derailed. Clicking the
+    <!-- Dim backdrop. Sits below the spotlighted element (--z-tour-spotlight)
+         so that element stays genuinely clickable, but blocks stray clicks on
+         the rest of the page so the tour doesn't get derailed. Clicking the
          dimmed area closes the tour, same as clicking outside any modal. -->
     <div
-        class="fixed inset-0 z-[500]"
+        class="fixed inset-0 z-[var(--z-tour-backdrop)]"
         style="background: rgba(15, 23, 42, {currentStep.target ? '0.55' : '0.6'});"
         onclick={finish}
         onkeydown={(e) => { if (e.key === 'Escape') finish(); }}
@@ -188,8 +188,8 @@
 
     <div
         class={currentStep.target
-            ? "fixed z-[510]"
-            : "fixed inset-0 z-[510] flex items-center justify-center p-4"}
+            ? "fixed z-[var(--z-tour-card)]"
+            : "fixed inset-0 z-[var(--z-tour-card)] flex items-center justify-center p-4"}
         style={currentStep.target ? cardStyle : ""}
         onclick={(e) => e.stopPropagation()}
         onkeydown={(e) => { e.stopPropagation(); if (e.key === "Escape") finish(); }}
@@ -281,7 +281,7 @@
 <style>
     :global(.walkthrough-spotlight) {
         position: relative !important;
-        z-index: 505 !important;
+        z-index: var(--z-tour-spotlight) !important;
         border-radius: 12px;
         background-color: var(--color-surface-white);
         box-shadow:

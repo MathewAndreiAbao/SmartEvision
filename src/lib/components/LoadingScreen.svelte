@@ -39,8 +39,11 @@
 				<img src="/app_icon.png" alt="CEDIMS — DepEd Calapan East District" />
 			</div>
 
-			<!-- App Name -->
-			<h1 class="loading-title">{appName}</h1>
+			<!-- App Name. The root layout renders this overlay as a sibling to
+			     {@render children()}, not gated around it — the real destination
+			     page's own <h1> is already in the DOM underneath for the whole
+			     time this shows, so this brand text must not also be a heading. -->
+			<p class="loading-title">{appName}</p>
 
 			<!-- Subtitle -->
 			<p class="loading-subtitle">{subtitle}</p>
@@ -76,7 +79,7 @@
 		justify-content: center;
 		background: linear-gradient(135deg, #f5f6f8 0%, #ebedf0 100%);
 		overflow: hidden;
-		z-index: 9999;
+		z-index: var(--z-loading);
 	}
 
 	/* Content Container */

@@ -66,11 +66,13 @@
 
 {#if showPrompt && !isInstalled && !dismissed}
     <div
-        class="fixed bottom-28 left-4 right-4 lg:left-auto lg:right-6 lg:w-96 z-50"
+        class="fixed bottom-28 left-4 right-4 lg:left-auto lg:right-6 lg:w-96 z-[var(--z-dropdown)]"
         in:fly={{ y: 20, duration: 300 }}
         out:fly={{ y: 20, duration: 300 }}
     >
-        <div class="gov-card border-l-4 border-gov-blue shadow-xl p-5 sm:p-6">
+        <!-- See UpdatePrompt.svelte for why this is a tint, not a
+             border-left + shadow-xl stack. -->
+        <div class="gov-card bg-gov-blue/5 p-5 sm:p-6">
             <div class="flex items-start gap-4">
                 <div class="p-3 bg-gov-blue/20 rounded-lg flex-shrink-0">
                     <Download size={20} class="text-gov-blue" strokeWidth={2.5} />

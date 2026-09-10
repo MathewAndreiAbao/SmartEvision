@@ -65,13 +65,13 @@
 <!-- WBS 21.2 — Accessibility: Skip to Content Link -->
 <a
     href="#main-content"
-    class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-gov-blue focus:text-white focus:font-semibold focus:rounded-md focus:shadow-sm"
+    class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[var(--z-skip-link)] focus:px-4 focus:py-2 focus:bg-gov-blue focus:text-white focus:font-semibold focus:rounded-md focus:shadow-sm"
 >
     Skip to Content
 </a>
 
 {#if $user}
-    <div class="min-h-screen bg-surface flex flex-col">
+    <div class="min-h-dvh bg-surface flex flex-col">
         <!-- Mobile bottom navigation (Sidebar component, but only mobile nav rendered) -->
         <Sidebar />
 
@@ -81,11 +81,14 @@
         <!-- Main content area (full width, no sidebar) -->
         <main
             id="main-content"
-            class="flex-1 min-h-screen flex flex-col bg-surface"
-            aria-labelledby="dashboard-title"
+            class="flex-1 min-h-dvh flex flex-col bg-surface"
+            aria-label="Dashboard content"
         >
-            <!-- Content with proper spacing (mobile + desktop) -->
-            <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-32 sm:pb-24 flex-1">
+            <!-- Content with proper spacing. Bottom padding clears the fixed
+                 bottom tab bar below lg; at lg+ that bar is hidden (a
+                 persistent header nav takes over), so the clearance drops
+                 to the ordinary section padding instead of wasting space. -->
+            <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-32 sm:pb-24 lg:pb-8 flex-1">
                 {@render children()}
             </div>
         </main>

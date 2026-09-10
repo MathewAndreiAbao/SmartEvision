@@ -21,16 +21,21 @@
     const IconComponent = $derived(icon ? (Lucide[icon] as any) : null);
 
     function getColorClasses(c: string) {
-        if (c.includes("green")) return { bg: "bg-gov-green/10", text: "text-gov-green", border: "border-gov-green" };
-        if (c.includes("gold")) return { bg: "bg-gov-gold/10", text: "text-gov-gold-dark", border: "border-gov-gold" };
-        if (c.includes("red")) return { bg: "bg-gov-red/10", text: "text-gov-red", border: "border-gov-red" };
-        return { bg: "bg-gov-blue/10", text: "text-gov-blue", border: "border-gov-blue" };
+        if (c.includes("green")) return { bg: "bg-gov-green/10", text: "text-gov-green" };
+        if (c.includes("gold")) return { bg: "bg-gov-gold/10", text: "text-gov-gold-dark" };
+        if (c.includes("red")) return { bg: "bg-gov-red/10", text: "text-gov-red" };
+        return { bg: "bg-gov-blue/10", text: "text-gov-blue" };
     }
 
     const colorClasses = $derived(getColorClasses(color));
 </script>
 
-<div class="gov-card p-6 border-l-4 {colorClasses.border} hover:shadow-lg transition-all duration-300">
+<!-- The colored icon chip + trend badge already carry the category color;
+     a border-left accent was a third, redundant signal (craft-floor bans
+     it). hover:shadow-lg is dropped too — .gov-card already declares
+     elevation via border only, so pairing it with a shadow here re-created
+     the ghost-card pattern the shared class was just fixed to avoid. -->
+<div class="gov-card p-6 transition-colors duration-300">
     <div class="flex items-start justify-between gap-4">
         <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2.5 mb-3">

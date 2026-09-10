@@ -1073,7 +1073,7 @@
                                 >
                                 <button
                                     onclick={() => (showLoadPicker = true)}
-                                    class="w-full p-5 rounded-md transition-all border-2 text-left flex items-center justify-between group {teachingLoadId
+                                    class="w-full p-5 rounded-md transition-colors border-2 text-left flex items-center justify-between group {teachingLoadId
                                         ? 'bg-gov-blue/5 border-gov-blue/20 hover:border-gov-blue/40'
                                         : 'bg-gov-red/5 border-gov-red/20 border-dashed animate-pulse'}"
                                 >
@@ -1147,7 +1147,7 @@
                                         {#each allowedDocTypes as type}
                                             <button
                                                 onclick={() => (docType = type)}
-                                                class="flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all {docType ===
+                                                class="flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-colors {docType ===
                                                 type
                                                     ? 'bg-surface-white text-gov-blue shadow-sm'
                                                     : 'text-text-muted hover:text-text-primary'}"
@@ -1176,7 +1176,7 @@
                                             (showWeekPicker = true)
                                         }
                                         disabled={requiresTeachingLoadSelection($profile?.role || '', docType) && teachingLoads.length === 0}
-                                        class="w-full p-4 rounded-md bg-surface-muted border border-border-subtle transition-all text-left flex items-center justify-between group {requiresTeachingLoadSelection($profile?.role || '', docType) && teachingLoads.length === 0
+                                        class="w-full p-4 rounded-md bg-surface-muted border border-border-subtle transition-colors text-left flex items-center justify-between group {requiresTeachingLoadSelection($profile?.role || '', docType) && teachingLoads.length === 0
                                             ? 'opacity-60 cursor-not-allowed'
                                             : 'hover:border-gov-blue/30'}"
                                     >
@@ -1301,7 +1301,7 @@
                                     processing}
                                 class="mt-6 w-full py-4 bg-gradient-to-r {isOnline
                                     ? 'from-gov-blue to-gov-blue-dark'
-                                    : 'from-gov-gold-dark to-gov-gold'} text-white text-lg font-extrabold rounded-md shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:grayscale transition-all duration-300 min-h-[60px] flex items-center justify-center gap-3 uppercase tracking-wide"
+                                    : 'from-gov-gold-dark to-gov-gold'} text-white text-lg font-extrabold rounded-md shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:grayscale transition-[color,background-color,border-color,transform] duration-300 min-h-[60px] flex items-center justify-center gap-3 uppercase tracking-wide"
                             >
                                 {#if processing}
                                     <svg
@@ -1405,7 +1405,7 @@
             </div>
 
             {#if $profile}
-                <div class="gov-card-static p-6 border-l-4 {$profile.role === 'Teacher' ? 'border-gov-blue' : $profile.role === 'Master Teacher' ? 'border-gov-green' : 'border-gov-purple'}">
+                <div class="gov-card-static p-6 {$profile.role === 'Teacher' ? 'bg-gov-blue/5' : $profile.role === 'Master Teacher' ? 'bg-gov-green/5' : 'bg-gov-purple/5'}">
                     <h3 class="text-lg font-bold text-text-primary mb-3">
                         Your Role: {$profile.role}
                     </h3>
@@ -1415,7 +1415,7 @@
                 </div>
             {/if}
 
-            <div class="gov-card-static p-6 border-l-4 border-gov-gold">
+            <div class="gov-card-static bg-gov-gold/5 p-6">
                 <h3 class="text-lg font-bold text-text-primary mb-3">
                     Security & Integrity
                 </h3>
@@ -1452,7 +1452,7 @@
 <!-- Selection Modals -->
 {#if showLoadPicker}
     <div
-        class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm transition-opacity"
+        class="fixed inset-0 z-[var(--z-modal)] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm transition-opacity"
         onclick={() => (showLoadPicker = false)}
         onkeydown={(e) => e.key === "Escape" && (showLoadPicker = false)}
         role="presentation"
@@ -1505,7 +1505,7 @@
                                 teachingLoadId = load.id;
                                 showLoadPicker = false;
                             }}
-                            class="w-full p-4 rounded-md text-left transition-all flex items-center justify-between group {teachingLoadId ===
+                            class="w-full p-4 rounded-md text-left transition-colors flex items-center justify-between group {teachingLoadId ===
                             load.id
                                 ? 'bg-gov-blue text-white shadow-lg'
                                 : 'bg-surface-muted hover:bg-gov-blue/5 border border-transparent hover:border-gov-blue/20'}"
@@ -1566,7 +1566,7 @@
 
 {#if showWeekPicker}
     <div
-        class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm transition-opacity"
+        class="fixed inset-0 z-[var(--z-modal)] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm transition-opacity"
         onclick={() => (showWeekPicker = false)}
         onkeydown={(e) => e.key === "Escape" && (showWeekPicker = false)}
         role="presentation"
@@ -1616,7 +1616,7 @@
                             weekNumber = wk;
                             showWeekPicker = false;
                         }}
-                        class="p-6 rounded-md text-center transition-all flex flex-col items-center justify-center gap-1 group {weekNumber ===
+                        class="p-6 rounded-md text-center transition-colors flex flex-col items-center justify-center gap-1 group {weekNumber ===
                         wk
                             ? 'bg-gov-blue text-white shadow-lg'
                             : 'bg-surface-muted hover:bg-gov-blue/5 border border-transparent hover:border-gov-blue/20'}"
@@ -1643,11 +1643,14 @@
 {/if}
 
 <style>
-    /* Premium glass/card aesthetics */
-    :global(.gov-card-static) {
-        background: rgba(255, 255, 255, 0.7);
-        backdrop-filter: blur(20px);
-    }
+    /* A former :global(.gov-card-static) override here hardcoded a
+       translucent-white glass background across every card on this page —
+       never adapted for dark mode, and glassmorphism was explicitly
+       rejected for this government tool (plan §5.2). Removed; the shared
+       class's own app.css definition already provides consistent
+       elevation, and this page has 6 gov-card-static instances that were
+       all silently affected by it, including ones this same pass just
+       gave role-specific background tints to. */
 
     @keyframes slide-up {
         from {

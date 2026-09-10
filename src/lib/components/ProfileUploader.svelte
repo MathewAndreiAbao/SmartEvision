@@ -110,7 +110,7 @@
         <button 
             type="button"
             onclick={triggerFileInput}
-            class="relative {sizeClasses[size ?? 'md']} rounded-full overflow-hidden border-2 border-border-subtle bg-surface-muted flex items-center justify-center transition-all hover:border-gov-blue/50 focus:outline-none focus:ring-2 focus:ring-gov-blue/20"
+            class="relative {sizeClasses[size ?? 'md']} rounded-full overflow-hidden border-2 border-border-subtle bg-surface-muted flex items-center justify-center transition-colors hover:border-gov-blue/50 focus:outline-none focus:ring-2 focus:ring-gov-blue/20"
             disabled={uploading}
             aria-label="Change {label}"
         >

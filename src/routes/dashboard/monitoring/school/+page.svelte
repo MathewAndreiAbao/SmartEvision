@@ -10,7 +10,8 @@
     import { onMount, onDestroy } from "svelte";
     import { fly, fade } from "svelte/transition";
     import { goto } from "$app/navigation";
-    import { School as SchoolIcon, Eye } from "lucide-svelte";
+    import { School as SchoolIcon, Eye, Users, LineChart } from "lucide-svelte";
+    import EmptyState from "$lib/components/EmptyState.svelte";
     import { addToast } from "$lib/stores/toast";
     import {
         calculateCompliance,
@@ -281,12 +282,12 @@
             {
                 label: "School Compliance",
                 data: weeklyData.map((w: any) => w.rate),
-                color: "#0038A8",
+                color: "#2563eb",
             },
             {
                 label: "100% Target",
                 data: weeklyData.map(() => 100),
-                color: "#CE1126",
+                color: "#dc2626",
                 dashed: true,
             },
         ];
@@ -543,7 +544,7 @@
         <!-- Alerts -->
         {#if alertTeachers().length > 0}
             <div
-                class="gov-card-static p-5 mb-8 border-l-4 border-gov-gold"
+                class="gov-card-static bg-gov-gold/5 p-5 mb-8"
                 in:fade={{ duration: 500, delay: 400 }}
             >
                 <h3 class="text-sm font-bold text-gov-gold-dark mb-2">
@@ -604,9 +605,10 @@
                     />
                 {:else}
                     <div
-                        class="flex items-center justify-center h-[260px] text-text-muted"
+                        class="flex flex-col items-center justify-center gap-2 h-[260px] text-text-muted"
                     >
-                        <p>No trend data available yet</p>
+                        <LineChart size={28} strokeWidth={1.5} aria-hidden="true" />
+                        <p class="text-sm">No trend data available yet</p>
                     </div>
                 {/if}
             </div>
@@ -632,9 +634,11 @@
             </div>
 
             {#if sortedTeachers().length === 0}
-                <div class="p-10 text-center">
-                    <p class="text-text-muted font-medium">No teachers found</p>
-                </div>
+                <EmptyState
+                    icon={Users}
+                    title="No teachers found"
+                    description={searchQuery ? "Try a different search." : "No teachers are assigned to this school yet."}
+                />
             {:else}
                 <div class="p-6">
                     <div
@@ -643,7 +647,7 @@
                         {#each sortedTeachers() as teacher}
                             <button
                                 type="button"
-                                class="bg-surface-white border border-border-subtle rounded-xl p-6 shadow-sm hover:shadow-md hover:border-gov-blue/20 transition-all flex flex-col group cursor-pointer text-left w-full"
+                                class="bg-surface-white border border-border-subtle rounded-xl p-6 shadow-sm hover:shadow-md hover:border-gov-blue/20 transition-colors flex flex-col group cursor-pointer text-left w-full"
                                 onclick={() => openDrillDown(teacher)}
                                 in:fly={{ y: 20, duration: 400 }}
                             >
@@ -722,7 +726,7 @@
                                     class="mt-auto pt-4 border-t border-gray-50"
                                 >
                                     <div
-                                        class="w-full py-2 bg-gov-blue/5 text-gov-blue group-hover:bg-gov-blue group-hover:text-white rounded-lg transition-all font-bold text-[10px] uppercase tracking-widest border border-gov-blue/10 flex items-center justify-center"
+                                        class="w-full py-2 bg-gov-blue/5 text-gov-blue group-hover:bg-gov-blue group-hover:text-white rounded-lg transition-colors font-bold text-[10px] uppercase tracking-widest border border-gov-blue/10 flex items-center justify-center"
                                     >
                                         View Details
                                     </div>
@@ -748,7 +752,7 @@
                     </div>
                     <button
                         onclick={() => (clusterShow = !clusterShow)}
-                        class="px-4 py-2 text-sm font-semibold rounded-xl border border-border-subtle hover:bg-surface-muted transition-all"
+                        class="px-4 py-2 text-sm font-semibold rounded-xl border border-border-subtle hover:bg-surface-muted transition-colors"
                     >
                         {clusterShow ? "Hide" : "Show"} Clusters
                     </button>

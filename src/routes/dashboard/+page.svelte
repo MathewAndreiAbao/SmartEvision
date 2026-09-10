@@ -32,8 +32,11 @@
         ShieldX,
         Search,
         Building2,
+        WifiOff,
     } from "lucide-svelte";
     import { showQRScanner } from "$lib/stores/ui";
+    import { connectivity } from "$lib/stores/connectivity";
+    const { isOnline: onlineStatus } = connectivity;
 
     interface ComplianceRow {
         id: string;
@@ -594,6 +597,22 @@
         </p>
     </div>
 
+    <!-- This page has no cache-then-network fallback the way archive/
+         monitoring do — adding one would be new data-fetching logic, out
+         of scope for a presentation-only pass. What belongs here: making
+         the existing silent failure honest. Without this, a fetch that
+         fails offline leaves every stat at zero with no explanation,
+         while the header's connectivity pill can be easy to miss. -->
+    {#if !loading && !$onlineStatus}
+        <div
+            class="mb-6 flex items-center gap-2 rounded-lg border border-gov-gold/30 bg-gov-gold/10 px-4 py-3 text-sm font-medium text-gov-gold-dark"
+            role="status"
+        >
+            <WifiOff size={16} strokeWidth={2} class="flex-shrink-0" aria-hidden="true" />
+            You're offline — the figures below may be incomplete or out of date.
+        </div>
+    {/if}
+
     {#if $profile?.role === "Teacher"}
         <!-- ========== TEACHER DASHBOARD ========== -->
 
@@ -658,7 +677,7 @@
                     class="gov-card p-5 flex flex-col gap-4 no-underline group"
                 >
                     <div
-                        class="w-10 h-10 rounded-md bg-gov-blue/5 text-gov-blue flex items-center justify-center group-hover:bg-gov-blue group-hover:text-white transition-all duration-300"
+                        class="w-10 h-10 rounded-md bg-gov-blue/5 text-gov-blue flex items-center justify-center group-hover:bg-gov-blue group-hover:text-white transition-colors duration-300"
                     >
                         <CloudUpload size={20} strokeWidth={1.5} />
                     </div>
@@ -680,7 +699,7 @@
                     class="gov-card p-5 flex flex-col gap-4 no-underline group"
                 >
                     <div
-                        class="w-10 h-10 rounded-md bg-gov-blue/5 text-gov-blue flex items-center justify-center group-hover:bg-gov-blue group-hover:text-white transition-all duration-300"
+                        class="w-10 h-10 rounded-md bg-gov-blue/5 text-gov-blue flex items-center justify-center group-hover:bg-gov-blue group-hover:text-white transition-colors duration-300"
                     >
                         <Archive size={20} strokeWidth={1.5} />
                     </div>
@@ -702,7 +721,7 @@
                     class="gov-card p-5 flex flex-col gap-4 no-underline group"
                 >
                     <div
-                        class="w-10 h-10 rounded-md bg-gov-blue/5 text-gov-blue flex items-center justify-center group-hover:bg-gov-blue group-hover:text-white transition-all duration-300"
+                        class="w-10 h-10 rounded-md bg-gov-blue/5 text-gov-blue flex items-center justify-center group-hover:bg-gov-blue group-hover:text-white transition-colors duration-300"
                     >
                         <Briefcase size={20} strokeWidth={1.5} />
                     </div>
@@ -724,7 +743,7 @@
                     class="gov-card p-5 flex flex-col gap-4 no-underline group text-left w-full cursor-pointer"
                 >
                     <div
-                        class="w-10 h-10 rounded-md bg-gov-blue/5 text-gov-blue flex items-center justify-center group-hover:bg-gov-blue group-hover:text-white transition-all duration-300"
+                        class="w-10 h-10 rounded-md bg-gov-blue/5 text-gov-blue flex items-center justify-center group-hover:bg-gov-blue group-hover:text-white transition-colors duration-300"
                     >
                         <QrCode size={20} strokeWidth={1.5} />
                     </div>
@@ -976,7 +995,7 @@
                 >
                     {#each recentActivity as item, i}
                         <div
-                            class="bg-surface-white border border-border-subtle rounded-xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col group relative"
+                            class="bg-surface-white border border-border-subtle rounded-xl p-5 shadow-sm hover:shadow-md transition-colors flex flex-col group relative"
                             in:fly={{
                                 x: -20,
                                 duration: 400,

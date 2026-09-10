@@ -314,7 +314,7 @@
         try {
             const session = await supabase.auth.getSession();
             const token = session.data.session?.access_token;
-            if (!token) { alert('Not authenticated'); return; }
+            if (!token) { showMessage('Not authenticated', 'error'); return; }
 
             const res = await fetch('/api/admin/create-user', {
                 method: 'POST',
@@ -399,7 +399,7 @@
     >
         <button
             onclick={() => (activeTab = "settings")}
-            class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold transition-all {activeTab ===
+            class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold transition-colors {activeTab ===
             'settings'
                 ? 'bg-surface-white text-gov-blue shadow-sm'
                 : 'text-text-muted hover:text-text-primary'}"
@@ -411,7 +411,7 @@
         </button>
         <button
             onclick={() => (activeTab = "users")}
-            class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold transition-all {activeTab ===
+            class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold transition-colors {activeTab ===
             'users'
                 ? 'bg-surface-white text-gov-blue shadow-sm'
                 : 'text-text-muted hover:text-text-primary'}"
@@ -454,7 +454,7 @@
                             <div class="flex items-center gap-3">
                                 {#if s.key === "maintenance_mode" || s.key === "enforce_ocr"}
                                     <button
-                                        class="w-14 h-8 rounded-full transition-all relative {s.value ===
+                                        class="w-14 h-8 rounded-full transition-colors relative {s.value ===
                                         'true'
                                             ? 'bg-gov-blue'
                                             : 'bg-surface-muted'}"
@@ -471,7 +471,7 @@
                                         )}"
                                     >
                                         <div
-                                            class="absolute top-1 w-6 h-6 rounded-full bg-surface-white transition-all {s.value ===
+                                            class="absolute top-1 w-6 h-6 rounded-full bg-surface-white transition-colors {s.value ===
                                             'true'
                                                 ? 'left-7'
                                                 : 'left-1'}"
@@ -501,7 +501,7 @@
                                         onclick={() =>
                                             saveSetting(s.key, s.value)}
                                         disabled={saving}
-                                        class="px-4 py-2 bg-gov-blue text-white rounded-lg text-xs font-bold hover:bg-gov-blue-dark active:scale-95 transition-all"
+                                        class="px-4 py-2 bg-gov-blue text-white rounded-lg text-xs font-bold hover:bg-gov-blue-dark active:scale-95 transition-[color,background-color,border-color,transform] duration-200 ease-out"
                                     >
                                         Update
                                     </button>
@@ -541,7 +541,7 @@
                         loadSchoolsAndDistricts();
                         showCreateUser = true;
                     }}
-                    class="px-4 py-2.5 bg-gov-blue text-white rounded-xl text-xs font-bold hover:bg-gov-blue-dark active:scale-95 transition-all min-h-[44px] flex items-center gap-2"
+                    class="px-4 py-2.5 bg-gov-blue text-white rounded-xl text-xs font-bold hover:bg-gov-blue-dark active:scale-95 transition-[color,background-color,border-color,transform] duration-200 ease-out min-h-[44px] flex items-center gap-2"
                     aria-label="Create new user"
                 >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
@@ -552,7 +552,7 @@
                         loadingUsers = true;
                         loadUsers().then(() => (loadingUsers = false));
                     }}
-                    class="p-2.5 rounded-xl bg-surface-white/60 border border-border-subtle text-text-muted hover:text-gov-blue hover:border-gov-blue/30 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
+                    class="p-2.5 rounded-xl bg-surface-white/60 border border-border-subtle text-text-muted hover:text-gov-blue hover:border-gov-blue/30 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                     aria-label="Refresh user list"
                 >
                     <RefreshCw
@@ -737,10 +737,10 @@
     <!-- Toast Message -->
     {#if message.text}
         <div
-            class="fixed bottom-24 right-8 px-6 py-4 rounded-md shadow-sm border-l-4 {message.type ===
+            class="fixed bottom-24 right-8 px-6 py-4 rounded-md shadow-sm {message.type ===
             'success'
-                ? 'bg-green-50 border-green-500 text-green-800'
-                : 'bg-red-50 border-red-500 text-red-800'} flex items-center gap-3 font-bold text-sm z-50"
+                ? 'bg-gov-green/10 text-gov-green'
+                : 'bg-gov-red/10 text-gov-red'} flex items-center gap-3 font-bold text-sm z-[var(--z-toast)]"
             in:fly={{ x: 50 }}
             out:fade
             role="alert"
@@ -758,7 +758,7 @@
 <!-- Role Change Modal -->
 {#if roleChangeModal.open}
     <div
-        class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-6"
+        class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[var(--z-modal)] flex items-center justify-center p-6"
         transition:fade={{ duration: 200 }}
         role="dialog"
         aria-modal="true"
@@ -973,7 +973,7 @@
                         (roleChangeModal.newRole === roleChangeModal.user?.role &&
                         (roleChangeModal.newSchoolId || "") === (roleChangeModal.user?.school_id || "") &&
                         (roleChangeModal.newDistrictId || "") === (roleChangeModal.user?.district_id || ""))}
-                    class="px-5 py-2.5 bg-gov-blue text-white rounded-xl text-sm font-bold hover:bg-gov-blue-dark active:scale-95 transition-all disabled:opacity-40 min-h-[44px]"
+                    class="px-5 py-2.5 bg-gov-blue text-white rounded-xl text-sm font-bold hover:bg-gov-blue-dark active:scale-95 transition-[color,background-color,border-color,transform] duration-200 ease-out disabled:opacity-40 min-h-[44px]"
                 >
                     {saving ? "Saving..." : "Save Changes"}
                 </button>
@@ -985,7 +985,7 @@
 <!-- Create User Modal -->
 {#if showCreateUser}
     <div
-        class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-6"
+        class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[var(--z-modal)] flex items-center justify-center p-6"
         transition:fade={{ duration: 200 }}
         role="dialog"
         aria-modal="true"
@@ -1197,7 +1197,7 @@
                 <button
                     onclick={handleCreateUser}
                     disabled={creating || !createForm.email || !createForm.password || !createForm.fullName}
-                    class="px-5 py-2.5 bg-gov-blue text-white rounded-xl text-sm font-bold hover:bg-gov-blue-dark active:scale-95 transition-all disabled:opacity-40 min-h-[44px]"
+                    class="px-5 py-2.5 bg-gov-blue text-white rounded-xl text-sm font-bold hover:bg-gov-blue-dark active:scale-95 transition-[color,background-color,border-color,transform] duration-200 ease-out disabled:opacity-40 min-h-[44px]"
                 >
                     {creating ? "Creating..." : "Create User"}
                 </button>

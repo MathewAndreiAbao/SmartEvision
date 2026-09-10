@@ -258,7 +258,7 @@
         >
             <button
                 onclick={() => (activeTab = "scatter")}
-                class="px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wide transition-all {activeTab ===
+                class="px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wide transition-colors {activeTab ===
                 'scatter'
                     ? 'bg-surface-white text-gov-blue shadow-sm'
                     : 'text-text-muted hover:text-text-primary'}"
@@ -267,7 +267,7 @@
             </button>
             <button
                 onclick={() => (activeTab = "radar")}
-                class="px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wide transition-all {activeTab ===
+                class="px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wide transition-colors {activeTab ===
                 'radar'
                     ? 'bg-surface-white text-gov-blue shadow-sm'
                     : 'text-text-muted hover:text-text-primary'}"
@@ -317,7 +317,7 @@
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {#each summaries as summary (summary.clusterId)}
             <button
-                class="p-4 rounded-md border transition-all hover:shadow-md text-left cursor-pointer group/card"
+                class="p-4 rounded-md border transition-colors hover:shadow-md text-left cursor-pointer group/card"
                 style="border-color: {summary.color}20; background: {summary.color}05"
                 onclick={() => {
                     selectedClusterId = summary.clusterId;
@@ -391,7 +391,7 @@
 <!-- Teacher Drill-down Modal -->
 {#if showDrillDown && selectedCluster}
     <div
-        class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+        class="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
         transition:fade
     >
         <div
@@ -457,7 +457,7 @@
                 <div class="space-y-3">
                     {#each membersInCluster as member}
                         <div
-                            class="p-4 rounded-md bg-surface-muted border border-border-subtle flex items-center justify-between group hover:bg-surface-white hover:shadow-md transition-all"
+                            class="p-4 rounded-md bg-surface-muted border border-border-subtle flex items-center justify-between group hover:bg-surface-white hover:shadow-md transition-colors"
                         >
                             <div>
                                 <p class="text-sm font-bold text-text-primary">
@@ -522,7 +522,7 @@
             >
                 <button
                     onclick={() => (showDrillDown = false)}
-                    class="px-6 py-2.5 bg-surface-white border border-border-strong rounded-xl text-xs font-bold text-text-primary hover:border-gov-blue transition-all"
+                    class="px-6 py-2.5 bg-surface-white border border-border-strong rounded-xl text-xs font-bold text-text-primary hover:border-gov-blue transition-colors"
                 >
                     Close Analysis
                 </button>

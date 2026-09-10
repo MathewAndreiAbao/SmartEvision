@@ -1,5 +1,6 @@
 <script lang="ts">
   import { type Snippet } from "svelte";
+  import { focusTrap } from "$lib/actions/focusTrap";
 
   interface Props {
     isOpen: boolean;
@@ -35,6 +36,7 @@
       onclick={(e) => e.stopPropagation()}
       onkeydown={() => {}}
       role="document"
+      use:focusTrap
     >
       <!-- Header -->
       <div

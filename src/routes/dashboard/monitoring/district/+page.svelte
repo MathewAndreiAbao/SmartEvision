@@ -9,7 +9,8 @@
   import ProfileUploader from "$lib/components/ProfileUploader.svelte";
   import { onMount, onDestroy } from "svelte";
   import { fly, fade } from "svelte/transition";
-  import { Building2 } from "lucide-svelte";
+  import { Building2, Search } from "lucide-svelte";
+  import EmptyState from "$lib/components/EmptyState.svelte";
   import { addToast } from "$lib/stores/toast";
   import {
     calculateCompliance,
@@ -250,12 +251,12 @@
       {
         label: "District Compliance",
         data: weeklyData.map((w) => w.rate),
-        color: "#0038A8",
+        color: "#2563eb",
       },
       {
         label: "100% Target",
         data: weeklyData.map(() => 100),
-        color: "#CE1126",
+        color: "#dc2626",
         dashed: true,
       },
     ];
@@ -522,7 +523,7 @@
             type="text"
             bind:value={searchQuery}
             placeholder="Search school records..."
-            class="w-full sm:w-72 pl-10 pr-4 py-2 text-[11px] font-bold bg-surface-white border border-border-subtle rounded-md outline-none focus:ring-2 focus:ring-gov-blue/20 transition-all placeholder:text-text-muted/60 uppercase tracking-tight"
+            class="w-full sm:w-72 pl-10 pr-4 py-2 text-[11px] font-bold bg-surface-white border border-border-subtle rounded-md outline-none focus:ring-2 focus:ring-gov-blue/20 transition-colors placeholder:text-text-muted/60 uppercase tracking-tight"
           />
         </div>
       </div>
@@ -532,7 +533,7 @@
           {#each sortedSchools() as school}
             <button
               type="button"
-              class="bg-surface-white border border-border-subtle rounded-xl p-6 shadow-sm hover:shadow-md hover:border-gov-blue/20 transition-all flex flex-col group cursor-pointer text-left w-full"
+              class="bg-surface-white border border-border-subtle rounded-xl p-6 shadow-sm hover:shadow-md hover:border-gov-blue/20 transition-colors flex flex-col group cursor-pointer text-left w-full"
               onclick={() => openDrillDown(school)}
               in:fly={{ y: 20, duration: 400 }}
             >
@@ -588,7 +589,7 @@
 
               <div class="mt-auto pt-4 border-t border-gray-50">
                 <div
-                  class="w-full py-2 bg-gov-blue/5 text-gov-blue group-hover:bg-gov-blue group-hover:text-white rounded-lg transition-all font-bold text-[10px] uppercase tracking-widest border border-gov-blue/10 flex items-center justify-center"
+                  class="w-full py-2 bg-gov-blue/5 text-gov-blue group-hover:bg-gov-blue group-hover:text-white rounded-lg transition-colors font-bold text-[10px] uppercase tracking-widest border border-gov-blue/10 flex items-center justify-center"
                 >
                   View Performance Details
                 </div>
@@ -598,13 +599,11 @@
         </div>
 
         {#if sortedSchools().length === 0}
-          <div class="p-12 text-center">
-            <p
-              class="text-text-muted font-bold text-sm uppercase tracking-widest"
-            >
-              No matching institutional records found
-            </p>
-          </div>
+          <EmptyState
+            icon={Search}
+            title="No matching institutional records found"
+            description="Try adjusting your search or filters."
+          />
         {/if}
       </div>
     </div>

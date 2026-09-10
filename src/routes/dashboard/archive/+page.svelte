@@ -986,7 +986,7 @@
             {#each ["all", "for-checking", "checked"] as opt}
                 <button
                     onclick={() => (statusFilter = opt as typeof statusFilter)}
-                    class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all {statusFilter === opt ? 'bg-gov-blue text-white shadow-sm' : 'text-text-muted hover:text-text-primary'}"
+                    class="px-3 py-1.5 text-xs font-bold rounded-lg transition-colors {statusFilter === opt ? 'bg-gov-blue text-white shadow-sm' : 'text-text-muted hover:text-text-primary'}"
                 >
                     {opt === "all" ? "All" : opt === "for-checking" ? "For Checking" : "Checked"}
                 </button>
@@ -1109,7 +1109,7 @@
 
                         <!-- Centered Icon -->
                         <div
-                            class="w-14 h-14 rounded-md bg-gradient-to-br from-gov-blue/10 to-gov-blue/5 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-gov-blue/15 transition-all duration-300 shadow-sm"
+                            class="w-14 h-14 rounded-md bg-gradient-to-br from-gov-blue/10 to-gov-blue/5 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-gov-blue/15 transition-[color,background-color,border-color,transform] duration-300 shadow-sm"
                         >
                             <FileText size={28} class="text-gov-blue" />
                         </div>
@@ -1186,7 +1186,7 @@
                                     e.stopPropagation();
                                     handleView(sub);
                                 }}
-                                class="p-2 text-text-muted hover:text-gov-blue hover:bg-gov-blue/10 rounded-lg transition-all"
+                                class="p-2 text-text-muted hover:text-gov-blue hover:bg-gov-blue/10 rounded-lg transition-colors"
                                 title="View Information"
                             >
                                 <Eye size={16} />
@@ -1197,7 +1197,7 @@
                                         e.stopPropagation();
                                         openRemarkModal(sub);
                                     }}
-                                    class="p-2 text-text-muted hover:text-gov-gold-dark hover:bg-gov-gold/10 rounded-lg transition-all"
+                                    class="p-2 text-text-muted hover:text-gov-gold-dark hover:bg-gov-gold/10 rounded-lg transition-colors"
                                     title="Add Remarks"
                                 >
                                     <MessageSquare size={16} />
@@ -1208,7 +1208,7 @@
                                     e.stopPropagation();
                                     handleDownload(sub);
                                 }}
-                                class="p-2 text-text-muted hover:text-gov-blue hover:bg-gov-blue/10 rounded-lg transition-all"
+                                class="p-2 text-text-muted hover:text-gov-blue hover:bg-gov-blue/10 rounded-lg transition-colors"
                                 title="Download File"
                             >
                                 <Download size={16} />
@@ -1218,7 +1218,7 @@
                                     e.stopPropagation();
                                     handleShare(sub);
                                 }}
-                                class="p-2 text-text-muted hover:text-gov-gold-dark hover:bg-gov-gold/10 rounded-lg transition-all"
+                                class="p-2 text-text-muted hover:text-gov-gold-dark hover:bg-gov-gold/10 rounded-lg transition-colors"
                                 title="Share Verification Link"
                             >
                                 <Share2 size={16} />
@@ -1238,7 +1238,7 @@
                 <button
                     onclick={() => { if (currentPage > 1) currentPage--; }}
                     disabled={currentPage <= 1}
-                    class="px-4 py-2 text-sm font-bold rounded-xl transition-all {currentPage <= 1 ? 'bg-surface-muted text-text-muted/50 cursor-not-allowed' : 'bg-surface-muted text-text-primary hover:bg-surface-muted'}"
+                    class="px-4 py-2 text-sm font-bold rounded-xl transition-colors {currentPage <= 1 ? 'bg-surface-muted text-text-muted/50 cursor-not-allowed' : 'bg-surface-muted text-text-primary hover:bg-surface-muted'}"
                 >
                     Previous
                 </button>
@@ -1248,7 +1248,7 @@
                 <button
                     onclick={() => { if (currentPage < totalPages) currentPage++; }}
                     disabled={currentPage >= totalPages}
-                    class="px-4 py-2 text-sm font-bold rounded-xl transition-all {currentPage >= totalPages ? 'bg-surface-muted text-text-muted/50 cursor-not-allowed' : 'bg-surface-muted text-text-primary hover:bg-surface-muted'}"
+                    class="px-4 py-2 text-sm font-bold rounded-xl transition-colors {currentPage >= totalPages ? 'bg-surface-muted text-text-muted/50 cursor-not-allowed' : 'bg-surface-muted text-text-primary hover:bg-surface-muted'}"
                 >
                     Next
                 </button>
@@ -1299,7 +1299,7 @@
                 </div>
                 <button
                     onclick={closeRemarkModal}
-                    class="p-1 text-text-muted hover:text-text-primary hover:bg-surface-muted rounded-lg transition-all flex-shrink-0"
+                    class="p-1 text-text-muted hover:text-text-primary hover:bg-surface-muted rounded-lg transition-colors flex-shrink-0"
                 >
                     <X size={18} />
                 </button>
@@ -1327,7 +1327,7 @@
                     <div class="flex justify-end mt-4">
                         <button
                             onclick={closeRemarkModal}
-                            class="px-5 py-2 bg-surface-muted text-text-primary text-sm font-bold rounded-xl hover:bg-surface-muted transition-all"
+                            class="px-5 py-2 bg-surface-muted text-text-primary text-sm font-bold rounded-xl hover:bg-surface-muted transition-colors"
                         >
                             Close
                         </button>
@@ -1344,14 +1344,14 @@
                         <div class="flex justify-end gap-2 mt-4">
                             <button
                                 onclick={closeRemarkModal}
-                                class="px-4 py-2 text-sm font-semibold text-text-muted hover:text-text-primary transition-all"
+                                class="px-4 py-2 text-sm font-semibold text-text-muted hover:text-text-primary transition-colors"
                             >
                                 Cancel
                             </button>
                             <button
                                 onclick={saveRemark}
                                 disabled={!remarkText.trim() || savingRemark}
-                                class="px-5 py-2 bg-gov-gold-dark text-white text-sm font-bold rounded-xl hover:bg-gov-gold-dark/90 disabled:opacity-50 transition-all"
+                                class="px-5 py-2 bg-gov-gold-dark text-white text-sm font-bold rounded-xl hover:bg-gov-gold-dark/90 disabled:opacity-50 transition-colors"
                             >
                                 {savingRemark ? "Saving..." : "Save Remark"}
                             </button>
@@ -1366,7 +1366,7 @@
                         <div class="flex justify-end mt-4">
                             <button
                                 onclick={closeRemarkModal}
-                                class="px-5 py-2 bg-surface-muted text-text-primary text-sm font-bold rounded-xl hover:bg-surface-muted transition-all"
+                                class="px-5 py-2 bg-surface-muted text-text-primary text-sm font-bold rounded-xl hover:bg-surface-muted transition-colors"
                             >
                                 Close
                             </button>

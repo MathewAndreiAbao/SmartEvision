@@ -19,7 +19,9 @@
         getComparisonMetrics,
         calculateComplianceMetrics
     } from "$lib/utils/analyticsQueries";
-    import { TrendingUp, AlertTriangle, Users, Building2 } from "lucide-svelte";
+    import { TrendingUp, AlertTriangle, Users, Building2, WifiOff } from "lucide-svelte";
+    import { connectivity } from "$lib/stores/connectivity";
+    const { isOnline: onlineStatus } = connectivity;
 
     let loading = $state(true);
     let analyticsData = $state<any>(null);
@@ -91,6 +93,16 @@
             <p class="text-text-secondary mt-2">Comprehensive compliance analysis and performance metrics</p>
         </div>
 
+        {#if !loading && !$onlineStatus}
+            <div
+                class="flex items-center gap-2 rounded-lg border border-gov-gold/30 bg-gov-gold/10 px-4 py-3 text-sm font-medium text-gov-gold-dark"
+                role="status"
+            >
+                <WifiOff size={16} strokeWidth={2} class="flex-shrink-0" aria-hidden="true" />
+                You're offline — this analysis may be incomplete or out of date.
+            </div>
+        {/if}
+
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <DashboardCards title="Overall Compliance" value={overallStats.rate} unit="%" variant="success" icon={TrendingUp} />
             <DashboardCards title="Compliant" value={overallStats.compliant} variant="success" icon={TrendingUp} />
@@ -109,7 +121,7 @@
                     data={distributions.docTypes.map((d: any) => ({
                         label: d.type,
                         value: d.total,
-                        color: d.type === 'DLL' ? '#3b82f6' : d.type === 'ISP' ? '#10b981' : '#f59e0b'
+                        color: d.type === 'DLL' ? '#3b82f6' : d.type === 'ISP' ? '#16a34a' : '#d97706'
                     }))}
                     title="Document Types"
                 />
@@ -131,19 +143,19 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {#if clusters?.high?.length}
-                <div class="gov-card-static p-6 border-l-4 border-gov-green">
+                <div class="gov-card-static bg-gov-green/5 p-6">
                     <h3 class="text-lg font-bold text-gov-green mb-4">High Performers ({clusters.high.length})</h3>
                     <div class="space-y-2">{#each clusters.high.slice(0, 5) as e}<div class="p-2 bg-surface-muted rounded"><p class="text-sm font-semibold truncate">{e.name}</p><p class="text-xs text-gov-green">{e.compliance_rate}%</p></div>{/each}</div>
                 </div>
             {/if}
             {#if clusters?.average?.length}
-                <div class="gov-card-static p-6 border-l-4 border-gov-gold">
+                <div class="gov-card-static bg-gov-gold/5 p-6">
                     <h3 class="text-lg font-bold text-gov-gold-dark mb-4">Average ({clusters.average.length})</h3>
                     <div class="space-y-2">{#each clusters.average.slice(0, 5) as e}<div class="p-2 bg-surface-muted rounded"><p class="text-sm font-semibold truncate">{e.name}</p><p class="text-xs text-gov-gold-dark">{e.compliance_rate}%</p></div>{/each}</div>
                 </div>
             {/if}
             {#if clusters?.atRisk?.length}
-                <div class="gov-card-static p-6 border-l-4 border-gov-red">
+                <div class="gov-card-static bg-gov-red/5 p-6">
                     <h3 class="text-lg font-bold text-gov-red mb-4">At-Risk ({clusters.atRisk.length})</h3>
                     <div class="space-y-2">{#each clusters.atRisk.slice(0, 5) as e}<div class="p-2 bg-surface-muted rounded"><p class="text-sm font-semibold truncate">{e.name}</p><p class="text-xs text-gov-red">{e.compliance_rate}%</p></div>{/each}</div>
                 </div>
@@ -155,7 +167,7 @@
                 data={distributions.byTeacher.sort((a: any, b: any) => b.compliance_rate - a.compliance_rate).slice(0, 15).map((t: any) => ({
                     label: t.name,
                     value: t.compliance_rate,
-                    color: t.compliance_rate >= 85 ? '#10b981' : t.compliance_rate >= 70 ? '#f59e0b' : '#ef4444'
+                    color: t.compliance_rate >= 85 ? '#16a34a' : t.compliance_rate >= 70 ? '#d97706' : '#dc2626'
                 }))}
                 title="Performance Rankings"
                 maxValue={100}

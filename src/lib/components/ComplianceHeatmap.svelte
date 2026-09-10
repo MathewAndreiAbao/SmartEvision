@@ -69,7 +69,7 @@
             {@const cell = getCellData(row, w.week)}
             <td class="p-0.5 text-center">
               <button
-                class="w-full h-full py-2 px-1 rounded-sm transition-all hover:brightness-95 {getCellBg(
+                class="w-full h-full py-2 px-1 rounded-sm transition-colors hover:brightness-95 {getCellBg(
                   cell?.rate || 0,
                 )} {getCellText(
                   cell?.rate || 0,

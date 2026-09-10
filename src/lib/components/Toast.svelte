@@ -46,7 +46,7 @@
 </script>
 
 <div
-	class="fixed right-4 sm:right-6 z-[9999] flex flex-col gap-2 max-w-sm w-full sm:w-96 pointer-events-none px-4 sm:px-0 {inDashboard
+	class="fixed right-4 sm:right-6 z-[var(--z-toast)] flex flex-col gap-2 max-w-sm w-full sm:w-96 pointer-events-none px-4 sm:px-0 {inDashboard
 		? 'bottom-24'
 		: 'bottom-4 sm:bottom-6'}"
 >

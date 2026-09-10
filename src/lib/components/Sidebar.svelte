@@ -45,77 +45,12 @@
 	}
 </script>
 
-<style>
-	:global(.mobile-nav-bar) {
-		border-top: 1px solid var(--color-border-subtle);
-		background: linear-gradient(to top, var(--color-surface-white), var(--color-surface-muted));
-		backdrop-filter: blur(12px);
-		box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
-		padding-bottom: env(safe-area-inset-bottom);
-	}
-
-	:global(.mobile-nav-item) {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 0.25rem;
-		flex: 1;
-		padding: 0.75rem 0.5rem;
-		color: var(--color-text-secondary);
-		transition: all 200ms ease;
-	}
-
-	:global(.mobile-nav-item:hover) {
-		color: var(--color-gov-blue);
-	}
-
-	:global(.mobile-nav-item.active) {
-		color: var(--color-gov-blue);
-		font-weight: 600;
-		position: relative;
-	}
-
-	:global(.mobile-nav-item.active::after) {
-		content: '';
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		height: 3px;
-		background: linear-gradient(to right, var(--color-gov-blue), var(--color-gov-blue-vibrant));
-		border-radius: 2px 2px 0 0;
-	}
-
-	:global(.mobile-nav-icon) {
-		transition: transform 200ms ease;
-	}
-
-	:global(.mobile-nav-item:active .mobile-nav-icon) {
-		transform: scale(1.1);
-	}
-
-	:global(.cedims-scroll) {
-		scroll-behavior: smooth;
-	}
-
-	:global(.cedims-scroll::-webkit-scrollbar) {
-		width: 6px;
-	}
-
-	:global(.cedims-scroll::-webkit-scrollbar-track) {
-		background: transparent;
-	}
-
-	:global(.cedims-scroll::-webkit-scrollbar-thumb) {
-		background: var(--color-border-subtle);
-		border-radius: 3px;
-	}
-
-	:global(.cedims-scroll::-webkit-scrollbar-thumb:hover) {
-		background: var(--color-border-muted);
-	}
-</style>
+<!-- No component-local <style> block: .mobile-nav-bar/.mobile-nav-item/
+     .mobile-nav-icon are all defined once in app.css. This block used to
+     redefine every one of them a third time (app.css itself had a
+     duplicate until Phase 0) via :global(), competing with the canonical
+     version on load order. .cedims-scroll wasn't even used in this
+     component's template. -->
 
 <svelte:window
 	ontouchstart={handleTouchStart}
@@ -123,9 +58,11 @@
 	ontouchend={handleTouchEnd}
 />
 
-<!-- Bottom Tab Bar — the single navigation surface at every screen size -->
+<!-- Bottom Tab Bar — the nav surface below lg. At lg+ AppHeader's persistent
+     section nav takes over, so this hides rather than wasting the desktop
+     viewport's horizontal space on a phone-width tab bar. -->
 <nav
-	class="fixed bottom-0 left-0 right-0 z-40 mobile-nav-bar"
+	class="fixed bottom-0 left-0 right-0 z-[var(--z-mobile-nav)] mobile-nav-bar lg:hidden"
 	aria-label="Main Navigation"
 >
 	<div class="flex items-center justify-around w-full px-0 py-0">
