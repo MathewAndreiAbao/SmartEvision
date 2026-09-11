@@ -281,13 +281,20 @@ export interface QueueItem {
 }
 
 export async function enqueue(item: QueueItem): Promise<void> {
-    // Prevent duplicate hashes in queue (Optimization: check keys instead of reading data)
-    const allKeys = await keys();
     const shortHash = item.fileHash.slice(0, 8);
+
+    // The same document must not be queued twice. This used to return normally
+    // when it found one, so the caller went on to report the upload as archived
+    // while nothing had been queued — a submission could vanish with a success
+    // message. It throws now, so the teacher is actually told.
+    //
+    // This only ever catches the identical file. An additional DLL for a
+    // week/subject that already has one is a different file with a different
+    // hash: it queues normally and syncs as 'supplementary'.
+    const allKeys = await keys();
     for (const k of allKeys) {
         if (typeof k === 'string' && k.startsWith(QUEUE_PREFIX) && k.endsWith(shortHash)) {
-            console.info(`[offline] Duplicate hash detected in queue keys. Skipping: ${item.fileName}`);
-            return;
+            throw new Error('This exact document is already waiting to be uploaded. Choose a different file, or check My Files.');
         }
     }
 
@@ -415,6 +422,9 @@ export async function processQueue(force = false): Promise<{ success: number; fa
     isSyncing = true;
     let success = 0;
     let failed = 0;
+    // Labels for the completion message, phrased the way a direct upload
+    // phrases it ("DLL - Week 1") rather than as a sync summary.
+    const archivedLabels: string[] = [];
 
     // Notify start
     syncToast('info', `Syncing ${queueKeys.length} offline file(s)...`);
@@ -440,6 +450,11 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                 continue;
             }
 
+            // Set when the server already holds a document for this slot, or
+            // this exact content. Either makes the item an additional copy, so
+            // it is archived and marked supplementary rather than discarded.
+            let forceSupplementary = false;
+
             try {
                 // ── Re-validate against server before upload ──
                 // (Items may have been uploaded by another device/session since queuing)
@@ -462,13 +477,12 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                     ) as { data: any };
 
                     if (metaMatch) {
-                        console.warn(`[offline] Slot already taken on server: ${item.fileName}`);
-                        await del(key);
-                        await updatePendingCount();
-                        await markSynced(item.fileHash); // Update ledger to 'synced'
-                        syncToast('warning', `Already archived: ${item.options.docType || 'DLL'} for Week ${item.options.weekNumber}.`);
-                        success++;
-                        continue;
+                        // An additional document for a week/subject that already
+                        // has one is archived as supplementary, not discarded.
+                        // This used to del() the queued item and report it as
+                        // synced, which threw the teacher's second DLL away.
+                        console.info(`[offline] Slot already covered — filing as supplementary: ${item.fileName}`);
+                        forceSupplementary = true;
                     }
                 }
 
@@ -486,11 +500,17 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                 ) as { data: any };
 
                 if (existing) {
-                    console.warn(`[offline] Duplicate hash on server: ${item.fileName}`);
+                    // The identical document is already archived on the server.
+                    // UNIQUE (file_hash) means this row cannot be inserted, and
+                    // retrying forever would never succeed — but nothing is lost
+                    // by clearing it, because the very same bytes are already on
+                    // file. Uploads are refused up front for this reason, so
+                    // reaching here means the copy was archived from another
+                    // device while this one sat queued.
+                    console.info(`[offline] Identical document already archived on server, clearing queued copy: ${item.fileName}`);
                     await del(key);
                     await updatePendingCount();
                     await markSynced(item.fileHash);
-                    syncToast('warning', `Skipped duplicate content: ${item.fileName}`);
                     success++;
                     continue;
                 }
@@ -649,6 +669,10 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                         console.warn('[sync] Duplicate slot check failed, continuing as normal:', e);
                     }
                 }
+                // Established earlier from the slot/content re-validation, which
+                // also covers documents with no teaching load (ISP/ISR) that the
+                // slot check above can't evaluate.
+                if (forceSupplementary) complianceStatus = 'supplementary';
 
                 const insertPromise = supabase.from('submissions').insert({
                     user_id: item.options.userId,
@@ -675,9 +699,16 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                 if (dbError) {
                     console.error('[sync] DB insert error:', dbError);
 
-                    // Handle unique constraint violation (Postgres code 23505)
+                    // 23505 = unique_violation on file_hash: the identical
+                    // document is already archived, so this row can never be
+                    // inserted and retrying forever would not help. Nothing is
+                    // lost — the same bytes are on file. An additional DLL for
+                    // an existing week/subject never lands here: different file,
+                    // different hash, inserted above as 'supplementary'.
                     if (dbError.code === '23505' || dbError.message?.includes('unique_submission_per_load_week')) {
-                        console.warn(`[sync] Duplicate constraint — removing: ${item.fileName}`);
+                        console.info(
+                            `[sync] Identical document already archived (${dbError.message}); clearing queued copy: ${item.fileName}`
+                        );
                         await del(key);
                         await updatePendingCount();
                         await markSynced(item.fileHash);
@@ -704,6 +735,9 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                 });
 
                 success++;
+                archivedLabels.push(
+                    `${item.options.docType || 'DLL'}${item.options.weekNumber ? ` - Week ${item.options.weekNumber}` : ''}`
+                );
                 console.log(`[sync] Successfully synced: ${item.fileName}`);
 
                 // Trigger native local notification. Skipped on mobile for the
@@ -727,7 +761,17 @@ export async function processQueue(force = false): Promise<{ success: number; fa
     }
 
     if (success > 0) {
-        syncToast('success', `Synced ${success} file(s) successfully!`);
+        // Worded exactly as the direct-upload path words its success, so a
+        // completed sync reads as an ordinary successful upload rather than
+        // as a separate, second-class "sync" event. Shown on every device —
+        // this one is a confirmation the teacher benefits from, unlike the
+        // sync plumbing notices which stay silent on mobile.
+        addToast(
+            'success',
+            success === 1 && archivedLabels[0]
+                ? `Securely archived ${archivedLabels[0]}.`
+                : `Securely archived ${success} documents.`
+        );
     }
     if (failed > 0) {
         syncToast('error', `Failed to sync ${failed} file(s). Will retry automatically.`);

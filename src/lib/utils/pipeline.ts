@@ -312,23 +312,25 @@ async function* runOnlinePipelineResilient(
 
     yield { phase: 'uploading', progress: 20, message: 'Checking for duplicates...' };
 
-    // Local check
-    if (await lookupOfflineDoc(fileHash)) throw new Error('Duplicate file detected (local).');
+    // Two different things, deliberately handled differently:
+    //
+    //   Same DOCUMENT (identical file hash) -> rejected. Re-submitting the very
+    //   same file is never a new submission, and UNIQUE (file_hash) enforces it
+    //   at the database besides.
+    //
+    //   Same SLOT (another DLL for a week/subject that already has one) ->
+    //   accepted and marked 'supplementary' by the slot check further down.
+    //   That's a legitimate additional document, and supplementary is excluded
+    //   from compliance rate, upload totals and "missing" checks, so it can't
+    //   distort any figure.
+    if (await lookupOfflineDoc(fileHash)) {
+        throw new Error('This exact document has already been uploaded. Choose a different file, or check My Files.');
+    }
 
-    // Server check — cross-teacher, so it goes through a narrow RPC rather
-    // than a direct table select (see migrations/20260910_*.sql).
-    //
-    // This is a fail-FAST optimization, not the integrity guarantee: the
-    // submissions table has a UNIQUE (file_hash) constraint (see
-    // 20240310_add_unique_file_hash.sql), so a duplicate that slips past
-    // here is still rejected by the INSERT below. Treating a *timeout* as a
-    // hard failure therefore blocked plenty of perfectly valid uploads on
-    // weak mobile connections for no integrity benefit at all — the phone
-    // would do minutes of transcode/OCR/hash work and then throw it away
-    // over a lookup whose only job was to save bandwidth.
-    //
-    // So: a positive result still stops the upload early (fast path intact),
-    // but a timeout/network error just logs and continues to the real check.
+    // Cross-teacher check, via a narrow RPC rather than a direct table select
+    // (see migrations/20260910_*.sql). A positive result rejects; a timeout is
+    // advisory only and must not fail an upload the phone has already done
+    // minutes of work for — UNIQUE (file_hash) still backstops it at insert.
     try {
         const { data: hashMatch } = await withRetry(
             () => withTimeout(
@@ -339,12 +341,10 @@ async function* runOnlinePipelineResilient(
             2,
             1500
         );
-        if (hashMatch) throw new Error(`Duplicate content detected on server: ${hashMatch.file_name}`);
+        if (hashMatch) throw new Error(`This exact document has already been uploaded (${hashMatch.file_name}).`);
     } catch (err: any) {
-        // A real duplicate finding must still propagate — only connectivity
-        // failures are downgraded to a warning.
-        if (err?.message?.startsWith('Duplicate content detected')) throw err;
-        console.warn('[pipeline] Duplicate pre-check unavailable, deferring to the DB constraint:', err?.message);
+        if (err?.message?.startsWith('This exact document')) throw err;
+        console.warn('[pipeline] Duplicate pre-check unavailable, continuing:', err?.message);
     }
 
     // ─── Server-Side Upload (CORS-Safe) with B2 Presigned Fallback ───
@@ -508,12 +508,14 @@ async function* runOnlinePipelineResilient(
         30000,
         'Database record timed out.'
     ) as { error: any };
-    // 23505 = unique_violation. With the duplicate pre-check now advisory,
-    // this constraint is what actually catches a repeat upload, so it has to
-    // read like the pre-check's message rather than a raw Postgres error.
+    // 23505 = unique_violation on file_hash — the backstop for the same
+    // document being submitted twice when the pre-checks above couldn't reach
+    // the server. Note this cannot fire for an additional DLL on an existing
+    // week/subject: that's a different file, so a different hash, and it is
+    // archived as supplementary.
     if (dbError) {
         if (dbError.code === '23505') {
-            throw new Error('This exact file has already been archived. Pick a different file, or check My Files.');
+            throw new Error('This exact document has already been uploaded. Choose a different file, or check My Files.');
         }
         throw new Error(`DB Error: ${dbError.message}`);
     }
@@ -559,11 +561,15 @@ async function* runOfflinePipelineResilient(
     const { enqueue, cacheVerifiedDoc, lookupOfflineDoc } = await import('./offline');
     const { recordSubmission } = await import('./offlineSubmissionLedger');
 
-    // Same local duplicate guard the direct path runs. The server-side check
-    // can't happen yet, but the UNIQUE (file_hash) constraint still rejects a
-    // duplicate at sync time, so nothing slips through permanently.
+    // Matches the direct path: the same document is refused here, before it can
+    // enter the queue, so the teacher is told straight away rather than at sync
+    // time. An additional DLL for a week/subject that already has one is a
+    // different file, so it passes this check and the sync-time slot check
+    // marks it 'supplementary'.
     yield { phase: 'uploading', progress: 20, message: 'Checking for duplicates...' };
-    if (await lookupOfflineDoc(fileHash)) throw new Error('Duplicate file detected (local).');
+    if (await lookupOfflineDoc(fileHash)) {
+        throw new Error('This exact document has already been uploaded. Choose a different file, or check My Files.');
+    }
 
     // Look up calendar_id from academic_calendar using detected week number.
     // navigator.onLine can be wrong (captive portals, flaky connections still
@@ -720,10 +726,11 @@ export async function* runPipeline(
                 // Failures that queuing cannot fix must still surface: a real
                 // duplicate is a genuine rejection, and a missing session means
                 // the background sync would not be able to authenticate either.
+                // Queuing can't fix either of these: the same document will be
+                // refused whenever it syncs, and a missing session leaves the
+                // background sync with nothing to authenticate with.
                 const isTerminal =
-                    msg.startsWith('Duplicate content detected') ||
-                    msg.startsWith('Duplicate file detected') ||
-                    msg.includes('already been archived') ||
+                    msg.includes('already been uploaded') ||
                     msg.includes('Authentication required');
                 if (isTerminal) throw err;
 
