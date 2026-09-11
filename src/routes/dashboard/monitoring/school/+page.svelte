@@ -496,10 +496,14 @@
     <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
             <h1 class="text-2xl font-bold text-text-primary">
-                School Compliance Monitor
+                {$profile?.role === "Master Teacher"
+                    ? "Instructional Supervision"
+                    : "Staff Compliance"}
             </h1>
             <p class="text-base text-text-secondary mt-1">
-                Track teacher submissions and compliance rates
+                {$profile?.role === "Master Teacher"
+                    ? "See which teachers need coaching and where submissions break down"
+                    : "Track staff submissions, rates and who needs follow-up"}
             </p>
         </div>
 
@@ -556,7 +560,7 @@
                 <StatCard
                     icon="ShieldAlert"
                     value={kpi.atRiskCount}
-                    label="Compliance Leads"
+                    label="Teachers At Risk"
                     color="from-gov-red to-red-700"
                 />
             </div>
@@ -587,8 +591,13 @@
             </div>
         {/if}
 
-        <!-- Heatmap + Trend Chart -->
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+        <!-- Diagnosis vs reporting: the heatmap shows which weeks a teacher
+             breaks down on (coaching material, Master Teacher) while the
+             trend line tracks the school against target over time (reporting
+             upward, School Head). Showing both to both roles made the page
+             longer without making either better. -->
+        <div class="grid grid-cols-1 gap-6 mb-8">
+            {#if $profile?.role === "Master Teacher"}
             <div
                 class="gov-card-static p-6"
                 in:fly={{ y: 20, duration: 500, delay: 500 }}
@@ -610,7 +619,7 @@
                 />
                 </div>
             </div>
-
+            {:else}
             <div
                 class="gov-card-static p-6"
                 in:fly={{ y: 20, duration: 500, delay: 600 }}
@@ -633,6 +642,7 @@
                     </div>
                 {/if}
             </div>
+            {/if}
         </div>
 
         <!-- Teacher Table -->
@@ -780,8 +790,12 @@
             {/if}
         </div>
 
-        <!-- K-Means Cluster Analysis -->
-        {#if clusterReady && clusterResults.length > 0}
+        <!-- K-Means Cluster Analysis — grouping teachers by submission
+             behaviour is a coaching tool, so it belongs to the Master
+             Teacher. A School Head already has the at-risk count and the
+             roster, and the District Supervisor gets clustering at school
+             level on the Analytics page. -->
+        {#if $profile?.role === "Master Teacher" && clusterReady && clusterResults.length > 0}
             <div class="mt-8" in:fade={{ duration: 600 }}>
                 <div class="flex items-center justify-between mb-4">
                     <div>
