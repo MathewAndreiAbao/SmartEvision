@@ -40,17 +40,6 @@
     import { connectivity } from "$lib/stores/connectivity";
     const { isOnline: onlineStatus } = connectivity;
 
-    interface ComplianceRow {
-        id: string;
-        name: string;
-        school_name: string;
-        expected: number;
-        compliant: number;
-        late: number;
-        missing: number;
-        rate: number;
-    }
-
     let submissions = $state<any[]>([]);
     let weeklyData = $state<any[]>([]);
     let complianceStats = $state({
@@ -75,14 +64,13 @@
     });
     let alerts = $state<any[]>([]);
     let teacherCompliance = $state<any[]>([]);
+    // Master Teacher: school submissions with no reviewer remark yet.
+    let awaitingReview = $state<any[]>([]);
+    // District Supervisor: teacherCompliance rolled up to one row per school.
+    let schoolStandings = $state<
+        { name: string; expected: number; compliant: number; late: number; missing: number; rate: number }[]
+    >([]);
     let loading = $state(true);
-
-    // Teacher Compliance table: sorting, search & school grouping
-    let tcSortField = $state<keyof ComplianceRow>("rate");
-    let tcSortDir = $state<"asc" | "desc">("desc");
-    let tcSearch = $state("");
-    let tcGroupBySchool = $state(true);
-    let tcViewAll = $state(false);
 
     let channel: any;
 
@@ -95,6 +83,20 @@
     let sortField = $state<string>("created_at");
     let sortDir = $state<"asc" | "desc">("desc");
     let filterStatus = $state("all");
+
+    // 70% is the same "needs attention" threshold the District Monitoring page
+    // uses, so a school flagged in one place is flagged in the other.
+    const AT_RISK_RATE = 70;
+    const teachersAtRisk = $derived(
+        teacherCompliance.filter((t) => t.rate < AT_RISK_RATE),
+    );
+    const schoolsBelowTarget = $derived(
+        schoolStandings.filter((s) => s.rate < AT_RISK_RATE),
+    );
+    // Lowest performers first — the ones a School Head would act on today.
+    const needsAttention = $derived(
+        [...teacherCompliance].sort((a, b) => a.rate - b.rate).slice(0, 5),
+    );
 
     onMount(async () => {
         try {
@@ -475,6 +477,57 @@
         // Predictive integrity alerts (pattern detection) — DLL-cadence only.
         const { detectPatterns } = await import("$lib/utils/patternDetection");
         alerts = detectPatterns(complianceSubs, calendarArr, teachersWithNames);
+
+        // ── Role-specific figures ──
+        // Each role's Home answers a different question, so each needs a
+        // different number. These are derived from the same already-fetched
+        // rows rather than re-querying.
+
+        if (role === "Master Teacher") {
+            // A Master Teacher's job here is reviewing. "Awaiting review" is
+            // the school's submissions that carry no reviewer remark yet —
+            // the actual size of their queue, not a compliance percentage.
+            const subIds = allSubs.map((s: any) => s.id).filter(Boolean);
+            if (subIds.length > 0) {
+                const { data: reviews } = await supabase
+                    .from("dll_reviews")
+                    .select("submission_id, reviewer_comment")
+                    .in("submission_id", subIds);
+                const reviewed = new Set(
+                    (reviews || [])
+                        .filter((r: any) => r.reviewer_comment)
+                        .map((r: any) => r.submission_id),
+                );
+                const nameById: Record<string, string> = {};
+                for (const t of teachersWithNames) nameById[t.id] = t.full_name;
+                awaitingReview = allSubs
+                    .filter((s: any) => !reviewed.has(s.id))
+                    .map((s: any) => ({ ...s, teacher_name: nameById[s.user_id] || "Unknown teacher" }));
+            } else {
+                awaitingReview = [];
+            }
+        }
+
+        if (role === "District Supervisor") {
+            // District works at school altitude, not teacher altitude — the
+            // per-teacher breakdown belongs on the Schools tab. Roll the same
+            // teacher rows up into one entry per school.
+            const bySchool: Record<string, { name: string; expected: number; compliant: number; late: number; missing: number }> = {};
+            for (const t of teacherCompliance) {
+                const name = t.school_name || "Unassigned";
+                bySchool[name] ||= { name, expected: 0, compliant: 0, late: 0, missing: 0 };
+                bySchool[name].expected += t.expected;
+                bySchool[name].compliant += t.compliant;
+                bySchool[name].late += t.late;
+                bySchool[name].missing += t.missing;
+            }
+            schoolStandings = Object.values(bySchool)
+                .map((s) => ({
+                    ...s,
+                    rate: s.expected > 0 ? Math.round(((s.compliant + s.late) / s.expected) * 100) : 0,
+                }))
+                .sort((a, b) => a.rate - b.rate);
+        }
     }
 
 
@@ -518,79 +571,6 @@
         }
     }
 
-    // Teacher Compliance: filtered + sorted rows
-    const filteredTeacherCompliance = $derived(
-        applyTcFilters(teacherCompliance, tcSearch, tcSortField, tcSortDir),
-    );
-
-    // Group rows by school for the categorized view
-    const groupedTeacherCompliance = $derived(
-        groupTcBySchool(teacherCompliance, tcSearch, tcSortField, tcSortDir),
-    );
-
-    function applyTcFilters(
-        rows: ComplianceRow[],
-        search: string,
-        sortField: keyof ComplianceRow,
-        sortDir: "asc" | "desc",
-    ): ComplianceRow[] {
-        const q = search.trim().toLowerCase();
-        let result = rows;
-        if (q) {
-            result = result.filter(
-                (t) =>
-                    t.name.toLowerCase().includes(q) ||
-                    t.school_name.toLowerCase().includes(q),
-            );
-        }
-        return [...result]
-            .sort((a, b) => {
-                let aVal: string | number = a[sortField];
-                let bVal: string | number = b[sortField];
-                if (sortField === "name" || sortField === "school_name") {
-                    aVal = String(aVal || "").toLowerCase();
-                    bVal = String(bVal || "").toLowerCase();
-                } else {
-                    aVal = Number(aVal) || 0;
-                    bVal = Number(bVal) || 0;
-                }
-                const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-                return sortDir === "asc" ? cmp : -cmp;
-            });
-    }
-
-    function toggleTcSort(field: keyof ComplianceRow) {
-        if (tcSortField === field) tcSortDir = tcSortDir === "asc" ? "desc" : "asc";
-        else {
-            tcSortField = field;
-            tcSortDir = "desc";
-        }
-    }
-
-    function groupTcBySchool(
-        rows: ComplianceRow[],
-        search: string,
-        sortField: keyof ComplianceRow,
-        sortDir: "asc" | "desc",
-    ): { school: string; rows: ComplianceRow[]; compliant: number; late: number; missing: number; expected: number }[] {
-        const filtered = applyTcFilters(rows, search, sortField, sortDir);
-        const groups = new Map<string, ComplianceRow[]>();
-        for (const t of filtered) {
-            const key = t.school_name || "Unassigned School";
-            if (!groups.has(key)) groups.set(key, []);
-            groups.get(key)!.push(t);
-        }
-        return [...groups.entries()]
-            .map(([school, gRows]) => ({
-                school,
-                rows: gRows,
-                compliant: gRows.reduce((s, r) => s + r.compliant, 0),
-                late: gRows.reduce((s, r) => s + r.late, 0),
-                missing: gRows.reduce((s, r) => s + r.missing, 0),
-                expected: gRows.reduce((s, r) => s + r.expected, 0),
-            }))
-            .sort((a, b) => a.school.localeCompare(b.school));
-    }
 
     function formatDate(dateStr: string): string {
         return new Date(dateStr).toLocaleDateString("en-PH", {
@@ -821,185 +801,169 @@
             <AlertBanner {alerts} />
         {/if}
 
-        <!-- Stats Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-            <div in:fly={{ y: 20, duration: 400, delay: 0 }}>
-                <StatCard
-                    icon="Users"
-                    value={stats.totalTeachers}
-                    label="Teachers"
-                />
-            </div>
-            <div in:fly={{ y: 20, duration: 400, delay: 100 }}>
-                <StatCard
-                    icon="FileText"
-                    value={stats.totalUploads}
-                    label="Submissions"
-                    color="gov-blue"
-                />
-            </div>
-            <div in:fly={{ y: 20, duration: 400, delay: 150 }}>
-                <StatCard
-                    icon="ShieldCheck"
-                    value="{stats.compliantRate}%"
-                    label="Compliance Rate"
-                    color="gov-green"
-                />
-            </div>
-            <div in:fly={{ y: 20, duration: 400, delay: 200 }}>
-                <StatCard
-                    icon="ShieldX"
-                    value={stats.nonCompliantCount}
-                    label="Missing"
-                    color="gov-red"
-                />
-            </div>
-        </div>
+        <!-- Stats and the primary section below are role-specific.
+             Master Teacher, School Head and District Supervisor previously
+             shared one identical view whose centrepiece was a Teacher
+             Compliance table that also exists on the School/Staff tab. Each
+             role now gets the figures and the one action list that match its
+             actual job, at its own altitude, with no section repeated from
+             another tab. All values derive from the same rows already
+             fetched above. -->
 
-        <!-- Teacher Compliance Table -->
-        {#if teacherCompliance.length > 0}
+        {#if $profile?.role === "Master Teacher"}
+            <!-- Reviewing is the Master Teacher's job here, so the queue is
+                 the headline, not a compliance percentage. -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                <div in:fly={{ y: 20, duration: 400, delay: 0 }}>
+                    <StatCard icon="ClipboardList" value={awaitingReview.length} label="Awaiting My Review" color="gov-gold" />
+                </div>
+                <div in:fly={{ y: 20, duration: 400, delay: 100 }}>
+                    <StatCard icon="Users" value={teachersAtRisk.length} label="Teachers Needing Support" color="gov-red" />
+                </div>
+                <div in:fly={{ y: 20, duration: 400, delay: 150 }}>
+                    <StatCard icon="ShieldCheck" value="{stats.compliantRate}%" label="School Rate" color="gov-green" />
+                </div>
+                <div in:fly={{ y: 20, duration: 400, delay: 200 }}>
+                    <StatCard icon="Clock" value={stats.lateCount} label="Late Submissions" color="gov-blue" />
+                </div>
+            </div>
+
             <div class="mb-6" in:fade={{ duration: 500, delay: 300 }}>
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-                    <h2
-                        class="text-sm font-bold text-text-muted uppercase tracking-widest flex items-center gap-2"
-                    >
-                        <div class="h-1 w-4 bg-gov-blue"></div>
-                        Teacher Compliance
-                        <span class="text-xs font-semibold text-text-muted/70">({teacherCompliance.length} teachers)</span>
+                    <h2 class="text-sm font-bold text-text-muted uppercase tracking-widest flex items-center gap-2">
+                        <div class="h-1 w-4 bg-gov-gold"></div>
+                        Awaiting My Review
+                        <span class="text-xs font-semibold text-text-muted/70">({awaitingReview.length})</span>
                     </h2>
-
-                    <div class="flex flex-wrap items-center gap-2">
-                        <!-- Search -->
-                        <div class="relative">
-                            <input
-                                type="text"
-                                bind:value={tcSearch}
-                                placeholder="Search teacher or school..."
-                                class="w-56 px-3 py-1.5 pl-8 text-sm rounded-lg border border-border-subtle bg-surface-white focus:outline-none focus:ring-2 focus:ring-gov-blue/40"
-                            />
-                            <Search
-                                class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted"
-                            />
-                        </div>
-
-                        <!-- Group toggle -->
-                        <button
-                            class="px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors {tcGroupBySchool ? 'bg-gov-blue text-white border-gov-blue' : 'bg-surface-white text-text-muted border-border-subtle'}"
-                            onclick={() => (tcGroupBySchool = !tcGroupBySchool)}
-                        >
-                            {tcGroupBySchool ? "Grouped by School" : "Flat List"}
-                        </button>
-
-                        <!-- Expand/collapse all -->
-                        <button
-                            class="px-3 py-1.5 text-xs font-semibold rounded-lg border border-border-subtle bg-surface-white text-text-muted hover:bg-surface-muted/40 transition-colors"
-                            onclick={() => (tcViewAll = !tcViewAll)}
-                        >
-                            {tcViewAll ? "Collapse All" : "Expand All"}
-                        </button>
-                    </div>
+                    <button onclick={() => goto("/dashboard/archive")} class="text-xs font-bold text-gov-blue hover:underline">
+                        Open Archives →
+                    </button>
                 </div>
 
-                <div class="bg-surface-white border border-border-subtle rounded-xl overflow-hidden shadow-sm">
-                    <div class="max-h-[36rem] overflow-y-auto">
-                        {#if filteredTeacherCompliance.length === 0}
-                            <p class="px-4 py-8 text-center text-sm text-text-muted">No teachers match your search.</p>
-                        {:else if tcGroupBySchool}
-                            <!-- Grouped by school -->
-                            {#each groupedTeacherCompliance as group}
-                                <details class="border-b border-border-subtle last:border-0" open={tcViewAll}>
-                                    <summary class="flex items-center justify-between px-4 py-3 bg-surface-muted/40 hover:bg-surface-muted/60 cursor-pointer select-none">
-                                        <span class="flex items-center gap-2 font-bold text-text-primary">
-                                            <Building2 class="w-4 h-4 text-gov-blue" />
-                                            {group.school}
-                                        </span>
-                                        <span class="flex items-center gap-4 text-xs text-text-muted">
-                                            <span class="text-gov-green font-semibold">{group.compliant} compliant</span>
-                                            <span class="text-gov-gold-dark font-semibold">{group.late} late</span>
-                                            <span class="text-gov-red font-semibold">{group.missing} missing</span>
-                                            <span class="font-bold text-text-primary">{group.expected > 0 ? Math.round(((group.compliant + group.late) / group.expected) * 100) : 0}%</span>
-                                            <span class="w-5 h-5 flex items-center justify-center">{group.rows.length}</span>
-                                        </span>
-                                    </summary>
-                                    <div class="overflow-x-auto">
-                                        <table class="w-full text-sm">
-                                            <thead>
-                                                <tr class="text-left text-[10px] uppercase tracking-wider text-text-muted border-b border-border-subtle bg-surface-muted/20">
-                                                    <th class="px-4 py-2 font-bold cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("name")}>
-                                                        Teacher {tcSortField === "name" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
-                                                    </th>
-                                                    <th class="px-4 py-2 font-bold text-center cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("compliant")}>
-                                                        Compliant {tcSortField === "compliant" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
-                                                    </th>
-                                                    <th class="px-4 py-2 font-bold text-center cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("late")}>
-                                                        Late {tcSortField === "late" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
-                                                    </th>
-                                                    <th class="px-4 py-2 font-bold text-center cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("missing")}>
-                                                        Missing {tcSortField === "missing" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
-                                                    </th>
-                                                    <th class="px-4 py-2 font-bold text-right cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("rate")}>
-                                                        Rate {tcSortField === "rate" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
-                                                    </th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {#each group.rows as tc}
-                                                    <tr class="border-b border-border-subtle last:border-0 hover:bg-surface-muted/40 transition-colors">
-                                                        <td class="px-4 py-3 font-semibold text-text-primary">{tc.name}</td>
-                                                        <td class="px-4 py-3 text-center text-gov-green font-semibold">{tc.compliant}</td>
-                                                        <td class="px-4 py-3 text-center text-gov-gold-dark font-semibold">{tc.late}</td>
-                                                        <td class="px-4 py-3 text-center text-gov-red font-semibold">{tc.missing}</td>
-                                                        <td class="px-4 py-3 text-right font-semibold text-text-primary">{tc.rate}%</td>
-                                                    </tr>
-                                                {/each}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </details>
-                            {/each}
-                        {:else}
-                            <!-- Flat list -->
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-sm">
-                                    <thead>
-                                        <tr class="text-left text-[10px] uppercase tracking-wider text-text-muted border-b border-border-subtle">
-                                            <th class="px-4 py-3 font-bold cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("name")}>
-                                                Teacher {tcSortField === "name" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
-                                            </th>
-                                            <th class="px-4 py-3 font-bold cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("school_name")}>
-                                                School {tcSortField === "school_name" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
-                                            </th>
-                                            <th class="px-4 py-3 font-bold text-center cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("compliant")}>
-                                                Compliant {tcSortField === "compliant" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
-                                            </th>
-                                            <th class="px-4 py-3 font-bold text-center cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("late")}>
-                                                Late {tcSortField === "late" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
-                                            </th>
-                                            <th class="px-4 py-3 font-bold text-center cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("missing")}>
-                                                Missing {tcSortField === "missing" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
-                                            </th>
-                                            <th class="px-4 py-3 font-bold text-right cursor-pointer hover:text-gov-blue" onclick={() => toggleTcSort("rate")}>
-                                                Rate {tcSortField === "rate" ? (tcSortDir === "asc" ? "▲" : "▼") : ""}
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {#each filteredTeacherCompliance as tc}
-                                            <tr class="border-b border-border-subtle last:border-0 hover:bg-surface-muted/40 transition-colors">
-                                                <td class="px-4 py-3 font-semibold text-text-primary">{tc.name}</td>
-                                                <td class="px-4 py-3 text-text-muted">{tc.school_name}</td>
-                                                <td class="px-4 py-3 text-center text-gov-green font-semibold">{tc.compliant}</td>
-                                                <td class="px-4 py-3 text-center text-gov-gold-dark font-semibold">{tc.late}</td>
-                                                <td class="px-4 py-3 text-center text-gov-red font-semibold">{tc.missing}</td>
-                                                <td class="px-4 py-3 text-right font-semibold text-text-primary">{tc.rate}%</td>
-                                            </tr>
-                                        {/each}
-                                    </tbody>
-                                </table>
+                {#if awaitingReview.length === 0}
+                    <div class="gov-card-static p-8 text-center rounded-2xl">
+                        <p class="text-text-muted font-bold text-xs uppercase tracking-widest">Nothing waiting — every document has a remark</p>
+                    </div>
+                {:else}
+                    <div class="gov-card-static rounded-2xl divide-y divide-border-subtle max-h-[26rem] overflow-y-auto">
+                        {#each awaitingReview.slice(0, 25) as doc}
+                            <div class="flex items-center justify-between gap-3 p-4">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-text-primary truncate">{doc.file_name}</p>
+                                    <p class="text-[11px] text-text-muted mt-0.5">
+                                        {doc.teacher_name}
+                                        · {doc.doc_type || "DLL"}{doc.week_number != null ? ` · Week ${doc.week_number}` : ""}
+                                    </p>
+                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-gov-gold-dark shrink-0">
+                                    {formatDate(doc.created_at)}
+                                </span>
                             </div>
-                        {/if}
+                        {/each}
                     </div>
+                {/if}
+            </div>
+
+        {:else if $profile?.role === "School Head"}
+            <!-- The School Head is accountable for staff. The full sortable
+                 roster lives on the Staff tab; Home shows only who needs
+                 acting on today. -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                <div in:fly={{ y: 20, duration: 400, delay: 0 }}>
+                    <StatCard icon="Users" value={stats.totalTeachers} label="Teachers" />
                 </div>
+                <div in:fly={{ y: 20, duration: 400, delay: 100 }}>
+                    <StatCard icon="ShieldCheck" value="{stats.compliantRate}%" label="School Rate" color="gov-green" />
+                </div>
+                <div in:fly={{ y: 20, duration: 400, delay: 150 }}>
+                    <StatCard icon="ShieldAlert" value={teachersAtRisk.length} label="Teachers At Risk" color="gov-red" />
+                </div>
+                <div in:fly={{ y: 20, duration: 400, delay: 200 }}>
+                    <StatCard icon="ShieldX" value={stats.nonCompliantCount} label="Missing" color="gov-red" />
+                </div>
+            </div>
+
+            <div class="mb-6" in:fade={{ duration: 500, delay: 300 }}>
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <h2 class="text-sm font-bold text-text-muted uppercase tracking-widest flex items-center gap-2">
+                        <div class="h-1 w-4 bg-gov-red"></div>
+                        Needs Attention
+                    </h2>
+                    <button onclick={() => goto("/dashboard/monitoring/school")} class="text-xs font-bold text-gov-blue hover:underline">
+                        Open Staff →
+                    </button>
+                </div>
+
+                {#if needsAttention.length === 0}
+                    <div class="gov-card-static p-8 text-center rounded-2xl">
+                        <p class="text-text-muted font-bold text-xs uppercase tracking-widest">No teacher records yet</p>
+                    </div>
+                {:else}
+                    <div class="gov-card-static rounded-2xl divide-y divide-border-subtle">
+                        {#each needsAttention as t}
+                            <div class="flex items-center justify-between gap-3 p-4">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-text-primary truncate">{t.name}</p>
+                                    <p class="text-[11px] text-text-muted mt-0.5">
+                                        {t.missing} missing · {t.late} late · {t.expected} expected
+                                    </p>
+                                </div>
+                                <span class="text-sm font-bold shrink-0 {getComplianceClass(t.rate)}">{t.rate}%</span>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
+            </div>
+
+        {:else}
+            <!-- District Supervisor: school altitude. Per-teacher detail is
+                 the Schools tab's job, so this rolls the same rows up. -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                <div in:fly={{ y: 20, duration: 400, delay: 0 }}>
+                    <StatCard icon="Building2" value={schoolStandings.length} label="Schools" />
+                </div>
+                <div in:fly={{ y: 20, duration: 400, delay: 100 }}>
+                    <StatCard icon="ShieldCheck" value="{stats.compliantRate}%" label="District Rate" color="gov-green" />
+                </div>
+                <div in:fly={{ y: 20, duration: 400, delay: 150 }}>
+                    <StatCard icon="ShieldAlert" value={schoolsBelowTarget.length} label="Schools Below Target" color="gov-red" />
+                </div>
+                <div in:fly={{ y: 20, duration: 400, delay: 200 }}>
+                    <StatCard icon="ShieldX" value={stats.nonCompliantCount} label="Missing" color="gov-red" />
+                </div>
+            </div>
+
+            <div class="mb-6" in:fade={{ duration: 500, delay: 300 }}>
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <h2 class="text-sm font-bold text-text-muted uppercase tracking-widest flex items-center gap-2">
+                        <div class="h-1 w-4 bg-gov-blue"></div>
+                        School Standings
+                        <span class="text-xs font-semibold text-text-muted/70">(lowest first)</span>
+                    </h2>
+                    <button onclick={() => goto("/dashboard/monitoring/district")} class="text-xs font-bold text-gov-blue hover:underline">
+                        Open Schools →
+                    </button>
+                </div>
+
+                {#if schoolStandings.length === 0}
+                    <div class="gov-card-static p-8 text-center rounded-2xl">
+                        <p class="text-text-muted font-bold text-xs uppercase tracking-widest">No school records yet</p>
+                    </div>
+                {:else}
+                    <div class="gov-card-static rounded-2xl divide-y divide-border-subtle max-h-[26rem] overflow-y-auto">
+                        {#each schoolStandings as s}
+                            <div class="flex items-center justify-between gap-3 p-4">
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-sm font-semibold text-text-primary truncate">{s.name}</p>
+                                    <p class="text-[11px] text-text-muted mt-0.5">
+                                        {s.missing} missing · {s.late} late · {s.expected} expected
+                                    </p>
+                                </div>
+                                <span class="text-sm font-bold shrink-0 {getComplianceClass(s.rate)}">{s.rate}%</span>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
             </div>
         {/if}
 
