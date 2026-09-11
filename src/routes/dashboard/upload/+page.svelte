@@ -739,43 +739,54 @@
             preDetectedMetadata: detectedMetadata,
         };
 
-        const pipeline = runPipeline(selectedFile, pipelineOptions);
+        // The pipeline runs for minutes on a phone. Without a wake lock, a
+        // dimming screen or an app switch mid-upload gets the page throttled
+        // and its in-flight requests suspended, which surfaced as spurious
+        // "timed out" failures on requests that never got to run.
+        const { acquireWakeLock, releaseWakeLock } = await import("$lib/utils/wakeLock");
+        await acquireWakeLock();
 
-        for await (const event of pipeline) {
-            currentPhase = event.phase;
-            progress = event.progress;
-            message = event.message;
+        try {
+            const pipeline = runPipeline(selectedFile, pipelineOptions);
 
-            if (event.metadata) {
-                if (event.metadata.docType !== "Unknown")
-                    docType = event.metadata.docType;
-                if (event.metadata.weekNumber)
-                    weekNumber = event.metadata.weekNumber;
-                if (event.metadata.confidence !== undefined)
-                    ocrConfidence = event.metadata.confidence;
-                const { speak } = await import("$lib/utils/voiceGuide");
-                speak("Smart detection complete. Details updated.");
+            for await (const event of pipeline) {
+                currentPhase = event.phase;
+                progress = event.progress;
+                message = event.message;
+
+                if (event.metadata) {
+                    if (event.metadata.docType !== "Unknown")
+                        docType = event.metadata.docType;
+                    if (event.metadata.weekNumber)
+                        weekNumber = event.metadata.weekNumber;
+                    if (event.metadata.confidence !== undefined)
+                        ocrConfidence = event.metadata.confidence;
+                    const { speak } = await import("$lib/utils/voiceGuide");
+                    speak("Smart detection complete. Details updated.");
+                }
+
+                if (event.phase === "done" && event.result) {
+                    result = event.result;
+                    showSuccessModal = true;
+                    speak(VoicePrompts.UPLOAD_COMPLETE);
+                    selectedFile = null;
+                    await refreshPendingItems();
+                    connectivity.refreshPendingCount();
+                }
+
+                if (event.phase === "error") {
+                    const { speak, VoicePrompts } = await import(
+                        "$lib/utils/voiceGuide"
+                    );
+                    speak(VoicePrompts.ERROR);
+                    addToast("error", event.message);
+                }
             }
-
-            if (event.phase === "done" && event.result) {
-                result = event.result;
-                showSuccessModal = true;
-                speak(VoicePrompts.UPLOAD_COMPLETE);
-                selectedFile = null;
-                await refreshPendingItems();
-                connectivity.refreshPendingCount();
-            }
-
-            if (event.phase === "error") {
-                const { speak, VoicePrompts } = await import(
-                    "$lib/utils/voiceGuide"
-                );
-                speak(VoicePrompts.ERROR);
-                addToast("error", event.message);
-            }
+        } finally {
+            await releaseWakeLock();
+            processing = false;
         }
 
-        processing = false;
         await refreshPendingItems();
     }
 

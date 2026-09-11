@@ -237,21 +237,36 @@ async function* runOnlinePipelineResilient(
     if (await lookupOfflineDoc(fileHash)) throw new Error('Duplicate file detected (local).');
 
     // Server check — cross-teacher, so it goes through a narrow RPC rather
-    // than a direct table select (see migrations/20260910_*.sql). Retried
-    // once: this check is a hard gate (a real failure here should still stop
-    // the upload), but a single retry absorbs the kind of brief drop common
-    // on a weak mobile signal instead of failing the whole upload on the
-    // first hiccup.
-    const { data: hashMatch } = await withRetry(
-        () => withTimeout(
-            supabase.rpc('check_duplicate_submission_hash', { p_hash: fileHash }).maybeSingle() as any,
-            15000,
-            'Server integrity check timed out.'
-        ) as Promise<{ data: any }>,
-        2,
-        1500
-    );
-    if (hashMatch) throw new Error(`Duplicate content detected on server: ${hashMatch.file_name}`);
+    // than a direct table select (see migrations/20260910_*.sql).
+    //
+    // This is a fail-FAST optimization, not the integrity guarantee: the
+    // submissions table has a UNIQUE (file_hash) constraint (see
+    // 20240310_add_unique_file_hash.sql), so a duplicate that slips past
+    // here is still rejected by the INSERT below. Treating a *timeout* as a
+    // hard failure therefore blocked plenty of perfectly valid uploads on
+    // weak mobile connections for no integrity benefit at all — the phone
+    // would do minutes of transcode/OCR/hash work and then throw it away
+    // over a lookup whose only job was to save bandwidth.
+    //
+    // So: a positive result still stops the upload early (fast path intact),
+    // but a timeout/network error just logs and continues to the real check.
+    try {
+        const { data: hashMatch } = await withRetry(
+            () => withTimeout(
+                supabase.rpc('check_duplicate_submission_hash', { p_hash: fileHash }).maybeSingle() as any,
+                15000,
+                'Server integrity check timed out.'
+            ) as Promise<{ data: any }>,
+            2,
+            1500
+        );
+        if (hashMatch) throw new Error(`Duplicate content detected on server: ${hashMatch.file_name}`);
+    } catch (err: any) {
+        // A real duplicate finding must still propagate — only connectivity
+        // failures are downgraded to a warning.
+        if (err?.message?.startsWith('Duplicate content detected')) throw err;
+        console.warn('[pipeline] Duplicate pre-check unavailable, deferring to the DB constraint:', err?.message);
+    }
 
     // ─── Server-Side Upload (CORS-Safe) with B2 Presigned Fallback ───
     yield { phase: 'uploading', progress: 40, message: 'Uploading securely via server...' };
@@ -426,7 +441,15 @@ async function* runOnlinePipelineResilient(
         30000,
         'Database record timed out.'
     ) as { error: any };
-    if (dbError) throw new Error(`DB Error: ${dbError.message}`);
+    // 23505 = unique_violation. With the duplicate pre-check now advisory,
+    // this constraint is what actually catches a repeat upload, so it has to
+    // read like the pre-check's message rather than a raw Postgres error.
+    if (dbError) {
+        if (dbError.code === '23505') {
+            throw new Error('This exact file has already been archived. Pick a different file, or check My Files.');
+        }
+        throw new Error(`DB Error: ${dbError.message}`);
+    }
 
     // Success bookkeeping
     if (options.teachingLoadId && activeWeekNumber) {
