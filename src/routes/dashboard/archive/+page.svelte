@@ -31,7 +31,6 @@
     import type { ReportOptions } from "$lib/utils/excelExport";
     import { cacheMetadata, getCachedMetadata } from "$lib/utils/offline";
     import EmptyState from "$lib/components/EmptyState.svelte";
-    import BulkActionsBar from "$lib/components/BulkActionsBar.svelte";
     import { focusTrap } from "$lib/actions/focusTrap";
 
     // â"€â"€ Types â"€â"€
@@ -96,49 +95,6 @@
     let remarkText = $state("");
     let existingRemark = $state<string | null>(null);
     let savingRemark = $state(false);
-
-    // â"€â"€ Bulk Selection (reviewers only) â"€â"€
-    let selectedIds = $state<Set<string>>(new Set());
-    let bulkBusy = $state(false);
-
-    function toggleSelect(id: string) {
-        const next = new Set(selectedIds);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        selectedIds = next;
-    }
-
-    function clearSelection() {
-        selectedIds = new Set();
-    }
-
-    async function bulkMarkChecked() {
-        if (!$profile || selectedIds.size === 0) return;
-        bulkBusy = true;
-        const ids = Array.from(selectedIds);
-        const rows = ids.map((id) => ({
-            submission_id: id,
-            reviewer_id: $profile!.id,
-            status: "approved",
-        }));
-        const { error } = await supabase
-            .from("dll_reviews")
-            .upsert(rows, { onConflict: "submission_id" });
-        bulkBusy = false;
-        if (error) {
-            addToast("error", "Bulk update failed: " + error.message);
-            return;
-        }
-        for (const id of ids) {
-            reviewsMap[id] = {
-                reviewer_comment: reviewsMap[id]?.reviewer_comment ?? null,
-                status: "approved",
-                return_reason: null,
-            };
-        }
-        addToast("success", `Marked ${ids.length} document${ids.length > 1 ? "s" : ""} as checked`);
-        clearSelection();
-    }
 
     const canReview = $derived(
         $profile ? canAddReviewRemarks($profile.role) : false,
@@ -562,8 +518,8 @@
         // Status filter (for DLL review status)
         if (statusFilter !== "all") {
             filtered = filtered.filter((s) => {
-                const hasReview = !!reviewsMap[s.id];
-                return statusFilter === "checked" ? hasReview : !hasReview;
+                const isChecked = !!reviewsMap[s.id]?.reviewer_comment;
+                return statusFilter === "checked" ? isChecked : !isChecked;
             });
         }
         return filtered;
@@ -1076,27 +1032,6 @@
                     <div
                         class="p-5 flex-1 flex flex-col items-center text-center relative"
                     >
-                        {#if canAddRemarkToSubmission(sub)}
-                            <label
-                                class="absolute top-3 left-3 z-10 flex items-center justify-center w-5 h-5 rounded-md border-2 cursor-pointer transition-colors {selectedIds.has(sub.id)
-                                    ? 'bg-gov-blue border-gov-blue'
-                                    : 'bg-surface-white border-border-strong hover:border-gov-blue'}"
-                            >
-                                <input
-                                    type="checkbox"
-                                    class="sr-only"
-                                    checked={selectedIds.has(sub.id)}
-                                    onclick={(e) => e.stopPropagation()}
-                                    onchange={() => toggleSelect(sub.id)}
-                                    aria-label={`Select ${sub.file_name}`}
-                                />
-                                {#if selectedIds.has(sub.id)}
-                                    <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                {/if}
-                            </label>
-                        {/if}
                         <!-- Top Floating Status -->
                         <div class="absolute top-3 right-3">
                             <StatusBadge
@@ -1127,15 +1062,7 @@
                             class="flex flex-wrap items-center justify-center gap-1.5 mt-auto"
                         >
                             {#if sub.doc_type === 'DLL'}
-                                {#if reviewsMap[sub.id]?.status === 'approved'}
-                                    <span class="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-[10px] font-bold rounded uppercase tracking-wider">
-                                        Approved
-                                    </span>
-                                {:else if reviewsMap[sub.id]?.status === 'returned'}
-                                    <span class="px-2 py-0.5 bg-gov-red/10 text-gov-red text-[10px] font-bold rounded uppercase tracking-wider">
-                                        Returned
-                                    </span>
-                                {:else if reviewsMap[sub.id]}
+                                {#if reviewsMap[sub.id]?.reviewer_comment}
                                     <span class="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-[10px] font-bold rounded uppercase tracking-wider">
                                         Checked
                                     </span>
@@ -1257,13 +1184,6 @@
     {/if}
 </div>
 
-<BulkActionsBar
-    count={selectedIds.size}
-    busy={bulkBusy}
-    onClear={clearSelection}
-    actions={[{ label: "Mark as Checked", onClick: bulkMarkChecked }]}
-/>
-
 <!-- Remarks Modal -->
 {#if remarkModalOpen && remarkTarget}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -1308,18 +1228,9 @@
             <div class="px-6 py-4">
                 {#if existingRemark}
                     <!-- View existing remark (everyone, including Master Teacher) -->
-                    {#if remarkTarget && reviewsMap[remarkTarget.id]?.status === 'returned'}
-                        <div class="p-4 bg-gov-red/10 border border-gov-red/30 rounded-xl mb-3">
-                            <p class="text-xs font-bold uppercase tracking-wider text-gov-red mb-1">Returned for Revisions</p>
-                            <p class="text-sm text-text-primary leading-relaxed">
-                                {reviewsMap[remarkTarget.id]?.return_reason || 'No reason provided'}
-                            </p>
-                        </div>
-                    {:else if remarkTarget && reviewsMap[remarkTarget.id]?.status === 'approved'}
-                        <div class="p-4 bg-gov-green/10 border border-gov-green/30 rounded-xl mb-3">
-                            <p class="text-xs font-bold uppercase tracking-wider text-gov-green">Approved & Compliant</p>
-                        </div>
-                    {/if}
+                    <div class="p-4 bg-gov-green/10 border border-gov-green/30 rounded-xl mb-3">
+                        <p class="text-xs font-bold uppercase tracking-wider text-gov-green">Checked</p>
+                    </div>
                     <div class="p-4 bg-gov-gold/5 border border-gov-gold/20 rounded-xl">
                         <p class="text-sm text-text-primary leading-relaxed">{existingRemark}</p>
                         <p class="text-[10px] text-text-muted mt-2 font-medium">Reviewed by supervisor</p>

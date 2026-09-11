@@ -16,6 +16,7 @@
         getComplianceBgClass,
         getDefinedWeeksCount,
         getDynamicSchoolYear,
+        normalizeComplianceStatus,
     } from "$lib/utils/useDashboardData";
     import {
         QrCode,
@@ -1004,13 +1005,9 @@
                         >
                             <div class="absolute top-4 right-4">
                                 <StatusBadge
-                                    status={!item.compliance_status ||
-                                    item.compliance_status === "on-time" ||
-                                    item.compliance_status === "compliant"
-                                        ? "compliant"
-                                        : item.compliance_status === "late"
-                                          ? "late"
-                                          : "missing"}
+                                    status={normalizeComplianceStatus(
+                                        item.compliance_status,
+                                    )}
                                     size="sm"
                                 />
                             </div>
