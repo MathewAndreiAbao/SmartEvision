@@ -5,7 +5,7 @@
     import BarChart from "$lib/components/charts/BarChart.svelte";
     import DonutChart from "$lib/components/charts/DonutChart.svelte";
     import ScatterPlot from "$lib/components/charts/ScatterPlot.svelte";
-    import DashboardCards from "$lib/components/DashboardCards.svelte";
+    import StatCard from "$lib/components/StatCard.svelte";
     import { onMount, onDestroy } from "svelte";
     import {
         getSchoolHeadAnalytics,
@@ -25,7 +25,7 @@
         getDynamicSchoolYear,
         isComplianceTrackedDocType,
     } from "$lib/utils/useDashboardData";
-    import { TrendingUp, AlertTriangle, Users, Building2, WifiOff } from "lucide-svelte";
+    import { WifiOff } from "lucide-svelte";
     import { connectivity } from "$lib/stores/connectivity";
     const { isOnline: onlineStatus } = connectivity;
 
@@ -176,10 +176,10 @@
         {/if}
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <DashboardCards title="Overall Compliance" value={overallStats.rate} unit="%" variant="success" icon={TrendingUp} />
-            <DashboardCards title="Compliant" value={overallStats.compliant} variant="success" icon={TrendingUp} />
-            <DashboardCards title="At-Risk" value={atRiskList.length} variant="danger" icon={AlertTriangle} />
-            <DashboardCards title="Entities" value={distributions?.byTeacher?.length || 0} variant="info" icon={Users} />
+            <StatCard label="Overall Compliance" value="{overallStats.rate}%" icon="TrendingUp" color="from-gov-green to-gov-green-dark" />
+            <StatCard label="Compliant" value={overallStats.compliant} icon="TrendingUp" color="from-gov-green to-gov-green-dark" />
+            <StatCard label="At-Risk" value={atRiskList.length} icon="AlertTriangle" color="from-gov-red to-red-700" />
+            <StatCard label="Entities" value={distributions?.byTeacher?.length || 0} icon="Users" color="from-gov-blue to-gov-blue-dark" />
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">

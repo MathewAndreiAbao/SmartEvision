@@ -408,8 +408,10 @@
             role="tab"
             aria-selected={activeTab === "settings"}
             aria-controls="settings-panel"
+            aria-label="Settings"
         >
             <Settings size={18} />
+            <span class="hidden sm:inline">Settings</span>
         </button>
         <button
             onclick={() => (activeTab = "users")}
@@ -420,8 +422,10 @@
             role="tab"
             aria-selected={activeTab === "users"}
             aria-controls="users-panel"
+            aria-label="Users"
         >
             <Users size={18} />
+            <span class="hidden sm:inline">Users</span>
         </button>
         <button
             onclick={() => (activeTab = "calendar")}
@@ -432,9 +436,10 @@
             role="tab"
             aria-selected={activeTab === "calendar"}
             aria-controls="calendar-panel"
-            title="Academic Calendar"
+            aria-label="Calendar"
         >
             <CalendarDays size={18} />
+            <span class="hidden sm:inline">Calendar</span>
         </button>
     </div>
 
