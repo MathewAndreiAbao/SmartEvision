@@ -1,10 +1,11 @@
 <script lang="ts">
-    import { MessageCircle, X, Send, ChevronDown } from "lucide-svelte";
+    import { X, Send } from "lucide-svelte";
     import { processQuery, loadDllDocumentsFromSupabase } from "$lib/utils/chatbot";
     import type { ChatResponse, Intent, ChatContext, Lang } from "$lib/utils/chatbot";
     import { supabase } from "$lib/utils/supabase";
     import { user, profile } from "$lib/utils/auth";
-    import { onMount } from "svelte";
+    import { onMount, tick } from "svelte";
+    import { fly, scale } from "svelte/transition";
     import { page } from "$app/stores";
     import GabayMascot from "./GabayMascot.svelte";
 
@@ -13,9 +14,11 @@
     const inDashboard = $derived($page.url.pathname.startsWith("/dashboard"));
 
     let isOpen = $state(false);
+    let hasOpenedOnce = $state(false);
     let messages: { role: 'user' | 'bot'; text: string; intent?: Intent }[] = $state([]);
     let inputText = $state('');
     let inputEl: HTMLInputElement | undefined = $state();
+    let messagesEl: HTMLDivElement | undefined = $state();
     let isLoading = $state(false);
 
     let currentUser = $state<{ id: string } | null>(null);
@@ -52,6 +55,39 @@
         if (isOpen && !dllDocsLoaded) {
             dllDocsLoaded = true;
             loadDllDocumentsFromSupabase(supabase).catch(() => {});
+        }
+    });
+
+    // Opening the panel should feel like opening a real chat app: focus the
+    // input immediately, and remember it's been opened so the launcher's
+    // one-time attention ping never shows again this session.
+    $effect(() => {
+        if (isOpen) {
+            hasOpenedOnce = true;
+            tick().then(() => inputEl?.focus());
+        }
+    });
+
+    // Escape closes the panel, same as any other overlay in the app.
+    $effect(() => {
+        if (!isOpen) return;
+        const handler = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') isOpen = false;
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    });
+
+    // Always keep the latest message in view — without this the user has to
+    // manually scroll down after every reply, which reads as broken in any
+    // real chat UI.
+    $effect(() => {
+        messages.length;
+        isLoading;
+        if (messagesEl) {
+            tick().then(() => {
+                if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
+            });
         }
     });
 
@@ -98,44 +134,57 @@
     <button
         data-tour="chatbot"
         onclick={() => (isOpen = true)}
+        transition:scale={{ duration: 150, start: 0.85 }}
         class="fixed right-6 z-50 w-16 h-16 bg-surface-white rounded-full shadow-lg border border-border-subtle flex items-center justify-center transition-[color,background-color,border-color,transform] duration-200 ease-out hover:scale-105 hover:shadow-xl active:scale-95 {inDashboard
             ? 'bottom-24'
             : 'bottom-6'}"
         aria-label="Open Gabay, the CEDIMS chat assistant"
     >
+        {#if !hasOpenedOnce}
+            <span class="absolute inset-0 rounded-full bg-gov-blue/30 animate-ping"></span>
+        {/if}
+        <span class="absolute top-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-gov-green border-2 border-surface-white"></span>
         <GabayMascot size={44} />
     </button>
 {:else}
     <!-- Chat window -->
     <div
-        class="fixed right-6 z-50 w-96 h-[32rem] bg-surface-white rounded-2xl shadow-2xl border border-border-subtle flex flex-col overflow-hidden transition-colors duration-200 {inDashboard
+        transition:fly={{ y: 24, duration: 200, opacity: 0 }}
+        class="fixed z-50 flex flex-col overflow-hidden rounded-2xl border border-border-subtle bg-surface-white shadow-2xl transition-colors duration-200 inset-x-4 sm:inset-x-auto sm:right-6 sm:w-96 h-[min(32rem,calc(100dvh-6rem))] {inDashboard
             ? 'bottom-24'
             : 'bottom-6'}"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Gabay chat assistant"
     >
         <!-- Header -->
         <div class="bg-gov-blue text-white px-5 py-4 flex items-center justify-between shrink-0">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 bg-surface-white rounded-full flex items-center justify-center shrink-0 overflow-hidden">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="relative w-9 h-9 bg-surface-white rounded-full flex items-center justify-center shrink-0 overflow-hidden">
                     <GabayMascot size={26} wave={false} />
+                    <span class="absolute -bottom-0 -right-0 w-2.5 h-2.5 rounded-full bg-gov-green border-2 border-gov-blue"></span>
                 </div>
-                <div>
+                <div class="min-w-0">
                     <p class="text-sm font-bold">Gabay</p>
-                    <p class="text-[10px] text-white/70">Your CEDIMS assistant</p>
+                    <p class="text-[10px] text-white/70">Online — answers using live data</p>
                 </div>
             </div>
             <button
                 onclick={() => (isOpen = false)}
-                class="hover:bg-surface-white/20 rounded-lg p-1.5 transition-colors"
+                class="hover:bg-surface-white/20 rounded-lg p-1.5 transition-colors shrink-0"
                 aria-label="Close chat"
             >
-                <ChevronDown size={18} />
+                <X size={18} />
             </button>
         </div>
 
         <!-- Messages -->
-        <div class="flex-1 overflow-y-auto p-4 space-y-3 bg-surface-muted">
-            {#each messages as msg, i}
-                <div class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}">
+        <div bind:this={messagesEl} class="flex-1 overflow-y-auto p-4 space-y-3 bg-surface-muted scroll-smooth">
+            {#each messages as msg, i (i)}
+                <div
+                    in:fly={{ y: 8, duration: 180 }}
+                    class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}"
+                >
                     {#if msg.role === 'bot'}
                         <div class="flex items-start gap-2 max-w-[85%]">
                             <div class="w-7 h-7 bg-surface-white border border-border-subtle rounded-full flex items-center justify-center shrink-0 mt-0.5 overflow-hidden">

@@ -155,29 +155,46 @@ async function* runOnlinePipelineResilient(
     const { lookupOfflineDoc, cacheVerifiedDoc, calculateComplianceStatus } = await import('./offline');
     const { recordSubmission } = await import('./offlineSubmissionLedger');
 
-    // Look up calendar_id + deadline from academic_calendar using detected week number
+    // Look up calendar_id + deadline from academic_calendar using detected week number.
+    // Each query is wrapped in withTimeout — on a very slow mobile connection
+    // these could otherwise hang indefinitely with no error and no progress,
+    // leaving "Verifying with server..." stuck on screen with nothing for the
+    // user to do but wait or force-quit.
     let calendarId = options.calendarId || null;
     let deadlineDate: Date | undefined;
     if (!calendarId && activeWeekNumber) {
-        const { data: calEntry } = await supabase
-            .from('academic_calendar')
-            .select('id, deadline_date')
-            .eq('school_year', options.schoolYear || getCurrentSchoolYear())
-            .eq('week_number', activeWeekNumber)
-            .maybeSingle();
+        const { data: calEntry } = await withTimeout(
+            supabase
+                .from('academic_calendar')
+                .select('id, deadline_date')
+                .eq('school_year', options.schoolYear || getCurrentSchoolYear())
+                .eq('week_number', activeWeekNumber)
+                .maybeSingle() as any,
+            15000,
+            'Calendar lookup timed out. Check your connection and try again.'
+        ) as { data: any };
         if (!calEntry) {
-            const { data: profileData } = await supabase
-                .from('profiles')
-                .select('district_id')
-                .eq('id', options.userId)
-                .single();
+            yield { phase: 'uploading', progress: 15, message: 'Verifying with server...' };
+            const { data: profileData } = await withTimeout(
+                supabase
+                    .from('profiles')
+                    .select('district_id')
+                    .eq('id', options.userId)
+                    .single() as any,
+                15000,
+                'Profile lookup timed out. Check your connection and try again.'
+            ) as { data: any };
             if (profileData?.district_id) {
-                const { data: calByDistrict } = await supabase
-                    .from('academic_calendar')
-                    .select('id, deadline_date')
-                    .eq('district_id', profileData.district_id)
-                    .eq('week_number', activeWeekNumber)
-                    .maybeSingle();
+                const { data: calByDistrict } = await withTimeout(
+                    supabase
+                        .from('academic_calendar')
+                        .select('id, deadline_date')
+                        .eq('district_id', profileData.district_id)
+                        .eq('week_number', activeWeekNumber)
+                        .maybeSingle() as any,
+                    15000,
+                    'Calendar lookup timed out. Check your connection and try again.'
+                ) as { data: any };
                 if (calByDistrict) {
                     calendarId = calByDistrict.id;
                     if (calByDistrict.deadline_date) deadlineDate = new Date(calByDistrict.deadline_date);
@@ -188,6 +205,8 @@ async function* runOnlinePipelineResilient(
             if (calEntry.deadline_date) deadlineDate = new Date(calEntry.deadline_date);
         }
     }
+
+    yield { phase: 'uploading', progress: 20, message: 'Checking for duplicates...' };
 
     // Local check
     if (await lookupOfflineDoc(fileHash)) throw new Error('Duplicate file detected (local).');

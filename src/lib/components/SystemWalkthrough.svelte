@@ -53,7 +53,7 @@
 
     function clearHighlight() {
         if (currentEl) {
-            currentEl.classList.remove("walkthrough-spotlight");
+            currentEl.classList.remove("walkthrough-spotlight", "walkthrough-spotlight-fixed");
             currentEl = null;
         }
     }
@@ -94,7 +94,13 @@
             return;
         }
         currentEl = el;
-        el.classList.add("walkthrough-spotlight");
+        // The chatbot launcher (and anything else already position: fixed)
+        // must keep that positioning — forcing "relative" here (the class
+        // used for normal-flow nav items) used to yank it out of its floating
+        // spot and into the document flow, so it never actually looked
+        // highlighted during the "Meet Gabay" step.
+        const isPositioned = getComputedStyle(el).position !== "static";
+        el.classList.add(isPositioned ? "walkthrough-spotlight-fixed" : "walkthrough-spotlight");
         el.scrollIntoView({ behavior: "smooth", block: "center" });
         await positionAround(el);
         // Re-measure after the smooth scroll settles
@@ -279,8 +285,8 @@
 {/if}
 
 <style>
-    :global(.walkthrough-spotlight) {
-        position: relative !important;
+    :global(.walkthrough-spotlight),
+    :global(.walkthrough-spotlight-fixed) {
         z-index: var(--z-tour-spotlight) !important;
         border-radius: 12px;
         background-color: var(--color-surface-white);
@@ -288,5 +294,12 @@
             0 0 0 4px var(--color-gov-blue, #2563eb),
             0 0 0 9999px rgba(15, 23, 42, 0.6);
         transition: box-shadow 200ms ease;
+    }
+
+    /* Only normal-flow elements (nav items, header buttons) need forcing to
+       "relative" so z-index takes effect. Already-positioned elements (the
+       fixed chatbot launcher) keep their own position so they don't jump. */
+    :global(.walkthrough-spotlight) {
+        position: relative !important;
     }
 </style>
