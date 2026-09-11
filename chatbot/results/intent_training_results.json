@@ -1,6 +1,6 @@
 {
-  "training_date": "2026-09-11T12:23:44.059566",
-  "n_samples": 705,
+  "training_date": "2026-09-11T12:38:31.438075",
+  "n_samples": 826,
   "intents": [
     "ask_compliance",
     "calendar_info",
@@ -13,14 +13,14 @@
   ],
   "vocabulary_size": 5000,
   "train_accuracy": 100.0,
-  "test_accuracy": 92.09,
-  "cv_mean": 93.05,
-  "cv_std": 1.98,
+  "test_accuracy": 92.27,
+  "cv_mean": 92.01,
+  "cv_std": 1.7,
   "cv_folds": [
-    91.49,
-    90.78,
-    96.45,
-    93.62,
-    92.91
+    93.98,
+    90.3,
+    92.73,
+    93.33,
+    89.7
   ]
 }

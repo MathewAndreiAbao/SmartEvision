@@ -88,18 +88,28 @@ function pick<T>(arr: T[]): T {
     return arr[Math.floor(Math.random() * arr.length)];
 }
 
-const OPENERS = ['Here you go!', 'Got it.', 'Sure thing!', 'Here\u2019s what I found:', 'Of course!'];
+const OPENERS = [
+    'Here you go!', 'Got it.', 'Sure thing!', 'Here’s what I found:', 'Of course!',
+    'Alright, let’s see.', 'No problem, here’s what I have.', 'Sige, tignan natin.',
+    'Okay, pulled it up for you.', 'Here’s the latest.', 'Right, here we go.'
+];
 const LOW_CONFIDENCE_PREFIXES = [
     'I think you might be asking about',
-    'I\u2019m not 100% sure, but this looks related to',
-    'If I understand you correctly, you\u2019re asking about',
-    'I think you mean'
+    'I’m not 100% sure, but this looks related to',
+    'If I understand you correctly, you’re asking about',
+    'I think you mean',
+    'Medyo hindi ako sigurado, pero mukhang tungkol ito sa',
+    'Correct me if I’m wrong — sounds like you’re asking about',
+    'Let me take a guess — this seems to be about'
 ];
 const LOW_CONFIDENCE_SUFFIXES = [
-    'If that wasn\u2019t what you meant, just rephrase it and I\u2019ll give it another go.',
+    'If that wasn’t what you meant, just rephrase it and I’ll give it another go.',
     'Let me know if I got that right.',
     'If I misread you, try rephrasing in a different way.',
-    'Does that sound about right?'
+    'Does that sound about right?',
+    'Sabihin mo lang kung mali ako, aayusin ko agad.',
+    'Feel free to correct me if I’m off.',
+    'Just say the word if you meant something else.'
 ];
 const INTENT_TOPIC_LABELS: Record<Intent, string> = {
     ask_compliance: 'your compliance status',
@@ -112,62 +122,204 @@ const INTENT_TOPIC_LABELS: Record<Intent, string> = {
     general_help: 'general help'
 };
 const CONFUSED_RESPONSES = [
-    'Hmm, I\u2019m not quite sure I caught that. Could you rephrase it for me?',
-    'I didn\u2019t quite understand that. Try asking in a different way.',
-    'That one\u2019s a little fuzzy for me. Can you say it another way?',
-    'I\u2019m having trouble parsing that. Try something like, \u201cWhat is my compliance rate?\u201d'
+    'Hmm, I’m not quite sure I caught that. Could you rephrase it for me?',
+    'I didn’t quite understand that. Try asking in a different way.',
+    'That one’s a little fuzzy for me. Can you say it another way?',
+    'I’m having trouble parsing that. Try something like, “What is my compliance rate?”',
+    'Pasensya na, hindi ko masyadong nakuha ‘yan. Puwede mo bang ulitin sa ibang paraan?',
+    'I’m drawing a blank on that one — mind rewording it?',
+    'That went a little over my head. Try asking about compliance, deadlines, DLLs, or schools?'
 ];
 
-// ─── Knowledge Base (lightweight FAQ corpus) ───────────────────────────────
+// ─── Knowledge Base (lightweight FAQ corpus) ──────────────────────────────────────────────────
+// Every topic here maps to *multiple* phrasings of the answer, picked at
+// random each time, so asking the same question twice in one session
+// doesn't come back sounding copy-pasted.
 interface KnowledgeEntry {
     keywords: string[];
-    answer: string;
+    answers: string[];
 }
 
 const KNOWLEDGE_BASE: KnowledgeEntry[] = [
     {
         keywords: ['dll', 'daily lesson log', 'weekly lesson log', 'lingguhang aralin', 'lesson plan', 'banghay'],
-        answer: 'A DLL (Daily Lesson Log) is the DepEd weekly lesson planning document that teachers prepare and submit for compliance monitoring. Each DLL covers the learning area, grade level, teaching dates, and week for your teaching load.'
+        answers: [
+            'A DLL (Daily Lesson Log) is the DepEd weekly lesson planning document that teachers prepare and submit for compliance monitoring. Each one covers the learning area, grade level, teaching dates, and week for your teaching load.',
+            'DLL stands for Daily Lesson Log — it’s the weekly lesson plan every teacher submits per subject. The system checks its subject, grade, and week against your teaching load to see if you’re compliant.',
+            'Think of a DLL as your weekly proof of teaching plans — one per subject, per week. Ang DLL ay ang lingguhang banghay-aralin na kailangan mong i-submit para sa bawat asignatura.'
+        ]
     },
     {
         keywords: ['isp', 'instructional supervisory plan'],
-        answer: 'An ISP (Instructional Supervisory Plan) is the school\u2019s supervisory blueprint that lists program improvement areas, targets, strategies, and the time frame for instructional monitoring and support.'
+        answers: [
+            'An ISP (Instructional Supervisory Plan) is the school’s supervisory blueprint — it lists program improvement areas, targets, strategies, and the timeframe for instructional monitoring and support.',
+            'ISP = Instructional Supervisory Plan. It’s usually uploaded by a School Head or Master Teacher and outlines how instructional supervision will run for the term.'
+        ]
     },
     {
         keywords: ['isr', 'instructional supervisory report'],
-        answer: 'An ISR (Instructional Supervisory Report) is the monthly report a Master Teacher submits after observing classroom instruction. It captures the teacher observed, findings, and technical assistance provided.'
+        answers: [
+            'An ISR (Instructional Supervisory Report) is the report a Master Teacher files after observing a classroom — it records the teacher observed, findings, and the technical assistance given.',
+            'ISR stands for Instructional Supervisory Report. It’s filed monthly after a classroom observation, and it’s separate from your regular DLL submissions.'
+        ]
     },
     {
         keywords: ['compliance', 'calculated', 'computed', 'rate', 'percent'],
-        answer: 'Compliance is measured as your actual submissions divided by your expected submissions (number of active teaching loads \u00d7 weeks defined in the academic calendar). Submitted on time = compliant; after the due date = late; not submitted = missing.'
+        answers: [
+            'Compliance is your actual submissions divided by your expected submissions — expected being your active teaching loads × the weeks defined in the academic calendar. On time = compliant, after the deadline = late, never submitted = missing.',
+            'Here’s the formula in plain terms: (compliant + late submissions) ÷ (teaching loads × calendar weeks) × 100. Submitting late still counts toward the rate — it’s only the ones you never submit that drag it down.',
+            'Simple version: kung ilan sa mga inaasahang DLL mo ang na-submit mo, on time man o late — iyan ang compliance rate mo. Extra ("Supplementary") DLLs don’t affect it either way.'
+        ]
     },
     {
         keywords: ['offline', 'internet', 'connect', 'sync', 'no network'],
-        answer: 'You can keep working offline. Documents you upload while offline are saved locally and sync automatically to the server the next time you regain a connection.'
+        answers: [
+            'You can keep working offline — anything you upload while disconnected is saved locally and syncs automatically the moment you’re back online.',
+            'No signal? No problem. The app queues your uploads on your device and pushes them to the server as soon as you reconnect — you don’t need to redo anything.',
+            'Puwede ka pa ring mag-upload kahit walang internet — ise-save muna ito sa iyong device, tapos automatic na mag-sync pagbalik ng connection.'
+        ]
     },
     {
         keywords: ['role', 'master teacher', 'school head', 'district supervisor', 'administrator'],
-        answer: 'Each role sees a tailored view: Teachers manage their own DLLs; Master Teachers review and endorse; School Heads monitor their school; District Supervisors compare across the whole district.'
+        answers: [
+            'Each role gets its own view: Teachers manage their own DLLs, Master Teachers review and endorse, School Heads monitor their whole school, and District Supervisors compare across every school in the district.',
+            'It depends on who’s logged in — Teachers see their own uploads, School Heads see their staff, and District Supervisors see the district-wide picture with Analytics and Admin access on top.'
+        ]
     },
     {
         keywords: ['for checking', 'checked', 'reviewer comment', 'remark', 'remarks'],
-        answer: 'In the Archive, a document is "For Checking" until a reviewer adds a remark on it — once a remark exists, it moves to "Checked." There’s no separate approval step; adding the remark is what marks it as reviewed.'
+        answers: [
+            'In the Archive, a document sits as "For Checking" until a reviewer leaves a remark on it — once a remark exists, it flips to "Checked." There’s no separate approval click; adding the remark is the review.',
+            'Two states only: "For Checking" (no remark yet) and "Checked" (a reviewer has commented on it). Simple as that — walang ibang approval step.'
+        ]
     },
     {
         keywords: ['supplementary', 'extra dll', 'another dll', 'duplicate submission'],
-        answer: 'A "Supplementary" submission is an extra DLL uploaded for a week/subject that already has one on file. It’s kept for reference but doesn’t count toward your compliance rate, uploads total, or trigger a "missing" mark — only the first, required DLL for that slot does.'
+        answers: [
+            'A "Supplementary" submission is an extra DLL for a week/subject that already has one on file — it’s kept for reference but never counts toward your compliance rate, upload totals, or a "missing" mark.',
+            'Nag-upload ka ba ng pangalawang DLL sa parehong linggo at subject? That extra one gets tagged "Supplementary" — it’s just extra documentation, it won’t hurt or help your compliance number.'
+        ]
     },
     {
         keywords: ['deadline', 'when', 'due', 'cutoff', 'cut off', 'date'],
-        answer: 'Deadlines follow the academic calendar set by your district. Ask me \u201cWhen is the next deadline?\u201d and I\u2019ll pull the exact dates for you.'
+        answers: [
+            'Deadlines follow the academic calendar your district sets up. Ask me “When is the next deadline?” and I’ll pull the exact date for you.',
+            'That depends on the week — ask me about a specific week or the next one coming up, and I’ll check the academic calendar live.'
+        ]
     },
     {
-        keywords: ['greeting', 'hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening', 'kamusta', 'kumusta', 'kumusta', 'salamat', 'thanks', 'thank you'],
-        answer: 'Hello! I\u2019m Gabay, your CEDIMS assistant. I can check your compliance, find DLLs, look up deadlines, compare schools, and show teacher stats. What would you like to know?'
+        keywords: ['greeting', 'hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening', 'kamusta', 'kumusta', 'salamat', 'thanks', 'thank you'],
+        answers: [
+            'Hello! I’m Gabay, your CEDIMS assistant. I can check your compliance, find DLLs, look up deadlines, compare schools, and show teacher stats. What would you like to know?',
+            'Hey there! Ask me anything about your submissions, deadlines, or how the system works — happy to help.',
+            'Kumusta! Ako si Gabay. Puwede mo akong tanungin tungkol sa compliance mo, deadlines, o kahit ano tungkol sa CEDIMS.',
+            'You’re welcome! Anything else I can help you check?'
+        ]
     },
     {
         keywords: ['who are you', 'your name', 'about yourself', 'what are you', 'sino ka', 'tell me about you'],
-        answer: 'I\u2019m Gabay \u2014 Filipino for "guide." I live right in the app and answer your questions using live data \u2014 no internet bill needed. Ask me anything about compliance, DLLs, deadlines, or school performance!'
+        answers: [
+            'I’m Gabay — Filipino for "guide." I live right in the app and answer using live data, no separate internet bill needed. Ask me anything about compliance, DLLs, deadlines, or school performance!',
+            'Gabay ang pangalan ko — parang katulong mong laging nasa app, tutulong sayo mag-check ng compliance, maghanap ng DLL, o mag-alam ng deadlines.'
+        ]
+    },
+    {
+        keywords: ['status', 'compliant', 'late', 'missing', 'pending', 'under review'],
+        answers: [
+            'The statuses you’ll see are: Compliant (submitted on time), Late (submitted after the deadline but still counted), Missing (never submitted), Supplementary (an extra, non-required copy), and Pending/Under Review while it’s being processed.',
+            'Quick rundown: green means Compliant, gold/amber means Late, red means Missing, and blue usually means Supplementary or Under Review. Each still counts a bit differently toward your rate.'
+        ]
+    },
+    {
+        keywords: ['cedims', 'smarte vision', 'smart e vision', 'what does this app do', 'what is this app', 'what is this platform', 'purpose of this app'],
+        answers: [
+            'CEDIMS stands for Calapan East District Instructional Monitoring System — it’s where teachers submit DLLs and supervisors track compliance across schools. SmartE Vision is the broader platform name behind it.',
+            'This is CEDIMS — basically a digital home for DLL submissions, deadline tracking, and compliance monitoring, so nobody has to chase paperwork around anymore.'
+        ]
+    },
+    {
+        keywords: ['dashboard', 'main page', 'home page', 'tabs', 'navigation'],
+        answers: [
+            'Your Dashboard is the home screen — it shows your (or your school’s/district’s) compliance rate, recent activity, and quick stats. The tabs around it change depending on your role: Teachers get Upload and My Files, School Heads and District Supervisors get Schools, Submissions, Analytics, and Admin.',
+            'The bottom (or side) nav is your main way around — Dashboard for the overview, Archive/Submissions for documents, Analytics for trends and clusters if you’re a supervisor, and Settings for your account.'
+        ]
+    },
+    {
+        keywords: ['archive', 'my files', 'search files', 'sort files', 'filter documents', 'export excel', 'export csv', 'download report'],
+        answers: [
+            'The Archive is where every submitted document lives — you can search by name or teacher, filter by "For Checking"/"Checked", sort by date, name, or size, and export the whole list to Excel or CSV.',
+            'In Archive/My Files, use the search bar and status filter to narrow things down, the sort dropdown to reorder (Date, Name, or Size), and the green buttons to export a report.'
+        ]
+    },
+    {
+        keywords: ['analytics', 'trend', 'forecast', 'k-means', 'kmeans', 'clustering', 'high performer', 'at-risk', 'at risk entities'],
+        answers: [
+            'The Analytics page (School Head and District Supervisor only) shows compliance trends over time, a short forecast, a document-type breakdown, and a K-Means clustering view that groups teachers or schools into High Performers, Average, and At-Risk based on their submission behavior.',
+            'Analytics groups people/schools automatically using a clustering algorithm — it looks at compliance rate and submission frequency and buckets everyone into performance tiers, so you can spot who needs support at a glance.'
+        ]
+    },
+    {
+        keywords: ['academic calendar', 'school year', 'term', 'week schedule', 'open week', 'scheduled week', 'generate calendar', 'deped calendar'],
+        answers: [
+            'The Academic Calendar (under Admin, for District Supervisors) is where each week’s submission deadline gets set. A week starts "Scheduled" (hidden from teachers) until it’s toggled "Open" — only open weeks count toward compliance and show up for teachers.',
+            'District Supervisors manage the calendar — they can add weeks one by one or generate the full DepEd school-year calendar in one click, then open each week as it becomes active.'
+        ]
+    },
+    {
+        keywords: ['admin panel', 'admin tab', 'user management', 'create account', 'add teacher account', 'change role'],
+        answers: [
+            'The Admin panel (District Supervisors only) has three tabs: Settings for system-wide options, Users for creating accounts and managing roles, and Calendar for the academic calendar.',
+            'Need to add a new teacher account or change someone’s role/school? That’s all in Admin → Users.'
+        ]
+    },
+    {
+        keywords: ['notification', 'notifications', 'alert me', 'bell icon'],
+        answers: [
+            'You’ll get a notification whenever a deadline is updated or a new week opens for submissions — check the bell icon in the header for your recent alerts.',
+            'Notifications fire mainly around deadline changes — a supervisor opens or updates a week, and everyone affected gets pinged.'
+        ]
+    },
+    {
+        keywords: ['dark mode', 'light mode', 'theme', 'night mode'],
+        answers: [
+            'There’s a light/dark mode toggle (the moon/sun icon) in the header — tap it to switch themes anytime.',
+            'Yes, dark mode is built in — look for the toggle near the notification bell.'
+        ]
+    },
+    {
+        keywords: ['qr code', 'scan', 'scanner'],
+        answers: [
+            'The QR scanner lets you quickly verify a document’s authenticity by scanning the code printed on it — look for the scan option in your navigation.',
+            'Scanning a document’s QR code pulls up its verification page, so anyone can confirm it’s a genuine, unaltered submission.'
+        ]
+    },
+    {
+        keywords: ['teaching load', 'subjects', 'assigned subjects', 'grade level assignment'],
+        answers: [
+            'Your teaching loads are the subject + grade-level combinations assigned to you — they’re what "expected submissions" is calculated from, so make sure yours are accurate and marked active.',
+            'Each active teaching load is one more expected DLL per week. If your compliance math looks off, it’s worth double-checking your teaching loads are set up correctly.'
+        ]
+    },
+    {
+        keywords: ['forgot password', 'reset password', 'change password', 'cant login', "can't login", 'locked out'],
+        answers: [
+            'You can reset your password from the login screen’s "Forgot Password" link, or ask your District Supervisor — they can reset it for you from the Admin → Users panel.',
+            'Locked out? Try "Forgot Password" on the login page first. If that doesn’t work, your district supervisor can reset your account from Admin.'
+        ]
+    },
+    {
+        keywords: ['privacy', 'who can see my', 'confidential', 'visible to'],
+        answers: [
+            'Visibility follows your role and hierarchy — Teachers see only their own documents, School Heads see their school, and District Supervisors see the whole district. ISP/ISR have their own tighter rules on top of that.',
+            'Nobody outside your school/district chain can see your submissions — access is scoped strictly by role.'
+        ]
+    },
+    {
+        keywords: ['missed deadline', 'what happens if late', 'consequence of missing', 'penalty'],
+        answers: [
+            'Missing a deadline marks that week’s submission as "Late" if you eventually submit it, or "Missing" if you never do — either way it affects your compliance rate, but the system itself doesn’t lock you out or penalize beyond that.',
+            'Late is still better than missing — a late submission still counts toward your compliance rate, but an un-submitted one counts as missing and drags your rate down further.'
+        ]
     }
 ];
 
@@ -559,9 +711,21 @@ async function queryCompliance(
         if (pendingReview > 0 && compliantExplicit < compliant) {
             response += ` ${pendingReview} submission${pendingReview > 1 ? 's are' : ' is'} uploaded but awaiting official review.`;
         }
-        if (rate >= 90) response += ' You are doing excellently — keep it up.';
-        else if (rate >= 75) response += ' You are on the right track. Just a few more submissions to go.';
-        else response += ' There is room for improvement. Please consider uploading the missing DLLs on time.';
+        if (rate >= 90) response += ' ' + pick([
+            'You’re doing excellently — keep it up!',
+            'Great work, that’s a strong rate.',
+            'Ang galing — halos wala nang kulang!'
+        ]);
+        else if (rate >= 75) response += ' ' + pick([
+            'You’re on the right track — just a few more to go.',
+            'Solid progress, just a bit more and you’re there.',
+            'Malapit ka na — konti na lang kulang.'
+        ]);
+        else response += ' ' + pick([
+            'There’s room for improvement — try to catch up on the missing DLLs when you can.',
+            'A few more submissions would really help your rate — no rush, just when you’re able.',
+            'Puwede pang bawian — try mo i-catch up ang mga kulang na DLL kapag may oras.'
+        ]);
     }
 
     return response;
@@ -1072,10 +1236,13 @@ export async function processQuery(text: string, ctx?: ChatContext): Promise<Cha
     // Crucially, the hedge applies no matter which intent the classifier landed on \u2014
     // a low-confidence "ask_compliance" guess used to skip straight to confidently
     // quoting real compliance numbers with zero uncertainty signal, which is more
-    // misleading than a wrong "general_help" guess ever was.
+    // misleading than a wrong "general_help" guess ever was. The two branches below
+    // also deliberately share one boundary (60%) rather than leaving a silent middle
+    // band where a misfired guess got neither a confident tone nor an uncertainty
+    // flag \u2014 that gap is precisely where a wrong answer looked most convincing.
     if (confidence >= 60 && !answer.startsWith('Hello') && !answer.startsWith('I\u2019m')) {
         answer = `${pick(OPENERS)} ${answer}`;
-    } else if (confidence < 45 && !kbHit) {
+    } else if (confidence < 60 && !kbHit) {
         if (intent === 'general_help') {
             answer = `${pick(LOW_CONFIDENCE_PREFIXES)} ${pick([
                 'your compliance status', 'finding a DLL', 'upcoming deadlines',
@@ -1106,7 +1273,7 @@ function matchKnowledgeBase(text: string): string | null {
                 if (matched) break;
             }
         }
-        if (matched) return entry.answer;
+        if (matched) return pick(entry.answers);
     }
     return null;
 }
