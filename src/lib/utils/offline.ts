@@ -604,7 +604,15 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                 // pipeline.ts's runOnlinePipelineResilient, which this offline
                 // sync path had been missing (multiple uploads per week are
                 // intentionally allowed; only the first counts toward compliance).
-                let complianceStatus: 'compliant' | 'late' | 'supplementary' = calculateComplianceStatus(new Date(), deadlineDate);
+                // Judge lateness by when the teacher actually submitted, not by
+                // when connectivity happened to return. Using new Date() here
+                // meant a document queued at 11pm on the deadline and synced
+                // the next morning was recorded as LATE even though the teacher
+                // submitted on time — and with uploads now able to fall back to
+                // this queue silently, that would have the app report success
+                // and then quietly mark the submission late.
+                let complianceStatus: 'compliant' | 'late' | 'supplementary' =
+                    calculateComplianceStatus(new Date(item.timestamp), deadlineDate);
                 if (item.options.teachingLoadId && item.options.weekNumber) {
                     try {
                         const { data: slotMatch } = await withTimeout(

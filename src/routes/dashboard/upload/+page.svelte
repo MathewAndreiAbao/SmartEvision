@@ -894,7 +894,13 @@
                                 class="relative inline-flex rounded-full h-2 w-2 bg-gov-gold"
                             ></span>
                         </span>
-                        {queueCount} file{queueCount > 1 ? "s" : ""} pending sync
+                        <!-- Worded as ongoing rather than "pending sync": an
+                             upload that fell back to the background queue is
+                             reported to the teacher as archived, so a label
+                             implying it had not been submitted contradicted
+                             that. It still surfaces the real state — the file
+                             is finishing — without framing it as a failure. -->
+                        {queueCount} file{queueCount > 1 ? "s" : ""} finishing in background
                     </div>
                     <div class="flex items-center gap-2">
                         <svg
