@@ -535,7 +535,11 @@ async function* runOnlinePipelineResilient(
     }
     await cacheVerifiedDoc(fileHash, { file_name: fileName, doc_type: activeDocType, week_number: activeWeekNumber });
 
-    await createNotification(options.userId, 'Archival Successful', `Securely archived ${activeDocType} - Week ${activeWeekNumber}.`, 'success');
+    // Same reasoning as the queued path: the file is uploaded and the row is
+    // inserted by this point, so a convenience notification — two more un-timed
+    // network calls — must not hold back the success the teacher is waiting on.
+    createNotification(options.userId, 'Archival Successful', `Securely archived ${activeDocType} - Week ${activeWeekNumber}.`, 'success')
+        .catch((e) => console.warn('[pipeline] Notification write failed:', e));
 
     yield {
         phase: 'done',
@@ -571,54 +575,13 @@ async function* runOfflinePipelineResilient(
         throw new Error('This exact document has already been uploaded. Choose a different file, or check My Files.');
     }
 
-    // Look up calendar_id from academic_calendar using detected week number.
-    // navigator.onLine can be wrong (captive portals, flaky connections still
-    // reporting "online"), so this is time-bounded and non-fatal just like
-    // the online pipeline's version — losing calendarId only means this
-    // queued document won't be linked to a calendar entry until it syncs.
-    let calendarId = options.calendarId || null;
-    if (!calendarId && activeWeekNumber) {
-        try {
-            const { data: calEntry } = await withTimeout(
-                supabase
-                    .from('academic_calendar')
-                    .select('id')
-                    .eq('school_year', options.schoolYear || getCurrentSchoolYear())
-                    .eq('week_number', activeWeekNumber)
-                    .maybeSingle() as any,
-                10000,
-                'Calendar lookup timed out.'
-            ) as { data: any };
-            if (!calEntry) {
-                const { data: profileData } = await withTimeout(
-                    supabase
-                        .from('profiles')
-                        .select('district_id')
-                        .eq('id', options.userId)
-                        .single() as any,
-                    10000,
-                    'Profile lookup timed out.'
-                ) as { data: any };
-                if (profileData?.district_id) {
-                    const { data: calByDistrict } = await withTimeout(
-                        supabase
-                            .from('academic_calendar')
-                            .select('id')
-                            .eq('district_id', profileData.district_id)
-                            .eq('week_number', activeWeekNumber)
-                            .maybeSingle() as any,
-                        10000,
-                        'Calendar lookup timed out.'
-                    ) as { data: any };
-                    if (calByDistrict) calendarId = calByDistrict.id;
-                }
-            } else {
-                calendarId = calEntry.id;
-            }
-        } catch (err: any) {
-            console.warn('[pipeline] Calendar lookup failed/timed out while queuing offline, continuing without it:', err?.message);
-        }
-    }
+    // No calendar lookup here. This path exists so the teacher never waits on
+    // the network, and resolving calendar_id took up to three queries — on a
+    // dead connection, 30s of bounded-but-real stalling before the document was
+    // even queued. The sync in offline.ts already resolves calendar_id and the
+    // deadline itself for any item queued without one, at a point where a
+    // network call is expected, so nothing is lost by leaving it unset.
+    const calendarId = options.calendarId || null;
 
     yield { phase: 'uploading', progress: 45, message: 'Uploading securely...' };
 
@@ -660,12 +623,21 @@ async function* runOfflinePipelineResilient(
     }
 
     await cacheVerifiedDoc(fileHash, { file_name: fileName, doc_type: activeDocType, week_number: activeWeekNumber, pending_sync: true });
+
     // Reported exactly as the direct-upload path reports it. The submission is
     // recorded, stamped and queued, and syncs on its own with the original
     // timestamp preserved — so from the teacher's side this genuinely is the
     // same outcome, and surfacing a different one only caused confusion about
     // whether the document had actually been submitted.
-    await createNotification(options.userId, 'Archival Successful', `Securely archived ${activeDocType} - Week ${activeWeekNumber}.`, 'success');
+    //
+    // NOT awaited. createNotification() makes two un-timed network calls
+    // (auth.getUser, then the notifications insert), so awaiting it here parked
+    // this path on the network at 80% "Finalizing submission record..." — in a
+    // path whose entire purpose is never to wait on the network. The document
+    // is already queued and safe by this point; a convenience notification must
+    // never gate reporting that.
+    createNotification(options.userId, 'Archival Successful', `Securely archived ${activeDocType} - Week ${activeWeekNumber}.`, 'success')
+        .catch((e) => console.warn('[pipeline] Notification write failed:', e));
 
     // Start pushing to the server right away rather than waiting for the 60s
     // heartbeat. Deliberately not awaited: the transfer is the slow part on a
