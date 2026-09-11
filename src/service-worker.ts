@@ -4,6 +4,7 @@
 declare const self: ServiceWorkerGlobalScope;
 
 import { build, files, version } from '$service-worker';
+import { PDFJS_VERSION } from '$lib/utils/pdfjsVersion';
 
 // ─── Cache Configuration ───────────────────────────────────────
 const CACHE = `cache-${version}`;
@@ -11,6 +12,18 @@ const CACHE = `cache-${version}`;
 const ASSETS = [
     ...build, // the app itself (JS, CSS, etc.)
     ...files  // everything in `static`
+];
+
+// ocr.ts loads pdf.js from this CDN at runtime rather than bundling it, so
+// on a slow mobile connection the very first PDF upload could otherwise
+// spend up to loadPdfJs()'s whole timeout just fetching this script live —
+// exactly the "smooth on desktop broadband, stalls on phone" gap reported.
+// Precaching it here (same retry-hardened path as the app's own assets)
+// means every upload after the very first successful online session reads
+// it straight from cache with no network round-trip at all.
+const THIRD_PARTY_PRECACHE = [
+    `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.js`,
+    `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js`
 ];
 
 // A device on a weak signal is exactly the device most likely to have a
@@ -51,7 +64,19 @@ self.addEventListener('install', (event) => {
             }
         });
 
-        await Promise.all(promises);
+        const thirdPartyPromises = THIRD_PARTY_PRECACHE.map(async (url) => {
+            try {
+                // mode: 'cors' — these URLs must resolve to a real, cacheable
+                // CORS response (cdnjs serves Access-Control-Allow-Origin: *)
+                // for the fetch handler's cache-first path to reuse it later.
+                const response = await fetchWithRetry(url, { mode: 'cors', cache: 'reload' });
+                await cache.put(url, response);
+            } catch (err) {
+                console.warn(`[SW] Failed to precache third-party asset: ${url}`, err);
+            }
+        });
+
+        await Promise.all([...promises, ...thirdPartyPromises]);
 
         // Pre-cache the app shell (root page) for offline navigation.
         // This is the SvelteKit app shell that the client-side router needs.

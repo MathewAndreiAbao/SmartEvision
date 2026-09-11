@@ -5,6 +5,7 @@
  */
 import { predictSubject, predictGradeLevel, predictDocType } from './fuzzyClassifier';
 import { createWorker } from 'tesseract.js';
+import { PDFJS_VERSION } from './pdfjsVersion';
 
 export interface DateRange {
     start: Date;
@@ -29,9 +30,14 @@ export interface DocMetadata {
     weekSource?: 'calendar' | 'header-date' | 'regex' | 'none';
 }
 
-const PDFJS_VERSION = '3.4.120';
-
-function loadPdfJs(timeoutMs: number = 10000): Promise<void> {
+// pdf.min.js is a few hundred KB. On the broadband desktops were tested on,
+// 10s was never a real constraint — but at the mobile data speeds this app
+// actually gets used on in the field (screenshots as low as ~2 KB/s), a
+// several-hundred-KB script can take well over a minute, so the old 10s
+// timeout was guaranteed to fire on exactly the connections this matters
+// most for, silently degrading every PDF upload to "Unknown" metadata
+// detection instead of just taking longer to load.
+function loadPdfJs(timeoutMs: number = 45000): Promise<void> {
     return new Promise((resolve, reject) => {
         if ((window as any)['pdfjsLib']) {
             resolve();
