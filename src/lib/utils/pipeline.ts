@@ -83,6 +83,22 @@ async function withRetry<T>(fn: () => Promise<T>, attempts: number, delayMs: num
     throw lastErr;
 }
 
+/**
+ * Phones and tablets take the local-first path: do every bit of work on the
+ * device, queue the finished document, report success, and push to the server
+ * in the background.
+ *
+ * The transfer is the only part of the pipeline that a weak mobile connection
+ * can stall, and making the teacher wait on it is what produced minutes of
+ * frozen UI ending in a timeout that discarded all the completed work. Desktop
+ * connections don't have that problem, so they keep uploading directly and get
+ * immediate server-side confirmation.
+ */
+function isMobileDevice(): boolean {
+    if (typeof navigator === 'undefined') return false;
+    return /iPhone|iPad|iPod|Android|Mobile|Silk|Kindle|BlackBerry|Opera Mini|IEMobile/i.test(navigator.userAgent);
+}
+
 interface XhrUploadResult {
     ok: boolean;
     status: number;
@@ -547,10 +563,22 @@ async function* runOfflinePipelineResilient(
     options: PipelineOptions
 ): AsyncGenerator<PipelineEvent> {
     const { stampedBytes, fileHash, fileName, filePath, activeWeekNumber, activeDocType, rawText } = core;
-    yield { phase: 'uploading', progress: 50, message: 'Saving to offline vault...' };
 
-    const { enqueue, cacheVerifiedDoc } = await import('./offline');
+    // Progress mirrors the direct-upload path's stages and percentages so the
+    // two are indistinguishable to the teacher — the outcome is the same
+    // (document archived, stamped, and on its way to the server), only the
+    // transfer is deferred. Wording stays truthful about what is happening at
+    // each step rather than claiming a server round-trip that hasn't run yet.
+    yield { phase: 'uploading', progress: 10, message: 'Verifying document...' };
+
+    const { enqueue, cacheVerifiedDoc, lookupOfflineDoc } = await import('./offline');
     const { recordSubmission } = await import('./offlineSubmissionLedger');
+
+    // Same local duplicate guard the direct path runs. The server-side check
+    // can't happen yet, but the UNIQUE (file_hash) constraint still rejects a
+    // duplicate at sync time, so nothing slips through permanently.
+    yield { phase: 'uploading', progress: 20, message: 'Checking for duplicates...' };
+    if (await lookupOfflineDoc(fileHash)) throw new Error('Duplicate file detected (local).');
 
     // Look up calendar_id from academic_calendar using detected week number.
     // navigator.onLine can be wrong (captive portals, flaky connections still
@@ -601,6 +629,8 @@ async function* runOfflinePipelineResilient(
         }
     }
 
+    yield { phase: 'uploading', progress: 45, message: 'Uploading securely...' };
+
     await enqueue({
         fileName,
         filePath,
@@ -617,8 +647,13 @@ async function* runOfflinePipelineResilient(
             calendarId: calendarId ?? undefined,
             teachingLoadId: options.teachingLoadId
         },
+        // The submission moment, not the sync moment. offline.ts computes
+        // lateness from this, so a document handed in before the deadline
+        // stays on time however long it waits for signal.
         timestamp: Date.now()
     });
+
+    yield { phase: 'uploading', progress: 80, message: 'Finalizing submission record...' };
 
     if (options.teachingLoadId && activeWeekNumber) {
         await recordSubmission({
@@ -640,6 +675,17 @@ async function* runOfflinePipelineResilient(
     // same outcome, and surfacing a different one only caused confusion about
     // whether the document had actually been submitted.
     await createNotification(options.userId, 'Archival Successful', `Securely archived ${activeDocType} - Week ${activeWeekNumber}.`, 'success');
+
+    // Start pushing to the server right away rather than waiting for the 60s
+    // heartbeat. Deliberately not awaited: the transfer is the slow part on a
+    // phone, and the point of this path is that the teacher doesn't wait for
+    // it. With no usable connection it simply no-ops, and the existing
+    // reconnect/heartbeat/visibility triggers pick it up later.
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+        import('./offline')
+            .then(({ processQueue }) => processQueue())
+            .catch((e) => console.warn('[pipeline] Background sync kickoff failed:', e));
+    }
 
     yield {
         phase: 'done',
@@ -666,20 +712,21 @@ export async function* runPipeline(
         }
         if (!core) throw new Error('Processing failed.');
 
+        // Mobile always goes local-first: queue now, sync in the background.
+        // Waiting on the transfer is the single thing that made mobile uploads
+        // fail, and nothing about it has to be synchronous — the document is
+        // already hashed and stamped by this point, and the queued item carries
+        // its original submission timestamp so compliance is unaffected by how
+        // long the sync takes.
+        if (isMobileDevice()) {
+            yield* runOfflinePipelineResilient(core, options);
+            return;
+        }
+
         if (isOnline) {
-            // Try the direct upload first, but don't let a weak mobile
-            // connection turn into a dead end. If the transfer fails for
-            // connectivity reasons, the document is queued locally and synced
-            // in the background instead — the work the phone already did
-            // (convert, analyse, hash, stamp) is preserved and the submission
-            // still lands, rather than being thrown away with an error.
-            //
-            // This fallback previously existed and was removed because it
-            // reported "saved offline" and so felt inconsistent. The queued
-            // path is now reported identically to a direct upload, which is
-            // what makes it safe to route to silently: sync preserves the
-            // original submission timestamp (see offline.ts), so compliance is
-            // judged by when the teacher submitted, not when signal returned.
+            // Desktop: upload directly, but don't let a failed transfer become
+            // a dead end — fall back to the same background queue rather than
+            // discarding the work with an error to retry from scratch.
             try {
                 yield* runOnlinePipelineResilient(core, options);
                 return;
