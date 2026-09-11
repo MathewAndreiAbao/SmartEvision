@@ -1,6 +1,6 @@
 {
-  "training_date": "2026-09-11T12:38:31.438075",
-  "n_samples": 826,
+  "training_date": "2026-09-11T13:15:53.694905",
+  "n_samples": 3715,
   "intents": [
     "ask_compliance",
     "calendar_info",
@@ -11,16 +11,16 @@
     "school_compare",
     "teacher_stats"
   ],
-  "vocabulary_size": 5000,
+  "vocabulary_size": 9640,
   "train_accuracy": 100.0,
-  "test_accuracy": 92.27,
-  "cv_mean": 92.01,
-  "cv_std": 1.7,
+  "test_accuracy": 99.25,
+  "cv_mean": 98.65,
+  "cv_std": 0.37,
   "cv_folds": [
-    93.98,
-    90.3,
-    92.73,
-    93.33,
-    89.7
+    99.33,
+    98.65,
+    98.38,
+    98.25,
+    98.65
   ]
 }

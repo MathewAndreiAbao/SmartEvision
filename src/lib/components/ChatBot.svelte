@@ -1,7 +1,7 @@
 <script lang="ts">
     import { MessageCircle, X, Send, ChevronDown } from "lucide-svelte";
     import { processQuery, loadDllDocumentsFromSupabase } from "$lib/utils/chatbot";
-    import type { ChatResponse, Intent, ChatContext } from "$lib/utils/chatbot";
+    import type { ChatResponse, Intent, ChatContext, Lang } from "$lib/utils/chatbot";
     import { supabase } from "$lib/utils/supabase";
     import { user, profile } from "$lib/utils/auth";
     import { onMount } from "svelte";
@@ -22,6 +22,7 @@
     let currentProfile = $state<{ id: string; full_name: string; role: string; school_id: string | null; district_id: string | null } | null>(null);
     let lastIntent = $state<Intent | undefined>(undefined);
     let lastSlots = $state<Record<string, string>>({});
+    let lastLang = $state<Lang | undefined>(undefined);
     let dllDocsLoaded = $state(false);
 
     const suggestions = [
@@ -66,7 +67,7 @@
             supabase,
             userId: currentUser?.id,
             profile: currentProfile,
-            memory: { lastIntent, lastSlots }
+            memory: { lastIntent, lastSlots, lastLang }
         };
 
         const response: ChatResponse = await processQuery(q, ctx);
@@ -74,6 +75,7 @@
         messages.push({ role: 'bot', text: response.answer, intent: response.intent });
         lastIntent = response.intent;
         lastSlots = response.slots;
+        lastLang = response.lang;
     }
 
     function handleKeydown(e: KeyboardEvent) {

@@ -5,7 +5,8 @@ Robust to typos, Tagalog/Filipino, and varied phrasings.
 Generates: model JSON, confusion matrix, ROC curves, classification report, top words chart.
 """
 
-import json, os, re, warnings
+import json, os, re, warnings, random
+from itertools import product
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -952,6 +953,354 @@ TRAINING_DATA = [
     {"text": "Who else can view what I submit?", "intent": "general_help"},
 ]
 
+# ─── Templated Generation ───────────────────────────────────────────────────
+# The ~950 examples above are hand-written for phrasing diversity, but they
+# don't cover the combinatorial space of real inputs — a teacher can ask about
+# any of a dozen subjects, six grade levels, ten weeks, a dozen colleagues, a
+# dozen schools, in either language. Rather than hand-typing that explosion,
+# we fill a smaller set of vetted sentence templates (per intent, per
+# language) with slot values drawn from realistic vocabularies, and keep only
+# combinations that are exact-text-unique (case-insensitive) against
+# everything generated so far, including the hand-written seed set. This is
+# what actually gets the dataset from ~950 to several thousand *distinct*
+# strings rather than padding with near-duplicates.
+
+random.seed(42)
+
+# The hand-written seed above accumulated a handful of exact duplicate
+# strings across its several editing passes (typo-variant and Tagalog-variant
+# blocks occasionally repeated a phrasing already listed elsewhere for the
+# same intent). Drop those before generating so "unique" holds for the whole
+# dataset, not just the templated portion.
+_dedup_seen = set()
+_deduped_seed = []
+for row in TRAINING_DATA:
+    key = row["text"].strip().lower()
+    if key in _dedup_seen:
+        continue
+    _dedup_seen.add(key)
+    _deduped_seed.append(row)
+if len(_deduped_seed) != len(TRAINING_DATA):
+    print(f"Removed {len(TRAINING_DATA) - len(_deduped_seed)} duplicate hand-written examples from the seed set")
+TRAINING_DATA[:] = _deduped_seed
+
+SUBJECTS = [
+    "Math", "Science", "English", "Filipino", "MAPEH", "AP", "ESP", "Reading",
+    "Values Education", "TLE", "Araling Panlipunan", "Music and Arts"
+]
+GRADES = [f"Grade {i}" for i in range(1, 7)]
+WEEKS = [f"Week {i}" for i in range(1, 11)]
+TERMS_EN = ["this week", "this term", "this quarter", "this month", "this grading period", "this school year"]
+TERMS_TL = ["ngayong linggo", "ngayong term", "ngayong quarter", "ngayong buwan", "ngayong grading period", "ngayong school year"]
+TEACHERS = [
+    "Teacher Santos", "Teacher Cruz", "Teacher Reyes", "Teacher Garcia",
+    "Teacher Dela Cruz", "Teacher Mendoza", "Teacher Bautista", "Teacher Aquino",
+    "Teacher Ramos", "Teacher Torres", "Teacher Villanueva", "Teacher Fernandez"
+]
+SCHOOLS = [
+    "Bulusan Elementary School", "Bulusan ES", "Matnog Central School",
+    "Sorsogon National High School", "San Roque Elementary School",
+    "Juban Elementary School", "Casiguran Elementary School",
+    "Barcelona Central School", "Gubat North Central School",
+    "Irosin Elementary School", "Prieto Diaz Elementary School",
+    "Magallanes Central School"
+]
+
+# Slot-filled templates, per intent, per language. Only intents whose real
+# questions naturally carry a subject/grade/week/term/teacher/school slot are
+# included here — general_help is handled separately below via topic filling.
+SLOT_TEMPLATES = {
+    "ask_compliance": {
+        "en": [
+            "What is my compliance rate for {subject}?",
+            "Am I compliant in {subject} for {grade}?",
+            "How many {subject} DLLs am I missing?",
+            "Show my compliance status for {term}",
+            "What is my {subject} compliance {term}?",
+            "Am I on track with my {subject} submissions?",
+            "How many {subject} DLLs have I submitted so far?",
+            "Check my compliance for {grade} {subject}",
+            "What percentage of my {subject} DLLs are done?",
+            "Give me my compliance rate {term}",
+            "Is my {subject} compliance good {term}?",
+            "How many submissions am I missing for {grade}?",
+        ],
+        "tl": [
+            "Ano ang compliance rate ko sa {subject}?",
+            "Compliant ba ako sa {subject} para sa {grade}?",
+            "Ilan ang kulang kong DLL sa {subject}?",
+            "Ipakita ang compliance status ko {term}",
+            "Ano ang {subject} compliance ko {term}?",
+            "Nasa tamang landas ba ako sa {subject}?",
+            "Ilang {subject} DLL na ang na-submit ko?",
+            "Suriin ang compliance ko para sa {grade} {subject}",
+            "Ilang percent na ang natapos kong {subject} DLL?",
+            "Ibigay ang compliance rate ko {term}",
+            "Maganda ba ang compliance ko sa {subject} {term}?",
+            "Ilan ang kulang kong submission para sa {grade}?",
+        ],
+    },
+    "check_deadline": {
+        "en": [
+            "When is the deadline for {week}?",
+            "What is the deadline for {subject}?",
+            "Is there a deadline {term}?",
+            "How many days until the {week} deadline?",
+            "When do I need to submit my {subject} DLL?",
+            "What is the deadline for {grade} {subject}?",
+            "What's due {term}?",
+            "Is the {week} deadline coming up soon?",
+            "How much time is left before the {subject} deadline?",
+            "When should I submit {subject} for {grade}?",
+        ],
+        "tl": [
+            "Kailan ang deadline para sa {week}?",
+            "Ano ang deadline para sa {subject}?",
+            "May deadline ba {term}?",
+            "Ilang araw na lang bago ang deadline ng {week}?",
+            "Kailan ko kailangang i-submit ang {subject} DLL ko?",
+            "Ano ang deadline para sa {grade} {subject}?",
+            "Ano ang dapat i-submit {term}?",
+            "Malapit na ba ang deadline ng {week}?",
+            "Gaano katagal na lang bago ang deadline sa {subject}?",
+            "Kailan ko dapat i-submit ang {subject} para sa {grade}?",
+        ],
+    },
+    "find_dll": {
+        "en": [
+            "Find DLLs about {subject}",
+            "Search for {subject} DLLs in {grade}",
+            "Show DLLs for {week} {subject}",
+            "Find DLLs uploaded by {teacher}",
+            "Look for {subject} lesson plans for {grade}",
+            "Where is the {subject} DLL for {week}?",
+            "Do we have DLLs on {subject}?",
+            "Search my {subject} DLLs for {grade}",
+            "Find the DLL {teacher} submitted for {week}",
+            "Show me {subject} lesson plans",
+        ],
+        "tl": [
+            "Maghanap ng DLL tungkol sa {subject}",
+            "Hanapin ang {subject} DLL para sa {grade}",
+            "Ipakita ang DLL para sa {week} {subject}",
+            "Maghanap ng DLL na na-upload ni {teacher}",
+            "Maghanap ng lesson plan sa {subject} para sa {grade}",
+            "Saan ang {subject} DLL para sa {week}?",
+            "Meron ba tayong DLL sa {subject}?",
+            "Hanapin ang {subject} DLL ko para sa {grade}",
+            "Hanapin ang DLL na isinumite ni {teacher} para sa {week}",
+            "Ipakita ang mga lesson plan sa {subject}",
+        ],
+    },
+    "school_compare": {
+        "en": [
+            "How does {school} compare to others?",
+            "What is the compliance rate of {school}?",
+            "Compare {school} to other schools",
+            "Is {school} the top performer?",
+            "How is {school} doing {term}?",
+            "Rank {school} against other schools",
+            "What is {school}'s ranking in the district?",
+            "Is {school} more compliant than other schools?",
+            "Show me how {school} is performing {term}",
+            "How does {school} rank this quarter?",
+        ],
+        "tl": [
+            "Kumusta ang {school} kumpara sa iba?",
+            "Ano ang compliance rate ng {school}?",
+            "Ikumpara ang {school} sa ibang paaralan",
+            "Pinakamataas ba ang {school}?",
+            "Kumusta ang {school} {term}?",
+            "I-rank ang {school} laban sa ibang paaralan",
+            "Ano ang ranggo ng {school} sa distrito?",
+            "Mas compliant ba ang {school} kaysa sa iba?",
+            "Ipakita kung paano gumagana ang {school} {term}",
+            "Ano ang ranggo ng {school} ngayong quarter?",
+        ],
+    },
+    "teacher_stats": {
+        "en": [
+            "Show statistics for {teacher}",
+            "What is the compliance of {teacher}?",
+            "Is {teacher} compliant {term}?",
+            "How is {teacher} performing in {subject}?",
+            "Rank {teacher} against other teachers",
+            "Show {teacher}'s submission history",
+            "What is {teacher}'s compliance rate {term}?",
+            "Is {teacher} behind on submissions?",
+            "How many DLLs has {teacher} submitted?",
+            "Compare {teacher} to other teachers in {grade}",
+        ],
+        "tl": [
+            "Ipakita ang statistics para kay {teacher}",
+            "Ano ang compliance ni {teacher}?",
+            "Compliant ba si {teacher} {term}?",
+            "Kumusta ang performance ni {teacher} sa {subject}?",
+            "I-rank si {teacher} laban sa ibang teacher",
+            "Ipakita ang submission history ni {teacher}",
+            "Ano ang compliance rate ni {teacher} {term}?",
+            "Nahuhuli ba si {teacher} sa mga submission?",
+            "Ilang DLL na ang na-submit ni {teacher}?",
+            "Ikumpara si {teacher} sa ibang teacher sa {grade}",
+        ],
+    },
+    "calendar_info": {
+        "en": [
+            "What week is {week}?",
+            "When does {term} start?",
+            "Show the calendar for {term}",
+            "How many weeks are in {term}?",
+            "What is the schedule for {week}?",
+            "Is {week} an exam week?",
+            "What term covers {week}?",
+            "When does {term} end?",
+        ],
+        "tl": [
+            "Anong linggo ang {week}?",
+            "Kailan magsisimula ang {term}?",
+            "Ipakita ang calendar para {term}",
+            "Ilang linggo sa {term}?",
+            "Ano ang schedule para sa {week}?",
+            "Exam week ba ang {week}?",
+            "Anong term ang saklaw ng {week}?",
+            "Kailan matatapos ang {term}?",
+        ],
+    },
+    "how_to_upload": {
+        "en": [
+            "How do I upload my {subject} DLL?",
+            "Steps to submit {subject} for {grade}",
+            "How to upload a DLL for {week}?",
+            "Can I upload my {subject} DLL from my phone?",
+            "How do I fix an upload error for {subject}?",
+            "What format should my {subject} DLL be in?",
+            "How do I re-upload my {subject} DLL for {week}?",
+            "Can I upload {subject} for {grade} offline?",
+        ],
+        "tl": [
+            "Paano mag-upload ng {subject} DLL ko?",
+            "Mga hakbang para i-submit ang {subject} para sa {grade}",
+            "Paano mag-upload ng DLL para sa {week}?",
+            "Puwede ba akong mag-upload ng {subject} DLL gamit ang phone?",
+            "Paano ayusin ang upload error sa {subject}?",
+            "Anong format dapat ang {subject} DLL ko?",
+            "Paano ko ire-reupload ang {subject} DLL ko para sa {week}?",
+            "Puwede bang mag-upload ng {subject} para sa {grade} offline?",
+        ],
+    },
+}
+
+CAP_PER_TEMPLATE = 40
+
+
+def _slot_lists_for(template, lang):
+    slots = {}
+    if "{subject}" in template:
+        slots["subject"] = SUBJECTS
+    if "{grade}" in template:
+        slots["grade"] = GRADES
+    if "{week}" in template:
+        slots["week"] = WEEKS
+    if "{term}" in template:
+        slots["term"] = TERMS_TL if lang == "tl" else TERMS_EN
+    if "{teacher}" in template:
+        slots["teacher"] = TEACHERS
+    if "{school}" in template:
+        slots["school"] = SCHOOLS
+    return slots
+
+
+def _fill_template(template, lang, cap):
+    slots = _slot_lists_for(template, lang)
+    if not slots:
+        return [template]
+    keys = list(slots.keys())
+    combos = list(product(*[slots[k] for k in keys]))
+    random.shuffle(combos)
+    out = []
+    for combo in combos[:cap]:
+        text = template
+        for k, v in zip(keys, combo):
+            text = text.replace("{" + k + "}", v)
+        out.append(text)
+    return out
+
+
+_seen_texts = {row["text"].strip().lower() for row in TRAINING_DATA}
+_generated = []
+
+for intent, by_lang in SLOT_TEMPLATES.items():
+    for lang, templates in by_lang.items():
+        for template in templates:
+            for text in _fill_template(template, lang, CAP_PER_TEMPLATE):
+                key = text.strip().lower()
+                if key in _seen_texts:
+                    continue
+                _seen_texts.add(key)
+                _generated.append({"text": text, "intent": intent})
+
+# general_help: no natural single slot, so fill a {topic} placeholder from a
+# broad list of real, verified system features/concepts instead.
+GENERAL_HELP_TOPICS_EN = [
+    "the dashboard", "the archive", "the Analytics tab", "the academic calendar",
+    "the admin panel", "notifications", "dark mode", "the QR scanner",
+    "teaching loads", "password reset", "data privacy", "the For Checking status",
+    "the Checked status", "a Supplementary submission", "a DLL", "an ISP",
+    "an ISR", "compliance calculation", "K-Means clustering",
+    "the compliance trend chart", "the compliance forecast", "user roles",
+    "the district supervisor role", "the school head role", "exporting reports",
+]
+GENERAL_HELP_TOPICS_TL = [
+    "ang dashboard", "ang archive", "ang Analytics tab", "ang academic calendar",
+    "ang admin panel", "mga notification", "dark mode", "ang QR scanner",
+    "teaching load", "pag-reset ng password", "privacy ng data",
+    "For Checking status", "Checked status", "Supplementary submission",
+    "DLL", "ISP", "ISR", "pagkalkula ng compliance", "K-Means clustering",
+    "compliance trend chart", "compliance forecast", "user roles",
+    "role ng district supervisor", "role ng school head", "pag-export ng reports",
+]
+GENERAL_HELP_TEMPLATES_EN = [
+    "What is {topic}?",
+    "How does {topic} work?",
+    "Can you explain {topic}?",
+    "Tell me about {topic}",
+    "What does {topic} mean?",
+]
+GENERAL_HELP_TEMPLATES_TL = [
+    "Ano ang {topic}?",
+    "Paano gumagana ang {topic}?",
+    "Ipaliwanag mo ang {topic}",
+    "Sabihin mo sa akin ang tungkol sa {topic}",
+    "Ano ang ibig sabihin ng {topic}?",
+]
+
+for topic in GENERAL_HELP_TOPICS_EN:
+    for template in GENERAL_HELP_TEMPLATES_EN:
+        text = template.format(topic=topic)
+        key = text.strip().lower()
+        if key in _seen_texts:
+            continue
+        _seen_texts.add(key)
+        _generated.append({"text": text, "intent": "general_help"})
+
+for topic in GENERAL_HELP_TOPICS_TL:
+    for template in GENERAL_HELP_TEMPLATES_TL:
+        text = template.format(topic=topic)
+        key = text.strip().lower()
+        if key in _seen_texts:
+            continue
+        _seen_texts.add(key)
+        _generated.append({"text": text, "intent": "general_help"})
+
+print(f"Generated {len(_generated)} additional unique templated examples "
+      f"(hand-written seed: {len(TRAINING_DATA)})")
+TRAINING_DATA.extend(_generated)
+
+# Sanity check: the whole point of templated generation is genuine uniqueness,
+# not just volume — fail loudly if that invariant is ever broken.
+_all_texts = [row["text"].strip().lower() for row in TRAINING_DATA]
+assert len(_all_texts) == len(set(_all_texts)), "Duplicate training text detected after generation"
+
 # ─── Build DataFrame ────────────────────────────────────────────────────────
 
 df = pd.DataFrame(TRAINING_DATA)
@@ -975,7 +1324,7 @@ vectorizer = CountVectorizer(
     analyzer='char',
     ngram_range=(2, 5),
     min_df=2,
-    max_features=5000,
+    max_features=11000,
     lowercase=True
 )
 X_train_vec = vectorizer.fit_transform(X_train)
@@ -998,7 +1347,7 @@ for candidate_C in C_GRID:
     for tr_idx, va_idx in cv_search.split(X_train, y_train):
         X_tr, X_va = X_train.iloc[tr_idx], X_train.iloc[va_idx]
         y_tr, y_va = y_train.iloc[tr_idx], y_train.iloc[va_idx]
-        fold_vec = CountVectorizer(analyzer='char', ngram_range=(2, 5), min_df=2, max_features=5000, lowercase=True)
+        fold_vec = CountVectorizer(analyzer='char', ngram_range=(2, 5), min_df=2, max_features=11000, lowercase=True)
         X_tr_vec = fold_vec.fit_transform(X_tr)
         X_va_vec = fold_vec.transform(X_va)
         fold_clf = LogisticRegression(C=candidate_C, solver='saga', max_iter=3000, random_state=42, class_weight='balanced')
@@ -1117,7 +1466,7 @@ for i, intent in enumerate(intents):
     coef_dict[intent] = {vocab[idx]: float(clf.coef_[i][idx]) for idx in range(len(vocab))}
 
 model = {
-    "version": "2.3.0",
+    "version": "3.0.0",
     "intents": intents,
     "vocabulary": {word: idx for idx, word in enumerate(vocab)},
     "coefficients": coef_dict,
