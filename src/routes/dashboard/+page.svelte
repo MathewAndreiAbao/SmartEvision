@@ -225,7 +225,11 @@
         const calendar = academicCalendar;
 
         // Calculate cumulative expected loads to date based on defined calendar weeks
-        const definedWeeks = await getDefinedWeeksCount(supabase);
+        const definedWeeks = await getDefinedWeeksCount(
+            supabase,
+            getDynamicSchoolYear(),
+            userProfile.district_id,
+        );
         const cumulativeExpected = teachingLoadsCount * definedWeeks;
 
         // Calculate compliance stats using ACTUAL submission statuses
@@ -291,7 +295,16 @@
             .eq("school_year", getDynamicSchoolYear())
             .order("week_number", { ascending: true });
 
-        const calendarArr = calendar || [];
+        // Scope to this supervisor's own district (academic_calendar rows
+        // carry a district_id, and a district-wide school year can have
+        // several districts' rows in it). Without this filter, "defined
+        // weeks" below counted every district's calendar weeks combined,
+        // inflating the "expected" denominator and producing a compliance
+        // rate that didn't match the District Monitoring page's own number
+        // for the exact same district.
+        const calendarArr = (calendar || []).filter(
+            (c: any) => c.district_id === userProfile.district_id || !c.district_id,
+        );
 
 
 
@@ -375,7 +388,10 @@
             );
 
         const loads = loadsData || [];
-        const definedWeeks = calendarArr.length || 1;
+        // Only weeks actually opened count toward "expected" — matches the
+        // semantics used everywhere else (getDefinedWeeksCount, District
+        // Monitoring's currentDefinedWeeks).
+        const definedWeeks = calendarArr.filter((c: any) => c.is_active).length || 1;
 
         // Per-teacher compliance: expected = active loads x defined weeks.
         // Missing = expected - (compliant + late). This matches the teacher

@@ -26,6 +26,7 @@ export async function getSchoolHeadAnalytics(schoolId: string, districtId: strin
                 compliance_status,
                 doc_type,
                 week_number,
+                teaching_load_id,
                 profiles!inner(school_id)
             `)
             .eq('profiles.school_id', schoolId)
@@ -107,6 +108,9 @@ export async function getDistrictSupervisorAnalytics(districtId: string) {
                 id,
                 created_at,
                 compliance_status,
+                doc_type,
+                week_number,
+                teaching_load_id,
                 profiles!inner(district_id, schools(name))
             `)
             .eq('profiles.district_id', districtId)

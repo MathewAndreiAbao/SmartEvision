@@ -17,9 +17,13 @@
         getAtRiskEntities,
         forecastCompliance,
         getWeeklyPatterns,
-        getComparisonMetrics,
-        calculateComplianceMetrics
+        getComparisonMetrics
     } from "$lib/utils/analyticsQueries";
+    import {
+        calculateCompliance,
+        getDefinedWeeksCount,
+        getDynamicSchoolYear,
+    } from "$lib/utils/useDashboardData";
     import { TrendingUp, AlertTriangle, Users, Building2, WifiOff } from "lucide-svelte";
     import { connectivity } from "$lib/stores/connectivity";
     const { isOnline: onlineStatus } = connectivity;
@@ -31,6 +35,12 @@
     let clusters = $state<any>(null);
     let atRiskList = $state<any[]>([]);
     let comparisonStats = $state<any>(null);
+    // Expected slots (active teaching loads × opened calendar weeks) for this
+    // scope, so "Overall Compliance" here means the same thing as the
+    // Dashboard's "Compliance Rate" and District Monitoring's "District
+    // Rate" — of everything due, how much got done — instead of only
+    // measuring on-time-ness among documents that already exist.
+    let expectedTotal = $state(0);
 
     let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
 
@@ -46,6 +56,26 @@
                 } else {
                     analyticsData = await getDistrictSupervisorAnalytics(districtId);
                 }
+
+                // Expected total for this scope: active teaching loads for
+                // actual teachers, times the calendar weeks this district has
+                // opened so far — the same "expected" formula the rest of
+                // the app uses, scoped the same way.
+                let loadsQuery = supabase
+                    .from('teaching_loads')
+                    .select('id, profiles!inner(school_id, district_id, role)')
+                    .in('profiles.role', ['Teacher', 'Master Teacher']);
+                loadsQuery = role === 'School Head'
+                    ? loadsQuery.eq('profiles.school_id', schoolId)
+                    : loadsQuery.eq('profiles.district_id', districtId);
+                const { data: loadsData } = await loadsQuery;
+                const totalLoads = (loadsData || []).length;
+                const definedWeeks = await getDefinedWeeksCount(
+                    supabase,
+                    getDynamicSchoolYear(),
+                    districtId ?? undefined,
+                );
+                expectedTotal = totalLoads * definedWeeks;
 
                 if (analyticsData) {
                     const submissions = analyticsData.complianceTrend || [];
@@ -98,7 +128,14 @@
 
     const overallStats = $derived.by(() => {
         if (!analyticsData?.complianceTrend) return { compliant: 0, late: 0, missing: 0, rate: 0, total: 0 };
-        return calculateComplianceMetrics(analyticsData.complianceTrend);
+        const stats = calculateCompliance(analyticsData.complianceTrend, expectedTotal);
+        return {
+            compliant: stats.Compliant,
+            late: stats.Late,
+            missing: stats.NonCompliant,
+            rate: stats.rate,
+            total: stats.totalUploaded,
+        };
     });
 </script>
 

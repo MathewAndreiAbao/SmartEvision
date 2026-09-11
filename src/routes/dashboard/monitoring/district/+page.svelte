@@ -20,7 +20,6 @@
     getTrendDirection,
     getTrendIcon,
     getSubmissionWeek,
-    getDefinedWeeksCount,
     getDynamicSchoolYear,
     getCurrentWeekFromCalendar,
   } from "$lib/utils/useDashboardData";
@@ -174,7 +173,12 @@
     );
 
     // 5. Process School Data
-    currentDefinedWeeks = await getDefinedWeeksCount(supabase);
+    // Derived from this district's own calendar rows (already filtered
+    // above) rather than the unscoped getDefinedWeeksCount(supabase) call,
+    // which counted every district's calendar weeks system-wide and
+    // inflated this district's "expected" denominator — the root cause of
+    // this page's compliance rate not matching the main Dashboard's.
+    currentDefinedWeeks = calendar.filter((c) => c.is_active).length || 1;
 
     schools = schoolsData.map((school) => {
       const schoolSubmissions = (subsData || []).filter((s: any) => {
