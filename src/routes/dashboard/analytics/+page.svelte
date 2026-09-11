@@ -23,6 +23,7 @@
         calculateCompliance,
         getDefinedWeeksCount,
         getDynamicSchoolYear,
+        isComplianceTrackedDocType,
     } from "$lib/utils/useDashboardData";
     import { TrendingUp, AlertTriangle, Users, Building2, WifiOff } from "lucide-svelte";
     import { connectivity } from "$lib/stores/connectivity";
@@ -78,8 +79,17 @@
                 expectedTotal = totalLoads * definedWeeks;
 
                 if (analyticsData) {
-                    const submissions = analyticsData.complianceTrend || [];
-                    const teacherData = analyticsData.teacherPerformance || analyticsData.teacherDistribution || [];
+                    // ISP/ISR aren't part of the weekly DLL cadence these
+                    // trend/distribution/cluster metrics measure — excluded
+                    // the same way calculateCompliance excludes them.
+                    // docTypeStats (below) is left untouched since that chart
+                    // specifically shows the breakdown across all doc types.
+                    const submissions = (analyticsData.complianceTrend || []).filter(
+                        (s: any) => isComplianceTrackedDocType(s.doc_type),
+                    );
+                    const teacherData = (
+                        analyticsData.teacherPerformance || analyticsData.teacherDistribution || []
+                    ).filter((s: any) => isComplianceTrackedDocType(s.doc_type));
 
                     trends = {
                         compliance: generateComplianceTrend(submissions, 'week'),

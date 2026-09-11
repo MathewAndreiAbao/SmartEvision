@@ -9,7 +9,7 @@
   import ProfileUploader from "$lib/components/ProfileUploader.svelte";
   import { onMount, onDestroy } from "svelte";
   import { fly, fade } from "svelte/transition";
-  import { Building2, Search } from "lucide-svelte";
+  import { Building2, Search, ArrowUpDown } from "lucide-svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import { addToast } from "$lib/stores/toast";
   import {
@@ -536,6 +536,27 @@
             placeholder="Search school records..."
             class="w-full sm:w-72 pl-10 pr-4 py-2 text-[11px] font-bold bg-surface-white border border-border-subtle rounded-md outline-none focus:ring-2 focus:ring-gov-blue/20 transition-colors placeholder:text-text-muted/60 uppercase tracking-tight"
           />
+        </div>
+        <div class="flex items-center gap-2">
+          <select
+            bind:value={sortField}
+            aria-label="Sort schools by"
+            class="px-3 py-2 text-[11px] font-bold bg-surface-white border border-border-subtle rounded-md outline-none focus:ring-2 focus:ring-gov-blue/20 uppercase tracking-tight"
+          >
+            <option value="name">Name</option>
+            <option value="rate">Compliance Rate</option>
+            <option value="Late">Late</option>
+            <option value="NonCompliant">Missing</option>
+          </select>
+          <button
+            type="button"
+            onclick={() => (sortDir = sortDir === "asc" ? "desc" : "asc")}
+            class="p-2 rounded-md bg-surface-white border border-border-subtle text-text-muted hover:text-gov-blue hover:border-gov-blue/30 transition-colors flex-shrink-0"
+            title={sortDir === "asc" ? "Ascending — click to reverse" : "Descending — click to reverse"}
+            aria-label="Toggle sort direction"
+          >
+            <ArrowUpDown size={16} class={sortDir === "asc" ? "" : "scale-y-[-1]"} />
+          </button>
         </div>
       </div>
 

@@ -17,6 +17,7 @@
         getDefinedWeeksCount,
         getDynamicSchoolYear,
         normalizeComplianceStatus,
+        isComplianceTrackedDocType,
     } from "$lib/utils/useDashboardData";
     import {
         QrCode,
@@ -245,7 +246,11 @@
         );
 
         recentActivity = (subsResult.data || []).slice(0, 5);
-        stats.totalUploads = (subsResult.data || []).length;
+        // ISP/ISR aren't part of the weekly DLL cadence — excluded from the
+        // upload count the same way calculateCompliance excludes them above.
+        stats.totalUploads = submissions.filter((s: any) =>
+            isComplianceTrackedDocType(s.doc_type),
+        ).length;
         stats.compliantRate = complianceStats.rate;
     }
 
@@ -393,6 +398,13 @@
         // Monitoring's currentDefinedWeeks).
         const definedWeeks = calendarArr.filter((c: any) => c.is_active).length || 1;
 
+        // ISP/ISR are one-off administrative uploads, not part of the weekly
+        // DLL cadence — excluded here (and below) so they never inflate
+        // "total uploads" or skew compliant/late/missing counts. They still
+        // show up in recentActivity (with their doc type labeled) since that
+        // list is meant to reflect everything uploaded, not just DLLs.
+        const complianceSubs = allSubs.filter((s) => isComplianceTrackedDocType(s.doc_type));
+
         // Per-teacher compliance: expected = active loads x defined weeks.
         // Missing = expected - (compliant + late). This matches the teacher
         // dashboard's own numbers, just summed across the supervisor's scope.
@@ -403,7 +415,7 @@
         teacherCompliance = teachersWithNames.map((t) => {
             const myLoads = loadsByTeacher[t.id] || [];
             const expected = myLoads.length * definedWeeks;
-            const mySubs = allSubs.filter((s) => s.user_id === t.id);
+            const mySubs = complianceSubs.filter((s) => s.user_id === t.id);
             const compliant = mySubs.filter(
                 (s) =>
                     !s.compliance_status ||
@@ -432,16 +444,15 @@
         const totalLoads = loads.length;
         const totalExpected = totalLoads * definedWeeks;
 
-        const subsCount = results[1].status === 'fulfilled' ? results[1].value.count || 0 : 0;
         stats.totalTeachers = teachersWithNames.length;
-        stats.totalUploads = subsCount;
-        stats.compliantCount = allSubs.filter(
+        stats.totalUploads = complianceSubs.length;
+        stats.compliantCount = complianceSubs.filter(
             (s) =>
                 !s.compliance_status ||
                 s.compliance_status === "compliant" ||
                 s.compliance_status === "on-time",
         ).length;
-        stats.lateCount = allSubs.filter(
+        stats.lateCount = complianceSubs.filter(
             (s) => s.compliance_status === "late",
         ).length;
 
@@ -451,14 +462,16 @@
         );
 
         // Use the new standard calculateCompliance for the overall rate to keep display consistent with expected defaults
-        const overallStats = calculateCompliance(allSubs, totalExpected);
+        const overallStats = calculateCompliance(complianceSubs, totalExpected);
         stats.compliantRate = overallStats.rate;
 
+        // Recent activity intentionally keeps ISP/ISR (shown with their doc
+        // type) — it's a feed of everything uploaded, not a compliance metric.
         recentActivity = allSubs.slice(0, 5);
 
-        // Predictive integrity alerts (pattern detection)
+        // Predictive integrity alerts (pattern detection) — DLL-cadence only.
         const { detectPatterns } = await import("$lib/utils/patternDetection");
-        alerts = detectPatterns(allSubs, calendarArr, teachersWithNames);
+        alerts = detectPatterns(complianceSubs, calendarArr, teachersWithNames);
     }
 
 
@@ -995,7 +1008,9 @@
                 class="text-sm font-bold text-text-muted uppercase tracking-widest mb-6 flex items-center gap-2"
             >
                 <div class="h-1 w-4 bg-gov-gold"></div>
-                Recent School Activity
+                {$profile?.role === "District Supervisor"
+                    ? "Recent District Activity"
+                    : "Recent School Activity"}
             </h2>
 
             {#if recentActivity.length === 0}
@@ -1034,6 +1049,20 @@
                                 >
                                     {item.file_name}
                                 </h4>
+                                <div class="flex flex-wrap items-center gap-1.5 mt-2">
+                                    <span
+                                        class="px-2 py-0.5 bg-gov-blue/5 text-gov-blue text-[10px] font-bold rounded uppercase tracking-wider"
+                                    >
+                                        {item.doc_type || "Unknown"}
+                                    </span>
+                                    {#if item.doc_type === "DLL" && item.week_number != null}
+                                        <span
+                                            class="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 text-[10px] font-bold rounded uppercase tracking-wider"
+                                        >
+                                            W{item.week_number}
+                                        </span>
+                                    {/if}
+                                </div>
                             </div>
 
                             <div

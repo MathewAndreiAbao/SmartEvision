@@ -10,7 +10,7 @@
     import { onMount, onDestroy } from "svelte";
     import { fly, fade } from "svelte/transition";
     import { goto } from "$app/navigation";
-    import { School as SchoolIcon, Eye, Users, LineChart } from "lucide-svelte";
+    import { School as SchoolIcon, Eye, Users, LineChart, ArrowUpDown } from "lucide-svelte";
     import EmptyState from "$lib/components/EmptyState.svelte";
     import { addToast } from "$lib/stores/toast";
     import {
@@ -25,6 +25,7 @@
         getDefinedWeeksCount,
         getDynamicSchoolYear,
         getCurrentWeekFromCalendar,
+        isComplianceTrackedDocType,
     } from "$lib/utils/useDashboardData";
     import {
         extractFeatures,
@@ -304,13 +305,17 @@
             },
         ];
 
-        // K-Means clustering
-        const tData = allSubmissions.map((s) => ({
-            user_id: s.user_id,
-            compliance_status: s.compliance_status,
-            week_number: s.week_number,
-            created_at: s.created_at,
-        }));
+        // K-Means clustering — ISP/ISR aren't part of the weekly DLL cadence
+        // these behavioral features (punctuality, completeness) measure, so
+        // they're excluded the same way calculateCompliance excludes them.
+        const tData = allSubmissions
+            .filter((s) => isComplianceTrackedDocType(s.doc_type))
+            .map((s) => ({
+                user_id: s.user_id,
+                compliance_status: s.compliance_status,
+                week_number: s.week_number,
+                created_at: s.created_at,
+            }));
         // Use weeks elapsed so far (not the full calendar's defined weeks,
         // which can include far-future weeks nobody has reached yet) so
         // "completeness" isn't unfairly diluted for teachers who are fully
@@ -641,12 +646,33 @@
                 <h3 class="text-lg font-bold text-text-primary">
                     Teacher Compliance
                 </h3>
-                <input
-                    type="text"
-                    bind:value={searchQuery}
-                    placeholder="Search teacher..."
-                    class="w-full sm:w-56 px-4 py-2 text-sm bg-surface-white/60 border border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/30 focus:border-gov-blue outline-none"
-                />
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <input
+                        type="text"
+                        bind:value={searchQuery}
+                        placeholder="Search teacher..."
+                        class="flex-1 sm:w-56 px-4 py-2 text-sm bg-surface-white/60 border border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/30 focus:border-gov-blue outline-none"
+                    />
+                    <select
+                        bind:value={sortField}
+                        aria-label="Sort teachers by"
+                        class="px-3 py-2 text-sm font-bold bg-surface-white/60 border border-border-subtle rounded-xl focus:ring-2 focus:ring-gov-blue/30 focus:border-gov-blue outline-none"
+                    >
+                        <option value="full_name">Name</option>
+                        <option value="rate">Compliance Rate</option>
+                        <option value="Late">Late</option>
+                        <option value="NonCompliant">Missing</option>
+                    </select>
+                    <button
+                        type="button"
+                        onclick={() => (sortDir = sortDir === "asc" ? "desc" : "asc")}
+                        class="p-2.5 rounded-xl bg-surface-white/60 border border-border-subtle text-text-muted hover:text-gov-blue hover:border-gov-blue/30 transition-colors flex-shrink-0"
+                        title={sortDir === "asc" ? "Ascending — click to reverse" : "Descending — click to reverse"}
+                        aria-label="Toggle sort direction"
+                    >
+                        <ArrowUpDown size={16} class={sortDir === "asc" ? "" : "scale-y-[-1]"} />
+                    </button>
+                </div>
             </div>
 
             {#if sortedTeachers().length === 0}

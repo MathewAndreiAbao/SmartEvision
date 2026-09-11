@@ -113,6 +113,16 @@ export async function getDefinedWeeksCount(
 }
 
 /**
+ * ISP/ISR are one-off administrative uploads (Individual/School Plans and
+ * Reports), not part of the weekly DLL submission cadence — they must never
+ * count toward, or dilute, compliance rates or "total uploaded" figures.
+ */
+export function isComplianceTrackedDocType(docType: string | null | undefined): boolean {
+  const dt = (docType || '').toUpperCase().trim();
+  return dt !== 'ISP' && dt !== 'ISR';
+}
+
+/**
  * Deduplicate submissions by slot (teaching_load_id + week_number + doc_type).
  * When a teacher uploads multiple documents for the same week/load, only the
  * most recent submission per slot is counted toward compliance.
@@ -172,7 +182,8 @@ export function calculateCompliance(
   submissions: { compliance_status?: string; created_at?: string; teaching_load_id?: string | null; week_number?: number | null; doc_type?: string | null }[],
   expectedTotal: number = 0
 ): ComplianceStats {
-  const deduped = deduplicateSubmissions(submissions as { teaching_load_id?: string | null; week_number?: number | null; doc_type?: string | null; created_at?: string }[]);
+  const tracked = submissions.filter((s) => isComplianceTrackedDocType(s.doc_type));
+  const deduped = deduplicateSubmissions(tracked as { teaching_load_id?: string | null; week_number?: number | null; doc_type?: string | null; created_at?: string }[]);
   const counts = countSubmissionsByStatus(deduped as { compliance_status?: string }[]);
 
   // Instead of counting DB records for non-compliant, we deduce it:

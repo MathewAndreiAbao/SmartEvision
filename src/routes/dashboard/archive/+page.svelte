@@ -26,6 +26,7 @@
         X,
         ArrowLeft,
         FileSpreadsheet,
+        ArrowUpDown,
     } from "lucide-svelte";
     import { exportStyledExcel } from "$lib/utils/excelExport";
     import type { ReportOptions } from "$lib/utils/excelExport";
@@ -89,6 +90,8 @@
     // â"€â"€ Remarks & Review Status â"€â"€
     let reviewsMap = $state<Record<string, { reviewer_comment: string | null; status: string | null; return_reason: string | null }>>({});
     let statusFilter = $state<"all" | "for-checking" | "checked">("all");
+    let sortField = $state<"date" | "name" | "size">("date");
+    let sortDir = $state<"asc" | "desc">("desc");
 
     let remarkModalOpen = $state(false);
     let remarkTarget = $state<Submission | null>(null);
@@ -522,6 +525,19 @@
                 return statusFilter === "checked" ? isChecked : !isChecked;
             });
         }
+        // Sort — keeps large document lists navigable instead of stuck in
+        // whatever order the database happened to return them.
+        filtered = [...filtered].sort((a, b) => {
+            let cmp = 0;
+            if (sortField === "date") {
+                cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+            } else if (sortField === "name") {
+                cmp = a.file_name.localeCompare(b.file_name);
+            } else if (sortField === "size") {
+                cmp = (a.file_size || 0) - (b.file_size || 0);
+            }
+            return sortDir === "asc" ? cmp : -cmp;
+        });
         return filtered;
     });
 
@@ -947,6 +963,28 @@
                     {opt === "all" ? "All" : opt === "for-checking" ? "For Checking" : "Checked"}
                 </button>
             {/each}
+        </div>
+
+        <!-- Sort -->
+        <div class="flex items-center gap-2 flex-shrink-0">
+            <select
+                bind:value={sortField}
+                aria-label="Sort files by"
+                class="px-3 py-2.5 text-sm font-bold bg-surface-muted border border-border-subtle rounded-xl outline-none focus:ring-2 focus:ring-gov-blue/30 focus:border-gov-blue"
+            >
+                <option value="date">Date</option>
+                <option value="name">Name</option>
+                <option value="size">Size</option>
+            </select>
+            <button
+                type="button"
+                onclick={() => (sortDir = sortDir === "asc" ? "desc" : "asc")}
+                class="p-2.5 rounded-xl bg-surface-muted border border-border-subtle text-text-muted hover:text-gov-blue hover:border-gov-blue/30 transition-colors"
+                title={sortDir === "asc" ? "Ascending — click to reverse" : "Descending — click to reverse"}
+                aria-label="Toggle sort direction"
+            >
+                <ArrowUpDown size={16} class={sortDir === "asc" ? "" : "scale-y-[-1]"} />
+            </button>
         </div>
 
         <!-- Export Buttons -->
