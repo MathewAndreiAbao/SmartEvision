@@ -31,7 +31,7 @@ export const navItems: NavItem[] = [
     // ========== SHARED ACROSS ALL ROLES ==========
     {
         href: "/dashboard",
-        label: "Dashboard",
+        label: "Home",
         icon: LayoutDashboard,
         mobileNav: true,
         priority: 1,
@@ -51,7 +51,7 @@ export const navItems: NavItem[] = [
     },
     {
         href: "/dashboard/archive",
-        label: "My Files",
+        label: "Archives",
         icon: Archive,
         mobileNav: true,
         priority: 3,
@@ -88,7 +88,7 @@ export const navItems: NavItem[] = [
     },
     {
         href: "/dashboard/archive",
-        label: "Documents",
+        label: "Archives",
         icon: Archive,
         mobileNav: true,
         priority: 4,
@@ -125,7 +125,7 @@ export const navItems: NavItem[] = [
     },
     {
         href: "/dashboard/archive",
-        label: "Submissions",
+        label: "Archives",
         icon: Archive,
         mobileNav: true,
         priority: 4,
@@ -153,7 +153,7 @@ export const navItems: NavItem[] = [
     },
     {
         href: "/dashboard/archive",
-        label: "Submissions",
+        label: "Archives",
         icon: Archive,
         mobileNav: true,
         priority: 3,

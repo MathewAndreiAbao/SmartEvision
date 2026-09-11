@@ -245,7 +245,10 @@
             calendar,
         );
 
-        recentActivity = (subsResult.data || []).slice(0, 5);
+        // 15 rather than 5: the list is now a fixed-height scrollable box,
+        // so extra rows add history to scroll through instead of lengthening
+        // the page.
+        recentActivity = (subsResult.data || []).slice(0, 15);
         // ISP/ISR aren't part of the weekly DLL cadence — excluded from the
         // upload count the same way calculateCompliance excludes them above.
         stats.totalUploads = submissions.filter((s: any) =>
@@ -467,7 +470,7 @@
 
         // Recent activity intentionally keeps ISP/ISR (shown with their doc
         // type) — it's a feed of everything uploaded, not a compliance metric.
-        recentActivity = allSubs.slice(0, 5);
+        recentActivity = allSubs.slice(0, 15);
 
         // Predictive integrity alerts (pattern detection) — DLL-cadence only.
         const { detectPatterns } = await import("$lib/utils/patternDetection");
@@ -609,7 +612,7 @@
 </script>
 
 <svelte:head>
-    <title>Dashboard — CEDIMS</title>
+    <title>Home — CEDIMS</title>
 </svelte:head>
 
 <div>
@@ -1008,6 +1011,9 @@
                 class="text-sm font-bold text-text-muted uppercase tracking-widest mb-6 flex items-center gap-2"
             >
                 <div class="h-1 w-4 bg-gov-gold"></div>
+                <!-- This whole block lives in the non-Teacher branch, so only
+                     School Head / Master Teacher / District Supervisor reach
+                     it; a Teacher has no Recent Activity section at all. -->
                 {$profile?.role === "District Supervisor"
                     ? "Recent District Activity"
                     : "Recent School Activity"}
@@ -1022,6 +1028,12 @@
                     </p>
                 </div>
             {:else}
+                <!-- Boxed with its own scrollbar so a long activity list stays
+                     a fixed block on the dashboard instead of pushing every
+                     section below it off the screen. -->
+                <div
+                    class="gov-card-static rounded-2xl p-4 max-h-[26rem] overflow-y-auto"
+                >
                 <div
                     class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
                 >
@@ -1084,6 +1096,7 @@
                             </div>
                         </div>
                     {/each}
+                </div>
                 </div>
             {/if}
         </div>

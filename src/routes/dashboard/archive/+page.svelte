@@ -894,7 +894,7 @@
 <div>
     <!-- Header -->
     <div class="mb-6">
-        <h1 class="text-2xl font-bold text-text-primary">Document Archive</h1>
+        <h1 class="text-2xl font-bold text-text-primary">Archives</h1>
         <p class="text-base text-text-secondary mt-1">{getSubtitle()}</p>
     </div>
 

@@ -21,7 +21,7 @@ export const walkthroughGuides: Record<string, WalkthroughGuide> = {
         intro: "Let's explore the main tabs and features you'll use every day.",
         navSteps: [
             {
-                title: "Dashboard",
+                title: "Home",
                 content: "Your home base. Shows your compliance rate, upcoming deadlines, and recent feedback.",
                 tip: "Check here every morning.",
                 target: "dashboard",
@@ -33,7 +33,7 @@ export const walkthroughGuides: Record<string, WalkthroughGuide> = {
                 target: "upload",
             },
             {
-                title: "My Files",
+                title: "Archives",
                 content: "View every submission you've made. Status badges show On-time, Due soon, or Late.",
                 tip: "Track your compliance history here.",
                 target: "archive",
@@ -45,7 +45,7 @@ export const walkthroughGuides: Record<string, WalkthroughGuide> = {
         intro: "You manage your own teaching load AND oversee school compliance. Let's explore your key tabs.",
         navSteps: [
             {
-                title: "Dashboard",
+                title: "Home",
                 content: "Your compliance, school compliance, top teachers, and at-risk teachers — your command center.",
                 tip: "Identify who needs support at a glance.",
                 target: "dashboard",
@@ -63,7 +63,7 @@ export const walkthroughGuides: Record<string, WalkthroughGuide> = {
                 target: "school",
             },
             {
-                title: "Documents",
+                title: "Archives",
                 content: "All school submissions in one place. Filter, sort, add remarks, and export reports.",
                 tip: "Reports impress your principal.",
                 target: "documents",
@@ -75,7 +75,7 @@ export const walkthroughGuides: Record<string, WalkthroughGuide> = {
         intro: "You oversee school compliance and document management. Let's master the key tabs.",
         navSteps: [
             {
-                title: "Dashboard",
+                title: "Home",
                 content: "School compliance rate, compliant/late DLLs, top teachers, and trends — your performance center.",
                 tip: "Great to reference in staff meetings.",
                 target: "dashboard",
@@ -93,7 +93,7 @@ export const walkthroughGuides: Record<string, WalkthroughGuide> = {
                 target: "staff",
             },
             {
-                title: "Submissions",
+                title: "Archives",
                 content: "All school DLLs plus Master Teacher ISP/ISR. Filter, sort, add remarks, and approve.",
                 tip: "Guide improvement with clear remarks.",
                 target: "submissions",
@@ -105,7 +105,7 @@ export const walkthroughGuides: Record<string, WalkthroughGuide> = {
         intro: "You oversee every school in the district. Let's explore your district-wide tools.",
         navSteps: [
             {
-                title: "Dashboard",
+                title: "Home",
                 content: "District compliance rate, totals, and school rankings — your executive summary.",
                 tip: "Handy when preparing reports.",
                 target: "dashboard",
@@ -117,7 +117,7 @@ export const walkthroughGuides: Record<string, WalkthroughGuide> = {
                 target: "schools",
             },
             {
-                title: "Submissions",
+                title: "Archives",
                 content: "All ISP/ISR from School Heads and Master Teachers. Filter, sort, add remarks, and approve.",
                 tip: "Your remarks drive real improvement.",
                 target: "submissions",

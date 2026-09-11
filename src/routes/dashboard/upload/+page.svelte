@@ -295,7 +295,7 @@
             untrack(() => {
                 // District Supervisors cannot upload - redirect to archive
                 if ($profile!.role === 'District Supervisor') {
-                    addToast('info', 'District Supervisors use the Documents tab to review submissions and add remarks.');
+                    addToast('info', 'District Supervisors use the Archives tab to review submissions and add remarks.');
                     goto('/dashboard/archive');
                     return;
                 }

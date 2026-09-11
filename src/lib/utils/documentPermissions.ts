@@ -72,8 +72,13 @@ export function canAddRemarkToISPISR(
 }
 
 export function canAddReviewRemarks(role: string): boolean {
-  // School Heads and District Supervisors can add remarks
-  return role === 'School Head' || role === 'District Supervisor';
+  // Master Teachers review DLLs alongside their School Head — that is the
+  // instructional-supervision part of the role — so they can leave remarks
+  // too. Scope is enforced by what each role can see rather than here: the
+  // archive query restricts both Master Teacher and School Head to their own
+  // school (profiles.school_id), so this only ever grants remarks on
+  // documents from their own school.
+  return role === 'Master Teacher' || role === 'School Head' || role === 'District Supervisor';
 }
 
 export function getUploadGuidance(role: string): string {
@@ -85,7 +90,7 @@ export function getUploadGuidance(role: string): string {
     case 'School Head':
       return 'School Heads may upload Individual School Plans (ISP) and Individual School Reports (ISR) only.';
     case 'District Supervisor':
-      return 'District Supervisors can view and manage ISP/ISR documents, but do not upload. Use the Documents tab to review submissions.';
+      return 'District Supervisors can view and manage ISP/ISR documents, but do not upload. Use the Archives tab to review submissions.';
     default:
       return 'Please sign in to continue.';
   }
