@@ -603,7 +603,7 @@
                 in:fly={{ y: 20, duration: 500, delay: 500 }}
             >
                 <h3 class="text-lg font-bold text-text-primary mb-4">
-                    Compliance Heatmap
+                    Submissions by Week
                 </h3>
                 <div class="overflow-auto max-h-[70vh] touch-pan-x cedims-scroll">
                 <ComplianceHeatmap
@@ -800,10 +800,10 @@
                 <div class="flex items-center justify-between mb-4">
                     <div>
                         <h3 class="text-lg font-bold text-text-primary">
-                            Teacher Behavior Clusters
+                            Teacher Performance Groups
                         </h3>
                         <p class="text-sm text-text-secondary">
-                            AI-powered grouping by submission patterns
+                            Teachers grouped by how consistently they submit
                         </p>
                     </div>
                     <button

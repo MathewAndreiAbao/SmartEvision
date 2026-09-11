@@ -178,8 +178,8 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard label="Overall Compliance" value="{overallStats.rate}%" icon="TrendingUp" color="from-gov-green to-gov-green-dark" />
             <StatCard label="Compliant" value={overallStats.compliant} icon="TrendingUp" color="from-gov-green to-gov-green-dark" />
-            <StatCard label="At-Risk" value={atRiskList.length} icon="AlertTriangle" color="from-gov-red to-red-700" />
-            <StatCard label="Entities" value={distributions?.byTeacher?.length || 0} icon="Users" color="from-gov-blue to-gov-blue-dark" />
+            <StatCard label="Needs Support" value={atRiskList.length} icon="AlertTriangle" color="from-gov-red to-red-700" />
+            <StatCard label="Teachers" value={distributions?.byTeacher?.length || 0} icon="Users" color="from-gov-blue to-gov-blue-dark" />
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -228,7 +228,7 @@
             {/if}
             {#if clusters?.atRisk?.length}
                 <div class="gov-card-static bg-gov-red/5 p-6">
-                    <h3 class="text-lg font-bold text-gov-red mb-4">At-Risk ({clusters.atRisk.length})</h3>
+                    <h3 class="text-lg font-bold text-gov-red mb-4">Needs Support ({clusters.atRisk.length})</h3>
                     <div class="space-y-2">{#each clusters.atRisk.slice(0, 5) as e}<div class="p-2 bg-surface-muted rounded"><p class="text-sm font-semibold truncate">{e.name}</p><p class="text-xs text-gov-red">{e.compliance_rate}%</p></div>{/each}</div>
                 </div>
             {/if}

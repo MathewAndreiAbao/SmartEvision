@@ -450,7 +450,7 @@
         <StatCard
           icon="ShieldAlert"
           value={kpi.atRiskCount}
-          label="Alert Schools"
+          label="Needs Attention"
           color="from-gov-red to-red-700"
         />
       </div>
@@ -463,7 +463,7 @@
         in:fly={{ y: 20, duration: 500, delay: 400 }}
       >
         <h3 class="text-lg font-bold text-text-primary mb-4">
-          School Performance Heatmap
+          Submissions by Week
         </h3>
         <div class="overflow-auto max-h-[70vh] touch-pan-x cedims-scroll">
         <ComplianceHeatmap

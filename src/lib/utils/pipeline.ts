@@ -181,14 +181,14 @@ async function* runPipelineCore(
 
     if (isSlowConnection && isSmallEnough) {
         console.log('[pipeline] Low-power/Slow-connection detected. Skipping non-essential compression.');
-        yield { phase: 'compressing', progress: 30, message: 'Fast-tracking small file...' };
+        yield { phase: 'compressing', progress: 30, message: 'Preparing your file...' };
     } else {
-        yield { phase: 'compressing', progress: 30, message: 'Optimizing for mobile...' };
+        yield { phase: 'compressing', progress: 30, message: 'Preparing your file...' };
         pdfBytes = await compressFile(pdfBytes);
     }
 
     // 2.5. Analyzing (OCR) - Use converted PDF bytes for OCR, not the original file
-    yield { phase: 'analyzing', progress: 30, message: 'Analyzing document content...' };
+    yield { phase: 'analyzing', progress: 30, message: 'Reading your document...' };
     const { extractMetadata } = await import('./ocr');
     const pdfBlob = new Blob([pdfBytes as BlobPart]);
     const ocrFile = file.type === 'application/pdf' ? file : new File([pdfBlob], file.name.replace(/\.\w+$/, '.pdf'), { type: 'application/pdf' });
@@ -196,7 +196,7 @@ async function* runPipelineCore(
     const detectedMetadata = hasPreDetected ? options.preDetectedMetadata : await extractMetadata(ocrFile);
 
     // 3. Compress & Hash
-    yield { phase: 'compressing', progress: 50, message: 'Compressing and hashing...' };
+    yield { phase: 'compressing', progress: 50, message: 'Securing your file...' };
     const { compressedBytes, fileHash } = await runWorkerTask(
         worker,
         'COMPRESS_AND_HASH',
@@ -205,7 +205,7 @@ async function* runPipelineCore(
     );
 
     // 4. Stamping
-    yield { phase: 'stamping', progress: 70, message: 'Embedding verification stamp...' };
+    yield { phase: 'stamping', progress: 70, message: 'Adding verification code...' };
     const { generateQrPng } = await import('./qr-stamp');
     const qrBytes = await generateQrPng(fileHash);
     const { stampedBytes } = await runWorkerTask(
@@ -225,7 +225,7 @@ async function* runPipelineCore(
     yield {
         phase: 'uploading',
         progress: 90,
-        message: 'Processing complete, ready to archive.',
+        message: 'Ready to upload...',
             _core: {
                 stampedBytes: new Uint8Array(stampedBytes),
                 fileHash,
@@ -247,7 +247,7 @@ async function* runOnlinePipelineResilient(
 ): AsyncGenerator<PipelineEvent> {
     const { stampedBytes, fileHash, fileName, filePath, activeWeekNumber, activeDocType, rawText } = core;
 
-    yield { phase: 'uploading', progress: 10, message: 'Verifying with server...' };
+    yield { phase: 'uploading', progress: 10, message: 'Checking your document...' };
 
     const { lookupOfflineDoc, cacheVerifiedDoc, calculateComplianceStatus } = await import('./offline');
     const { recordSubmission } = await import('./offlineSubmissionLedger');
@@ -275,7 +275,7 @@ async function* runOnlinePipelineResilient(
                 'Calendar lookup timed out.'
             ) as { data: any };
             if (!calEntry) {
-                yield { phase: 'uploading', progress: 15, message: 'Verifying with server...' };
+                yield { phase: 'uploading', progress: 15, message: 'Checking your document...' };
                 const { data: profileData } = await withTimeout(
                     supabase
                         .from('profiles')
@@ -348,11 +348,11 @@ async function* runOnlinePipelineResilient(
     }
 
     // ─── Server-Side Upload (CORS-Safe) with B2 Presigned Fallback ───
-    yield { phase: 'uploading', progress: 40, message: 'Uploading securely via server...' };
+    yield { phase: 'uploading', progress: 40, message: 'Uploading...' };
     const session = await supabase.auth.getSession();
     const token = session.data.session?.access_token;
 
-    if (!token) throw new Error('Authentication required for archive.');
+    if (!token) throw new Error('You have been signed out. Please sign in again and retry.');
 
     const contentType = 'application/pdf';
     const MAX_SERVER_UPLOAD = 4.4 * 1024 * 1024; // 4.4MB limit for Vercel (4.5MB - safety margin)
@@ -370,7 +370,7 @@ async function* runOnlinePipelineResilient(
     console.log(`[pipeline] File size: ${(fileBlob.size / 1024 / 1024).toFixed(2)}MB, Max server: ${(MAX_SERVER_UPLOAD / 1024 / 1024).toFixed(2)}MB`);
 
     if (fileBlob.size <= MAX_SERVER_UPLOAD) {
-        yield { phase: 'uploading', progress: 45, message: 'Uploading via secure server route...' };
+        yield { phase: 'uploading', progress: 45, message: 'Uploading...' };
         try {
             const formData = new FormData();
             formData.append('file', fileBlob, 'document.pdf');
@@ -401,7 +401,7 @@ async function* runOnlinePipelineResilient(
 
     // Strategy 2: Fallback to B2 presigned URL if server upload failed or file too large
     if (!uploadSuccess) {
-        yield { phase: 'uploading', progress: 50, message: 'Uploading to cloud storage...' };
+        yield { phase: 'uploading', progress: 50, message: 'Uploading...' };
         try {
             const presignResponse = await withTimeout(
                 fetch('/api/storage/presign', {
@@ -439,31 +439,32 @@ async function* runOnlinePipelineResilient(
                     errStr = errJson.message || errStr;
                 } catch { /* ignore */ }
 
-                // CORS error detected - provide helpful message
                 if (errStr.includes('CORS') || errStr.includes('Access')) {
-                    throw new Error('B2 CORS not configured. See DEPLOYMENT_FIXES.md for setup instructions. Using server-side upload as fallback.');
+                    console.error('[pipeline] B2 CORS not configured for this origin — see DEPLOYMENT_FIXES.md');
+                    throw new Error('Could not reach the storage service. Please try again.');
                 }
-                throw new Error(`Archive upload failed (${uploadResponse.status}): ${errStr}`);
+                console.error(`[pipeline] Archive upload failed (${uploadResponse.status}): ${errStr}`);
+                throw new Error('Upload could not be completed. Please try again.');
             }
 
             uploadSuccess = true;
             console.log('[pipeline] B2 presigned URL upload succeeded');
         } catch (err: any) {
-            // If B2 fails too, throw error with helpful guidance
             const msg = err.message || 'Upload failed';
             if (msg.includes('CORS')) {
-                throw new Error(`${msg} CORS configuration needed on B2 bucket for cedims.vercel.app`);
+                console.error('[pipeline] B2 bucket CORS configuration needed for this origin');
+                throw new Error('Could not reach the storage service. Please try again.');
             }
             throw err;
         }
     }
 
     if (!uploadSuccess) {
-        throw new Error('File upload failed on both server and B2 storage');
+        throw new Error('Upload could not be completed. Please check your connection and try again.');
     }
 
     // DB Record
-    yield { phase: 'uploading', progress: 80, message: 'Finalizing cloud record...' };
+    yield { phase: 'uploading', progress: 80, message: 'Finishing up...' };
 
     // Detect whether this is an ADDITIONAL DLL for an already-covered slot
     // (same teaching load + week + doc type). If so, mark it 'supplementary'
@@ -560,7 +561,7 @@ async function* runOfflinePipelineResilient(
     // (document archived, stamped, and on its way to the server), only the
     // transfer is deferred. Wording stays truthful about what is happening at
     // each step rather than claiming a server round-trip that hasn't run yet.
-    yield { phase: 'uploading', progress: 10, message: 'Verifying document...' };
+    yield { phase: 'uploading', progress: 10, message: 'Checking your document...' };
 
     const { enqueue, cacheVerifiedDoc, lookupOfflineDoc } = await import('./offline');
     const { recordSubmission } = await import('./offlineSubmissionLedger');
@@ -583,7 +584,7 @@ async function* runOfflinePipelineResilient(
     // network call is expected, so nothing is lost by leaving it unset.
     const calendarId = options.calendarId || null;
 
-    yield { phase: 'uploading', progress: 45, message: 'Uploading securely...' };
+    yield { phase: 'uploading', progress: 45, message: 'Uploading...' };
 
     await enqueue({
         fileName,
@@ -607,7 +608,7 @@ async function* runOfflinePipelineResilient(
         timestamp: Date.now()
     });
 
-    yield { phase: 'uploading', progress: 80, message: 'Finalizing submission record...' };
+    yield { phase: 'uploading', progress: 80, message: 'Finishing up...' };
 
     if (options.teachingLoadId && activeWeekNumber) {
         await recordSubmission({
@@ -673,7 +674,7 @@ export async function* runPipeline(
             if (event._core) core = event._core;
             yield { phase: event.phase, progress: event.progress, message: event.message, metadata: event.metadata };
         }
-        if (!core) throw new Error('Processing failed.');
+        if (!core) throw new Error('Could not process this file. Please try a different file.');
 
         // Mobile always goes local-first: queue now, sync in the background.
         // Waiting on the transfer is the single thing that made mobile uploads
@@ -703,7 +704,7 @@ export async function* runPipeline(
                 // background sync with nothing to authenticate with.
                 const isTerminal =
                     msg.includes('already been uploaded') ||
-                    msg.includes('Authentication required');
+                    msg.includes('signed out');
                 if (isTerminal) throw err;
 
                 console.warn('[pipeline] Direct upload failed, falling back to background sync:', msg);

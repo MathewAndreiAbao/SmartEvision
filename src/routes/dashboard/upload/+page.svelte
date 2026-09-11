@@ -1274,10 +1274,10 @@
                                     <p
                                         class="text-[10px] font-semibold text-text-primary uppercase tracking-normal"
                                     >
-                                        AI Extraction Integrity
+                                        Auto-Detected Details
                                     </p>
                                     <p class="text-[9px] text-text-muted">
-                                        Reliability of automated metadata
+                                        How sure the system is
                                     </p>
                                 </div>
                             </div>
@@ -1449,7 +1449,7 @@
 
             <div class="gov-card-static bg-gov-gold/5 p-6">
                 <h3 class="text-lg font-bold text-text-primary mb-3">
-                    Security & Integrity
+                    Document Security
                 </h3>
                 <p class="text-sm text-text-secondary mb-3">
                     Your documents are secured with <strong>SHA-256</strong> digital
