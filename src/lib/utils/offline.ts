@@ -344,8 +344,24 @@ export async function getQueueItems(): Promise<QueueItem[]> {
 }
 
 import { addToast } from '$lib/stores/toast';
+import { isMobileDevice } from './device';
 
-// ... (previous imports)
+/**
+ * Background-sync chatter ("Syncing N offline file(s)...", "Synced N file(s)
+ * successfully!", and so on).
+ *
+ * On mobile every upload goes through the queue by design — the document is
+ * processed, stamped and reported as archived before the transfer runs — so
+ * these notices fire on every single upload and contradict the success the
+ * teacher was just shown. They're plumbing, not information the teacher can
+ * act on, so they stay silent there. Desktop only reaches the queue when a
+ * direct upload actually failed, where the same notices are genuinely
+ * informative, so they're kept.
+ */
+function syncToast(type: 'info' | 'success' | 'warning' | 'error', message: string) {
+    if (isMobileDevice()) return;
+    addToast(type, message);
+}
 
 let isSyncing = false;
 
@@ -401,7 +417,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
     let failed = 0;
 
     // Notify start
-    addToast('info', `Syncing ${queueKeys.length} offline file(s)...`);
+    syncToast('info', `Syncing ${queueKeys.length} offline file(s)...`);
 
     // Lazy-import ledger for marking synced entries
     const { markSynced, removeLedgerEntry } = await import('./offlineSubmissionLedger');
@@ -450,7 +466,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                         await del(key);
                         await updatePendingCount();
                         await markSynced(item.fileHash); // Update ledger to 'synced'
-                        addToast('warning', `Already archived: ${item.options.docType || 'DLL'} for Week ${item.options.weekNumber}.`);
+                        syncToast('warning', `Already archived: ${item.options.docType || 'DLL'} for Week ${item.options.weekNumber}.`);
                         success++;
                         continue;
                     }
@@ -474,7 +490,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                     await del(key);
                     await updatePendingCount();
                     await markSynced(item.fileHash);
-                    addToast('warning', `Skipped duplicate content: ${item.fileName}`);
+                    syncToast('warning', `Skipped duplicate content: ${item.fileName}`);
                     success++;
                     continue;
                 }
@@ -665,7 +681,7 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                         await del(key);
                         await updatePendingCount();
                         await markSynced(item.fileHash);
-                        addToast('warning', `Already archived: ${item.fileName}`);
+                        syncToast('warning', `Already archived: ${item.fileName}`);
                         success++;
                         continue;
                     }
@@ -690,10 +706,16 @@ export async function processQueue(force = false): Promise<{ success: number; fa
                 success++;
                 console.log(`[sync] Successfully synced: ${item.fileName}`);
 
-                // Trigger native local notification
-                import('./notifications').then(m => {
-                    m.sendLocalNotification('Sync Successful', `Offline archival for ${item.fileName} has been synced to the cloud.`);
-                });
+                // Trigger native local notification. Skipped on mobile for the
+                // same reason as the toasts above: the teacher was already told
+                // the document was archived when they submitted it, so a later
+                // "offline archival ... synced" notice only casts doubt on a
+                // result that was already final from their point of view.
+                if (!isMobileDevice()) {
+                    import('./notifications').then(m => {
+                        m.sendLocalNotification('Sync Successful', `Offline archival for ${item.fileName} has been synced to the cloud.`);
+                    });
+                }
 
             } catch (err: any) {
                 console.error(`[sync] Failed to sync ${item.fileName}:`, err);
@@ -705,10 +727,10 @@ export async function processQueue(force = false): Promise<{ success: number; fa
     }
 
     if (success > 0) {
-        addToast('success', `Synced ${success} file(s) successfully!`);
+        syncToast('success', `Synced ${success} file(s) successfully!`);
     }
     if (failed > 0) {
-        addToast('error', `Failed to sync ${failed} file(s). Will retry automatically.`);
+        syncToast('error', `Failed to sync ${failed} file(s). Will retry automatically.`);
     }
 
     return { success, failed };
@@ -749,7 +771,7 @@ export function initOfflineSync(): void {
     // 1. Event Listener for Network Status
     window.addEventListener('online', () => {
         console.log('[offline] Network "online" event detected.');
-        addToast('info', 'Connection restored. Syncing pending uploads...');
+        syncToast('info', 'Connection restored. Syncing pending uploads...');
 
         // Wait a moment for connection to stabilize
         setTimeout(() => {

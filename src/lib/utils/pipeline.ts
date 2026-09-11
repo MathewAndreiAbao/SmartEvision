@@ -18,6 +18,7 @@ import { supabase } from './supabase';
 import { env } from '$env/dynamic/public';
 import { createNotification } from './notificationSystem';
 import { getCurrentSchoolYear } from './schoolYear';
+import { isMobileDevice } from './device';
 import type { PipelineEvent, PipelineOptions } from '$lib/types/pipeline';
 export type { PipelinePhase, PipelineResult } from '$lib/types/pipeline';
 
@@ -81,22 +82,6 @@ async function withRetry<T>(fn: () => Promise<T>, attempts: number, delayMs: num
         }
     }
     throw lastErr;
-}
-
-/**
- * Phones and tablets take the local-first path: do every bit of work on the
- * device, queue the finished document, report success, and push to the server
- * in the background.
- *
- * The transfer is the only part of the pipeline that a weak mobile connection
- * can stall, and making the teacher wait on it is what produced minutes of
- * frozen UI ending in a timeout that discarded all the completed work. Desktop
- * connections don't have that problem, so they keep uploading directly and get
- * immediate server-side confirmation.
- */
-function isMobileDevice(): boolean {
-    if (typeof navigator === 'undefined') return false;
-    return /iPhone|iPad|iPod|Android|Mobile|Silk|Kindle|BlackBerry|Opera Mini|IEMobile/i.test(navigator.userAgent);
 }
 
 interface XhrUploadResult {

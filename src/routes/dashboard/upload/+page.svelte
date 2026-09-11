@@ -19,6 +19,7 @@
         type LedgerEntry,
     } from "$lib/utils/offlineSubmissionLedger";
     import { profile, type Profile } from "$lib/utils/auth";
+    import { isMobileDevice } from "$lib/utils/device";
     import { settings } from "$lib/stores/settings";
     import { connectivity } from "$lib/stores/connectivity";
     import { addToast } from "$lib/stores/toast";
@@ -76,6 +77,7 @@
     let isOnline = $state(
         typeof navigator !== "undefined" ? navigator.onLine : true,
     );
+    const isMobile = isMobileDevice();
     let pendingItems = $state<any[]>([]);
     let showPendingPanel = $state(false);
 
@@ -874,7 +876,11 @@
             {/if}
         </div>
 
-        {#if queueCount > 0}
+        <!-- Hidden on mobile: every upload there is queued by design and syncs
+             on its own, so this panel would appear after every submission and
+             imply the document hadn't been handed in. Desktop only queues when
+             a direct upload actually failed, where it's worth surfacing. -->
+        {#if queueCount > 0 && !isMobile}
             <div class="flex flex-col gap-2 w-full sm:w-auto">
                 <div
                     onclick={() => (showPendingPanel = !showPendingPanel)}

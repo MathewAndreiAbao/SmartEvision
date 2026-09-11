@@ -8,7 +8,10 @@
     import { Sun, Moon, LogOut, WifiOff, RefreshCw, Settings } from "lucide-svelte";
     import { focusTrap } from "$lib/actions/focusTrap";
 
+    import { isMobileDevice } from "$lib/utils/device";
+
     const { isOnline: onlineStatus, pendingCount } = connectivity;
+    const isMobile = isMobileDevice();
 
     // Mobile-only utility strip (lg:hidden — AppSidebar.svelte covers lg+).
     // No section nav here: the bottom tab bar is the single nav surface
@@ -63,7 +66,12 @@
                  width (was hidden entirely below the xs breakpoint, exactly
                  where a flaky connection is most likely). Text label
                  collapses on the smallest screens; the colored icon does not. -->
-            {#if !$onlineStatus || $pendingCount > 0}
+            <!-- The genuinely-offline state always shows: that's real
+                 connectivity information. The "N pending" count is hidden on
+                 mobile, where every upload is queued by design and syncs on its
+                 own — there it would sit in the header after every submission
+                 suggesting something was left undone. -->
+            {#if !$onlineStatus || ($pendingCount > 0 && !isMobile)}
                 <button
                     onclick={() => goto("/dashboard/upload")}
                     class="flex items-center gap-1.5 rounded-lg border px-2 xs:px-2.5 py-1.5 text-xs font-semibold transition-colors {$onlineStatus

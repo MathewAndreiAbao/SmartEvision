@@ -11,7 +11,10 @@
     import { getNavItemsForRole } from "$lib/config/navigation";
     import { showQRScanner } from "$lib/stores/ui";
 
+    import { isMobileDevice } from "$lib/utils/device";
+
     const { isOnline: onlineStatus, pendingCount } = connectivity;
+    const isMobile = isMobileDevice();
 
     // Persistent left sidebar — the desktop nav surface (lg+). Below lg,
     // AppHeader (mobile-only utility strip) + the bottom tab bar cover
@@ -92,8 +95,11 @@
     <!-- Utility controls, pinned to the bottom -->
     <div class="border-t border-border-subtle p-3 space-y-2 shrink-0">
         <!-- Connectivity / Pending Sync Indicator — visible whenever there's
-             something to say, not tucked into a corner icon. -->
-        {#if !$onlineStatus || $pendingCount > 0}
+             something to say, not tucked into a corner icon. The pending count
+             is hidden on mobile (a large tablet can reach this breakpoint),
+             since uploads there are queued by design and sync on their own;
+             the genuinely-offline state still always shows. -->
+        {#if !$onlineStatus || ($pendingCount > 0 && !isMobile)}
             <button
                 onclick={() => goto("/dashboard/upload")}
                 class="flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors {$onlineStatus
