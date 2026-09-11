@@ -24,6 +24,7 @@
         getWeekNumber,
         getDefinedWeeksCount,
         getDynamicSchoolYear,
+        getCurrentWeekFromCalendar,
     } from "$lib/utils/useDashboardData";
     import {
         extractFeatures,
@@ -208,6 +209,11 @@
         }
 
         currentDefinedWeeks = await getDefinedWeeksCount(supabase);
+        currentWk = await getCurrentWeekFromCalendar(
+            supabase,
+            getDynamicSchoolYear(),
+            districtId ?? undefined,
+        );
 
         // Attach load count to each teacher
         teachers = teachers.map((t: Teacher) => ({
@@ -267,15 +273,21 @@
             totalSchoolLoads, // Strictly for one week
         ).rate;
 
-        // Build heatmap
-        buildHeatmap(calendar);
+        // Build heatmap & trend chart (only weeks up to the actual current
+        // week — the calendar can have far-future weeks pre-defined for the
+        // whole school year, which would otherwise dominate the "recent 8
+        // weeks" picture with weeks nobody has reached yet, showing 0%).
+        const upToDateCalendar = calendar.filter(
+            (c: any) => c.week_number <= currentWk,
+        );
+        buildHeatmap(upToDateCalendar);
 
         // Build trend chart
         const weeklyData = groupSubmissionsByWeek(
             allSubmissions,
             totalSchoolLoads,
             8,
-            calendar,
+            upToDateCalendar,
         );
         trendLabels = weeklyData.map((w: any) => w.label);
         trendDatasets = [
@@ -299,7 +311,11 @@
             week_number: s.week_number,
             created_at: s.created_at,
         }));
-        const features = extractFeatures(teachers, tData, currentDefinedWeeks);
+        // Use weeks elapsed so far (not the full calendar's defined weeks,
+        // which can include far-future weeks nobody has reached yet) so
+        // "completeness" isn't unfairly diluted for teachers who are fully
+        // caught up on every week due so far.
+        const features = extractFeatures(teachers, tData, Math.max(1, currentWk));
         clusterReady = canCluster(features.length, tData.length);
         if (clusterReady) {
             const output = runKMeansClustering(features, 3);

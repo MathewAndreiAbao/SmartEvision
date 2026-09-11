@@ -1,11 +1,12 @@
 <script lang="ts">
     import { profile } from "$lib/utils/auth";
+    import { supabase } from "$lib/utils/supabase";
     import LineChart from "$lib/components/charts/LineChart.svelte";
     import BarChart from "$lib/components/charts/BarChart.svelte";
     import DonutChart from "$lib/components/charts/DonutChart.svelte";
     import ScatterPlot from "$lib/components/charts/ScatterPlot.svelte";
     import DashboardCards from "$lib/components/DashboardCards.svelte";
-    import { onMount } from "svelte";
+    import { onMount, onDestroy } from "svelte";
     import {
         getSchoolHeadAnalytics,
         getDistrictSupervisorAnalytics,
@@ -31,7 +32,9 @@
     let atRiskList = $state<any[]>([]);
     let comparisonStats = $state<any>(null);
 
-    onMount(async () => {
+    let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+
+    async function loadAnalytics() {
         try {
             if ($profile && ($profile.role === 'School Head' || $profile.role === 'District Supervisor')) {
                 const role = $profile.role;
@@ -69,6 +72,28 @@
         } finally {
             loading = false;
         }
+    }
+
+    onMount(() => {
+        loadAnalytics();
+
+        // Keep every chart and cluster live: re-run the analysis whenever any
+        // submission is created/updated/deleted, instead of only ever showing
+        // a stale snapshot from the moment the page was opened.
+        realtimeChannel = supabase
+            .channel("analytics-submissions")
+            .on(
+                "postgres_changes",
+                { event: "*", schema: "public", table: "submissions" },
+                () => {
+                    if (!loading) loadAnalytics();
+                },
+            )
+            .subscribe();
+    });
+
+    onDestroy(() => {
+        if (realtimeChannel) supabase.removeChannel(realtimeChannel);
     });
 
     const overallStats = $derived.by(() => {

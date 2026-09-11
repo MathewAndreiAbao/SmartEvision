@@ -123,8 +123,8 @@ export const walkthroughGuides: Record<string, WalkthroughGuide> = {
                 target: "submissions",
             },
             {
-                title: "Alerts",
-                content: "Schools below target, overdue submissions, and missing DLLs — investigate and act fast.",
+                title: "Analytics",
+                content: "Compliance trends, forecasts, performance clusters, and at-risk schools — investigate and act fast.",
                 tip: "Stay ahead of compliance problems.",
                 target: "alerts",
             },

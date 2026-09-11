@@ -286,54 +286,96 @@ export function getPerformanceDistribution(submissions: any[], groupBy: 'teacher
 /**
  * K-means clustering for performance distribution
  * Clusters entities into 3 groups: High Performers, Average, At-Risk
+ *
+ * Real Lloyd's-algorithm k-means: centroids are seeded from the data's own
+ * percentile spread, then iteratively re-assigned and re-averaged until they
+ * stop moving (or maxIterations is hit). Clusters are labeled by ranking the
+ * *converged* centroids' compliance rate — never by fixed array position —
+ * since which cluster ends up "high" vs "at-risk" depends on the data.
  */
-export function kMeansClusterPerformance(performances: any[], k: number = 3) {
+export function kMeansClusterPerformance(performances: any[], k: number = 3, maxIterations: number = 25) {
     if (performances.length === 0) return { high: [], average: [], atRisk: [] };
+
+    k = Math.min(k, performances.length);
 
     // Normalize data for clustering
     const maxRate = Math.max(...performances.map(p => p.compliance_rate), 100);
     const maxFreq = Math.max(...performances.map(p => p.submission_frequency), 1);
 
-    const normalized = performances.map(p => ({
-        ...p,
-        norm_rate: p.compliance_rate / maxRate,
-        norm_freq: p.submission_frequency / maxFreq
-    }));
+    const points = performances.map(p => [
+        p.compliance_rate / maxRate,
+        p.submission_frequency / maxFreq
+    ]);
 
-    // Simple k-means with 3 clusters
-    // Initialize centroids based on percentiles
-    const sorted = [...normalized].sort((a, b) => a.compliance_rate - b.compliance_rate);
-    const centroids = [
-        { norm_rate: 0.3, norm_freq: 0.3 }, // Low performers
-        { norm_rate: 0.6, norm_freq: 0.6 }, // Average
-        { norm_rate: 0.9, norm_freq: 0.9 }  // High performers
-    ];
+    const dist = (a: number[], b: number[]) =>
+        Math.sqrt(a.reduce((sum, v, i) => sum + (v - b[i]) ** 2, 0));
 
-    // Assign each performance to nearest centroid
-    const clusters: any[] = [[], [], []];
+    // Seed centroids from evenly-spaced percentiles of the sorted compliance
+    // rate, so the starting points already reflect this dataset's spread
+    // instead of assuming a fixed 0.3/0.6/0.9 shape.
+    const sortedIdx = points
+        .map((_, i) => i)
+        .sort((a, b) => performances[a].compliance_rate - performances[b].compliance_rate);
+    let centroids: number[][] = Array.from({ length: k }, (_, c) => {
+        const idx = sortedIdx[Math.floor(((c + 0.5) / k) * sortedIdx.length)];
+        return [...points[idx]];
+    });
 
-    normalized.forEach(perf => {
-        let minDist = Infinity;
-        let closestCluster = 0;
+    let assignments = new Array(points.length).fill(0);
 
-        centroids.forEach((centroid, idx) => {
-            const dist = Math.sqrt(
-                Math.pow(perf.norm_rate - centroid.norm_rate, 2) +
-                Math.pow(perf.norm_freq - centroid.norm_freq, 2)
-            );
-            if (dist < minDist) {
-                minDist = dist;
-                closestCluster = idx;
+    for (let iter = 0; iter < maxIterations; iter++) {
+        let changed = false;
+
+        // Assignment step
+        for (let i = 0; i < points.length; i++) {
+            let bestCluster = 0;
+            let bestDist = Infinity;
+            for (let c = 0; c < k; c++) {
+                const d = dist(points[i], centroids[c]);
+                if (d < bestDist) {
+                    bestDist = d;
+                    bestCluster = c;
+                }
             }
-        });
+            if (assignments[i] !== bestCluster) {
+                assignments[i] = bestCluster;
+                changed = true;
+            }
+        }
 
-        clusters[closestCluster].push(perf);
+        if (!changed && iter > 0) break;
+
+        // Update step
+        for (let c = 0; c < k; c++) {
+            const members = points.filter((_, i) => assignments[i] === c);
+            if (members.length > 0) {
+                centroids[c] = [
+                    members.reduce((s, p) => s + p[0], 0) / members.length,
+                    members.reduce((s, p) => s + p[1], 0) / members.length
+                ];
+            }
+        }
+    }
+
+    // Rank converged clusters by centroid compliance rate (highest first),
+    // then map ranks to the high/average/at-risk buckets — regardless of
+    // which raw cluster index ended up with the best-performing centroid.
+    const clusterOrder = Array.from({ length: k }, (_, c) => c)
+        .sort((a, b) => centroids[b][0] - centroids[a][0]);
+    const rankOf = new Map(clusterOrder.map((c, rank) => [c, rank]));
+
+    const buckets: any[][] = [[], [], []];
+    performances.forEach((perf, i) => {
+        const rank = rankOf.get(assignments[i]) ?? 1;
+        // With k < 3 (very little data), fold any extra ranks into "average".
+        const bucketIdx = rank === 0 ? 0 : rank === k - 1 ? 2 : 1;
+        buckets[bucketIdx].push(perf);
     });
 
     return {
-        high: clusters[2].sort((a, b) => b.compliance_rate - a.compliance_rate),
-        average: clusters[1].sort((a, b) => b.compliance_rate - a.compliance_rate),
-        atRisk: clusters[0].sort((a, b) => b.compliance_rate - a.compliance_rate)
+        high: buckets[0].sort((a, b) => b.compliance_rate - a.compliance_rate),
+        average: buckets[1].sort((a, b) => b.compliance_rate - a.compliance_rate),
+        atRisk: buckets[2].sort((a, b) => b.compliance_rate - a.compliance_rate)
     };
 }
 

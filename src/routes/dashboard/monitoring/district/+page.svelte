@@ -19,10 +19,10 @@
     getComplianceBgClass,
     getTrendDirection,
     getTrendIcon,
-    getWeekNumber,
     getSubmissionWeek,
     getDefinedWeeksCount,
     getDynamicSchoolYear,
+    getCurrentWeekFromCalendar,
   } from "$lib/utils/useDashboardData";
   import { cacheMetadata, getCachedMetadata } from "$lib/utils/offline";
 
@@ -214,7 +214,11 @@
       (sum, s) => sum + (s.loadCount || 0),
       0,
     );
-    const currentWk = getWeekNumber();
+    const currentWk = await getCurrentWeekFromCalendar(
+      supabase,
+      getDynamicSchoolYear(),
+      userProfile.district_id,
+    );
     const currentCal = calendar.find((c) => c.week_number === currentWk);
 
     const overallStats = calculateCompliance(
@@ -237,14 +241,18 @@
       previousRate: prevStats.rate,
     };
 
-    // 7. Heatmap & Charts
-    buildHeatmap(calendar);
+    // 7. Heatmap & Charts (only weeks up to the actual current week — the
+    // calendar can have far-future weeks pre-defined for the whole school
+    // year, and those would otherwise dominate the "recent 8 weeks" picture
+    // with weeks nobody has reached yet, showing as a flat 0%).
+    const upToDateCalendar = calendar.filter((c) => c.week_number <= currentWk);
+    buildHeatmap(upToDateCalendar, currentWk);
 
     const weeklyData = groupSubmissionsByWeek(
       allSubmissions,
       totalDistrictLoads,
       8,
-      calendar,
+      upToDateCalendar,
     );
     trendLabels = weeklyData.map((w) => w.label);
     trendDatasets = [
@@ -296,13 +304,12 @@
     );
   }
 
-  function buildHeatmap(calendar: any[]) {
+  function buildHeatmap(calendar: any[], currentWeek: number) {
     const weekCount = 8;
-    const currentWeek = getWeekNumber();
     const weeks = [];
 
     const recentCal = [...calendar]
-      .filter((c) => c.is_active === true)
+      .filter((c) => c.is_active === true && c.week_number <= currentWeek)
       .sort((a, b) => b.week_number - a.week_number)
       .slice(0, weekCount)
       .reverse();

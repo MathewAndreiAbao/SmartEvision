@@ -162,7 +162,7 @@ export const navItems: NavItem[] = [
     },
     {
         href: "/dashboard/analytics",
-        label: "Alerts",
+        label: "Analytics",
         icon: TrendingUp,
         mobileNav: true,
         priority: 4,
