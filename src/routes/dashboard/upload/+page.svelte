@@ -1349,7 +1349,7 @@
 
             <!-- Processing Progress -->
             <div class="animate-fade-in">
-                <UploadProgress {currentPhase} {progress} {message} />
+                <UploadProgress {currentPhase} {progress} {message} onRetry={selectedFile ? handleUpload : undefined} />
 
             </div>
 

@@ -13,32 +13,54 @@ const ASSETS = [
     ...files  // everything in `static`
 ];
 
+// A device on a weak signal is exactly the device most likely to have a
+// single install-time fetch fail — and silently dropping that one asset
+// (previously: one try, log, move on) is how the cache ends up serving a
+// page with missing CSS/JS later. A couple of quick retries costs nothing
+// when online and meaningfully improves the odds of a complete cache when
+// the connection is merely flaky rather than actually absent.
+async function fetchWithRetry(input: RequestInfo, init: RequestInit, attempts = 3, delayMs = 800): Promise<Response> {
+    let lastErr: unknown;
+    for (let i = 0; i < attempts; i++) {
+        try {
+            const response = await fetch(input, init);
+            if (response.ok) return response;
+            lastErr = new Error(`HTTP ${response.status}`);
+        } catch (err) {
+            lastErr = err;
+        }
+        if (i < attempts - 1) await new Promise((r) => setTimeout(r, delayMs));
+    }
+    throw lastErr;
+}
+
 // ─── Install: Pre-cache all assets ─────────────────────────────
 self.addEventListener('install', (event) => {
     async function addFilesToCache() {
         const cache = await caches.open(CACHE);
 
-        // Robust caching: Try each asset individually so one 404 doesn't kill the whole SW
+        // Robust caching: try each asset individually (with retries) so one
+        // persistently-failing asset doesn't kill the whole SW install, but
+        // a merely-flaky connection doesn't silently drop assets either.
         const promises = ASSETS.map(async (url) => {
             try {
-                await cache.add(url);
+                const response = await fetchWithRetry(url, { cache: 'reload' });
+                await cache.put(url, response);
             } catch (err) {
-                console.error(`[SW] Failed to cache asset: ${url}`, err);
+                console.error(`[SW] Failed to cache asset after retries: ${url}`, err);
             }
         });
 
         await Promise.all(promises);
 
-        // Pre-cache the app shell (root page) for offline navigation
-        // This is the SvelteKit app shell that the client-side router needs
+        // Pre-cache the app shell (root page) for offline navigation.
+        // This is the SvelteKit app shell that the client-side router needs.
         try {
-            const rootResponse = await fetch('/', { cache: 'reload' });
-            if (rootResponse.ok) {
-                await cache.put('/', rootResponse);
-                console.log('[SW] Pre-cached app shell (/)');
-            }
+            const rootResponse = await fetchWithRetry('/', { cache: 'reload' });
+            await cache.put('/', rootResponse);
+            console.log('[SW] Pre-cached app shell (/)');
         } catch (e) {
-            console.warn('[SW] Failed to pre-cache app shell:', e);
+            console.warn('[SW] Failed to pre-cache app shell after retries:', e);
         }
     }
 
@@ -71,6 +93,11 @@ self.addEventListener('fetch', (event) => {
     // ⚡ Never intercept API routes — always let them hit the network directly
     // Caching API responses causes stale auth errors, 500s, or wrong data to be served
     if (isLocal && url.pathname.startsWith('/api/')) return;
+
+    // Auth flows are meaningless offline (you can't log in or reset a
+    // password without a live connection) and some carry one-time tokens —
+    // never cache or serve them from the SW cache.
+    if (isLocal && url.pathname.startsWith('/auth/')) return;
 
     // Critical Third-Party Assets (CDNs) that we WANT to cache for mobile efficiency
     const isCriticalThirdParty =
@@ -109,17 +136,27 @@ self.addEventListener('fetch', (event) => {
                 throw new Error('Invalid response from fetch');
             }
 
-            // Only cache successful page/asset responses — never cache errors
-            if (isLocal && response.status === 200 && event.request.mode !== 'navigate') {
+            // Cache successful local navigations too, not just static
+            // assets. This app has no +page.server.ts/+layout.server.ts
+            // embedding per-user data into the server-rendered HTML for any
+            // dashboard route — the shell is generic and all personalization
+            // happens client-side after hydration — so caching it here is
+            // safe. Without this, a route other than "/" had nothing of its
+            // own to fall back to when offline, so it always fell back to
+            // the cached landing page instead, showing the wrong page
+            // entirely for a URL like /dashboard/upload.
+            if (isLocal && response.status === 200) {
                 cache.put(event.request, response.clone());
             }
 
             return response;
         } catch (err) {
-            // Fallback to cache on network failure
+            // Fallback to cache on network failure — this specific URL first
             const cachedResponse = await cache.match(event.request);
             if (cachedResponse) return cachedResponse;
 
+            // Only fall back to the generic app shell for a route that was
+            // never visited (and thus never cached) while online.
             if (event.request.mode === 'navigate') {
                 const appShell = await cache.match('/');
                 if (appShell) return appShell;

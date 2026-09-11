@@ -65,6 +65,24 @@ export async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, err
     }
 }
 
+// A single transient blip (brief signal drop, one dropped packet) on a bad
+// mobile connection shouldn't fail the whole upload after already getting
+// this far. Used only for calls whose failure is meant to be a hard stop
+// (unlike the calendar lookups, which fail soft) — it retries the same
+// bounded attempt once more before giving up for real.
+async function withRetry<T>(fn: () => Promise<T>, attempts: number, delayMs: number): Promise<T> {
+    let lastErr: unknown;
+    for (let i = 0; i < attempts; i++) {
+        try {
+            return await fn();
+        } catch (err) {
+            lastErr = err;
+            if (i < attempts - 1) await new Promise((r) => setTimeout(r, delayMs));
+        }
+    }
+    throw lastErr;
+}
+
 // ─── Core Pipeline ───────────────────────────────────────────────────────────
 
 async function* runPipelineCore(
@@ -219,12 +237,20 @@ async function* runOnlinePipelineResilient(
     if (await lookupOfflineDoc(fileHash)) throw new Error('Duplicate file detected (local).');
 
     // Server check — cross-teacher, so it goes through a narrow RPC rather
-    // than a direct table select (see migrations/20260910_*.sql).
-    const { data: hashMatch } = await withTimeout(
-        supabase.rpc('check_duplicate_submission_hash', { p_hash: fileHash }).maybeSingle() as any,
-        30000,
-        'Server integrity check timed out.'
-    ) as { data: any };
+    // than a direct table select (see migrations/20260910_*.sql). Retried
+    // once: this check is a hard gate (a real failure here should still stop
+    // the upload), but a single retry absorbs the kind of brief drop common
+    // on a weak mobile signal instead of failing the whole upload on the
+    // first hiccup.
+    const { data: hashMatch } = await withRetry(
+        () => withTimeout(
+            supabase.rpc('check_duplicate_submission_hash', { p_hash: fileHash }).maybeSingle() as any,
+            15000,
+            'Server integrity check timed out.'
+        ) as Promise<{ data: any }>,
+        2,
+        1500
+    );
     if (hashMatch) throw new Error(`Duplicate content detected on server: ${hashMatch.file_name}`);
 
     // ─── Server-Side Upload (CORS-Safe) with B2 Presigned Fallback ───
