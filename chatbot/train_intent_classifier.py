@@ -718,6 +718,95 @@ TRAINING_DATA = [
     {"text": "Sabihin mo ang tungkol sa iyong sarili", "intent": "general_help"},
     {"text": "Bago ako dito tulungan mo ako", "intent": "general_help"},
     {"text": "Gabayan mo ako sa system", "intent": "general_help"},
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Out-of-scope / small talk — mapped to general_help so the classifier has
+    # somewhere safe to land instead of being forced into a specific DB intent
+    # for questions that have nothing to do with CEDIMS at all.
+    # ═══════════════════════════════════════════════════════════════════════════
+    {"text": "What's the weather today?", "intent": "general_help"},
+    {"text": "Tell me a joke", "intent": "general_help"},
+    {"text": "Who won the basketball game last night?", "intent": "general_help"},
+    {"text": "What time is it?", "intent": "general_help"},
+    {"text": "Can you sing a song?", "intent": "general_help"},
+    {"text": "What's 2 plus 2?", "intent": "general_help"},
+    {"text": "Who is the president?", "intent": "general_help"},
+    {"text": "Recommend a good restaurant", "intent": "general_help"},
+    {"text": "What's your favorite color?", "intent": "general_help"},
+    {"text": "Do you have feelings?", "intent": "general_help"},
+    {"text": "Play some music", "intent": "general_help"},
+    {"text": "What's the capital of France?", "intent": "general_help"},
+    {"text": "How old are you?", "intent": "general_help"},
+    {"text": "Can you order food for me?", "intent": "general_help"},
+    {"text": "Tell me about the news today", "intent": "general_help"},
+    {"text": "What movies are showing?", "intent": "general_help"},
+    {"text": "Bakit umuulan ngayon?", "intent": "general_help"},
+    {"text": "Anong oras na?", "intent": "general_help"},
+    {"text": "Magkwento ka ng joke", "intent": "general_help"},
+    {"text": "Sino ang paborito mong kulay?", "intent": "general_help"},
+    {"text": "asdkjaslkdj random text", "intent": "general_help"},
+    {"text": "hjkhjk qweqwe", "intent": "general_help"},
+    {"text": "...", "intent": "general_help"},
+    {"text": "ok", "intent": "general_help"},
+    {"text": "test", "intent": "general_help"},
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Hard disambiguation — ask_compliance vs teacher_stats vs school_compare
+    # all share vocabulary ("compliance", "teacher", "school"); these pin down
+    # the boundary so a "my" vs a named-third-party vs a school-level question
+    # don't get confused with each other.
+    # ═══════════════════════════════════════════════════════════════════════════
+    {"text": "Is Teacher Santos compliant this week?", "intent": "teacher_stats"},
+    {"text": "What's the compliance rate for Teacher Cruz specifically?", "intent": "teacher_stats"},
+    {"text": "Show me how compliant each teacher in my school is", "intent": "teacher_stats"},
+    {"text": "Rank the teachers by their compliance", "intent": "teacher_stats"},
+    {"text": "Who on my staff still hasn't submitted?", "intent": "teacher_stats"},
+    {"text": "Break down compliance by teacher", "intent": "teacher_stats"},
+    {"text": "Compliance rate of Bulusan Elementary School", "intent": "school_compare"},
+    {"text": "Which school in my district is most compliant?", "intent": "school_compare"},
+    {"text": "Break down compliance by school", "intent": "school_compare"},
+    {"text": "Rank the schools by their compliance", "intent": "school_compare"},
+    {"text": "Is my school compliant overall?", "intent": "school_compare"},
+    {"text": "What's my own compliance rate, not the school's", "intent": "ask_compliance"},
+    {"text": "How compliant am I personally this term?", "intent": "ask_compliance"},
+    {"text": "Just checking my individual compliance", "intent": "ask_compliance"},
+    {"text": "My own submission status, not anyone else's", "intent": "ask_compliance"},
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Hard disambiguation — find_dll vs how_to_upload (both DLL-related, very
+    # different intents: locating an existing document vs the upload process).
+    # ═══════════════════════════════════════════════════════════════════════════
+    {"text": "I want to see the DLL I already submitted for Week 3", "intent": "find_dll"},
+    {"text": "Can you pull up my previous DLL on fractions?", "intent": "find_dll"},
+    {"text": "Where is the DLL I uploaded yesterday?", "intent": "find_dll"},
+    {"text": "Show me the DLL that's already in the system for Grade 4", "intent": "find_dll"},
+    {"text": "I haven't uploaded anything yet, how do I start?", "intent": "how_to_upload"},
+    {"text": "What do I do before I can submit a new DLL?", "intent": "how_to_upload"},
+    {"text": "I want to upload a new DLL, walk me through it", "intent": "how_to_upload"},
+    {"text": "First time uploading, what do I need?", "intent": "how_to_upload"},
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Extra phrasing diversity — short, terse, statement-style (not just
+    # question-style) inputs across the existing intents.
+    # ═══════════════════════════════════════════════════════════════════════════
+    {"text": "compliance", "intent": "ask_compliance"},
+    {"text": "my status", "intent": "ask_compliance"},
+    {"text": "compliance rate", "intent": "ask_compliance"},
+    {"text": "deadline", "intent": "check_deadline"},
+    {"text": "next deadline", "intent": "check_deadline"},
+    {"text": "due date", "intent": "check_deadline"},
+    {"text": "fractions dll", "intent": "find_dll"},
+    {"text": "grade 3 science dll", "intent": "find_dll"},
+    {"text": "school ranking", "intent": "school_compare"},
+    {"text": "top schools", "intent": "school_compare"},
+    {"text": "teacher ranking", "intent": "teacher_stats"},
+    {"text": "top teachers", "intent": "teacher_stats"},
+    {"text": "school calendar", "intent": "calendar_info"},
+    {"text": "current week", "intent": "calendar_info"},
+    {"text": "upload help", "intent": "how_to_upload"},
+    {"text": "how to submit", "intent": "how_to_upload"},
+    {"text": "help", "intent": "general_help"},
+    {"text": "hi there", "intent": "general_help"},
 ]
 
 # ─── Build DataFrame ────────────────────────────────────────────────────────
@@ -752,13 +841,40 @@ vocab = vectorizer.get_feature_names_out()
 
 print(f"\nVocabulary size: {len(vocab)}")
 
-# ─── Train Logistic Regression ──────────────────────────────────────────────
+# ─── Train Logistic Regression (small C grid search) ────────────────────────
+# C=1.0 previously memorized the training set (100% train vs ~92% test — an
+# 8-point generalization gap). Picking C by 5-fold CV on the training split
+# — rather than fixing it — trades a little training accuracy for a model
+# that actually generalizes better to phrasing it hasn't seen.
+
+C_GRID = [0.25, 0.5, 1.0, 2.0, 4.0]
+best_C, best_cv_acc = None, -1.0
+cv_search = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+for candidate_C in C_GRID:
+    fold_scores = []
+    for tr_idx, va_idx in cv_search.split(X_train, y_train):
+        X_tr, X_va = X_train.iloc[tr_idx], X_train.iloc[va_idx]
+        y_tr, y_va = y_train.iloc[tr_idx], y_train.iloc[va_idx]
+        fold_vec = CountVectorizer(analyzer='char', ngram_range=(2, 5), min_df=2, max_features=5000, lowercase=True)
+        X_tr_vec = fold_vec.fit_transform(X_tr)
+        X_va_vec = fold_vec.transform(X_va)
+        fold_clf = LogisticRegression(C=candidate_C, solver='saga', max_iter=3000, random_state=42, class_weight='balanced')
+        fold_clf.fit(X_tr_vec, y_tr)
+        fold_scores.append(fold_clf.score(X_va_vec, y_va))
+    mean_score = float(np.mean(fold_scores))
+    print(f"  C={candidate_C}: inner CV accuracy = {mean_score:.2%}")
+    if mean_score > best_cv_acc:
+        best_cv_acc = mean_score
+        best_C = candidate_C
+
+print(f"\nSelected C={best_C} (inner CV accuracy {best_cv_acc:.2%})")
 
 clf = LogisticRegression(
-    C=1.0,
+    C=best_C,
     solver='saga',
     max_iter=3000,
-    random_state=42
+    random_state=42,
+    class_weight='balanced'
 )
 clf.fit(X_train_vec, y_train)
 
@@ -797,7 +913,7 @@ for train_idx, val_idx in skf.split(X, y):
     cv_vec = CountVectorizer(analyzer='char', ngram_range=(2, 5), min_df=1)
     X_cv_train_vec = cv_vec.fit_transform(X_cv_train)
     X_cv_val_vec = cv_vec.transform(X_cv_val)
-    cv_clf = LogisticRegression(C=1.0, solver='saga', max_iter=3000)
+    cv_clf = LogisticRegression(C=best_C, solver='saga', max_iter=3000, class_weight='balanced')
     cv_clf.fit(X_cv_train_vec, y_cv_train)
     cv_scores.append(cv_clf.score(X_cv_val_vec, y_cv_val))
 
@@ -858,7 +974,7 @@ for i, intent in enumerate(intents):
     coef_dict[intent] = {vocab[idx]: float(clf.coef_[i][idx]) for idx in range(len(vocab))}
 
 model = {
-    "version": "2.0.0",
+    "version": "2.1.0",
     "intents": intents,
     "vocabulary": {word: idx for idx, word in enumerate(vocab)},
     "coefficients": coef_dict,

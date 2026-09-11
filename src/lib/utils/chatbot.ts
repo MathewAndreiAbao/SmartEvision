@@ -101,6 +101,16 @@ const LOW_CONFIDENCE_SUFFIXES = [
     'If I misread you, try rephrasing in a different way.',
     'Does that sound about right?'
 ];
+const INTENT_TOPIC_LABELS: Record<Intent, string> = {
+    ask_compliance: 'your compliance status',
+    check_deadline: 'upcoming deadlines',
+    find_dll: 'finding a DLL',
+    school_compare: 'school comparisons',
+    teacher_stats: 'teacher statistics',
+    calendar_info: 'the academic calendar',
+    how_to_upload: 'how to upload a document',
+    general_help: 'general help'
+};
 const CONFUSED_RESPONSES = [
     'Hmm, I\u2019m not quite sure I caught that. Could you rephrase it for me?',
     'I didn\u2019t quite understand that. Try asking in a different way.',
@@ -138,6 +148,14 @@ const KNOWLEDGE_BASE: KnowledgeEntry[] = [
     {
         keywords: ['role', 'master teacher', 'school head', 'district supervisor', 'administrator'],
         answer: 'Each role sees a tailored view: Teachers manage their own DLLs; Master Teachers review and endorse; School Heads monitor their school; District Supervisors compare across the whole district.'
+    },
+    {
+        keywords: ['for checking', 'checked', 'reviewer comment', 'remark', 'remarks'],
+        answer: 'In the Archive, a document is "For Checking" until a reviewer adds a remark on it — once a remark exists, it moves to "Checked." There’s no separate approval step; adding the remark is what marks it as reviewed.'
+    },
+    {
+        keywords: ['supplementary', 'extra dll', 'another dll', 'duplicate submission'],
+        answer: 'A "Supplementary" submission is an extra DLL uploaded for a week/subject that already has one on file. It’s kept for reference but doesn’t count toward your compliance rate, uploads total, or trigger a "missing" mark — only the first, required DLL for that slot does.'
     },
     {
         keywords: ['deadline', 'when', 'due', 'cutoff', 'cut off', 'date'],
@@ -277,12 +295,16 @@ class IntentClassifier {
     }
 }
 
-function extractSlots(text: string, _intent: Intent, memory?: ChatContext['memory']): Record<string, string> {
+function extractSlots(text: string, intent: Intent, memory?: ChatContext['memory']): Record<string, string> {
     const slots: Record<string, string> = {};
     const lower = normalizeText(text);
 
-    // Inherit slots from conversation memory (e.g. follow-up "and what about week 4?")
-    if (memory?.lastSlots) {
+    // Inherit slots from conversation memory, but only when continuing the
+    // same line of questioning (e.g. "what about week 4?" right after "what's
+    // my compliance rate?"). A topic switch starts with a clean slate —
+    // otherwise a school or grade mentioned several turns ago would silently
+    // keep filtering a completely unrelated question today.
+    if (memory?.lastSlots && memory.lastIntent === intent) {
         Object.assign(slots, memory.lastSlots);
     }
 
@@ -302,8 +324,19 @@ function extractSlots(text: string, _intent: Intent, memory?: ChatContext['memor
         }
     }
 
-    const teacherMatch = lower.match(/teacher\s+(\w+)/i) || lower.match(/(?:for|of|about)\s+(\w[\w\s]+?)(?:'s|\s+stats|\s+records|\s+submissions)/i);
-    if (teacherMatch) slots.teacher = teacherMatch[1].trim();
+    // Capture up to 3 words after "teacher" (surnames are often multi-word,
+    // e.g. "Teacher Dela Cruz") while trimming off trailing query words that
+    // aren't part of the name ("teacher santos stats" -> "santos").
+    const TEACHER_NAME_STOPWORDS = new Set([
+        'stats', 'statistics', 'records', 'submissions', 'compliance',
+        'performance', 'ranking', 'rate', 'status', 'progress', 'report', 'data'
+    ]);
+    const teacherMatch = lower.match(/teacher\s+([a-z]+(?:\s+[a-z]+){0,2})/i)
+        || lower.match(/(?:for|of|about)\s+(\w[\w\s]+?)(?:'s|\s+stats|\s+records|\s+submissions)/i);
+    if (teacherMatch) {
+        const nameWords = teacherMatch[1].trim().split(/\s+/).filter(w => !TEACHER_NAME_STOPWORDS.has(w));
+        if (nameWords.length > 0) slots.teacher = nameWords.join(' ');
+    }
 
     const schoolNames = ['bulusan', 'guinobatan', 'ibaba', 'salong', 'suqui', 'camalig', 'manito', 'bacacay'];
     for (const school of schoolNames) {
@@ -1035,14 +1068,22 @@ export async function processQuery(text: string, ctx?: ChatContext): Promise<Cha
         answer = generateTemplateResponse(intent, slots);
     }
 
-    // 2. Humanize: prefix confident answers with a natural opener, hedge low-confidence ones
+    // 2. Humanize: prefix confident answers with a natural opener, hedge low-confidence ones.
+    // Crucially, the hedge applies no matter which intent the classifier landed on \u2014
+    // a low-confidence "ask_compliance" guess used to skip straight to confidently
+    // quoting real compliance numbers with zero uncertainty signal, which is more
+    // misleading than a wrong "general_help" guess ever was.
     if (confidence >= 60 && !answer.startsWith('Hello') && !answer.startsWith('I\u2019m')) {
         answer = `${pick(OPENERS)} ${answer}`;
-    } else if (confidence < 45 && intent === 'general_help' && !kbHit) {
-        answer = `${pick(LOW_CONFIDENCE_PREFIXES)} ${pick([
-            'your compliance status', 'finding a DLL', 'upcoming deadlines',
-            'school comparisons', 'teacher statistics', 'how to upload a document'
-        ])}. ${pick(LOW_CONFIDENCE_SUFFIXES)}`;
+    } else if (confidence < 45 && !kbHit) {
+        if (intent === 'general_help') {
+            answer = `${pick(LOW_CONFIDENCE_PREFIXES)} ${pick([
+                'your compliance status', 'finding a DLL', 'upcoming deadlines',
+                'school comparisons', 'teacher statistics', 'how to upload a document'
+            ])}. ${pick(LOW_CONFIDENCE_SUFFIXES)}`;
+        } else {
+            answer = `${pick(LOW_CONFIDENCE_PREFIXES)} ${INTENT_TOPIC_LABELS[intent]}, so here\u2019s what I found:\n\n${answer}\n\n${pick(LOW_CONFIDENCE_SUFFIXES)}`;
+        }
     }
 
     return { intent, confidence, answer, slots };
