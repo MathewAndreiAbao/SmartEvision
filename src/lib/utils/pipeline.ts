@@ -156,53 +156,60 @@ async function* runOnlinePipelineResilient(
     const { recordSubmission } = await import('./offlineSubmissionLedger');
 
     // Look up calendar_id + deadline from academic_calendar using detected week number.
-    // Each query is wrapped in withTimeout — on a very slow mobile connection
-    // these could otherwise hang indefinitely with no error and no progress,
-    // leaving "Verifying with server..." stuck on screen with nothing for the
-    // user to do but wait or force-quit.
+    // This is metadata only — calculateComplianceStatus() already falls back
+    // to 'compliant' when there's no deadline — so a slow/failed lookup must
+    // never abort the whole upload. Each query is time-bounded (previously
+    // unbounded, so a bad connection could hang here forever with no error),
+    // and any failure (timeout or otherwise) is swallowed: the archive still
+    // goes through, just without deadline-based lateness tracking for this
+    // submission.
     let calendarId = options.calendarId || null;
     let deadlineDate: Date | undefined;
     if (!calendarId && activeWeekNumber) {
-        const { data: calEntry } = await withTimeout(
-            supabase
-                .from('academic_calendar')
-                .select('id, deadline_date')
-                .eq('school_year', options.schoolYear || getCurrentSchoolYear())
-                .eq('week_number', activeWeekNumber)
-                .maybeSingle() as any,
-            15000,
-            'Calendar lookup timed out. Check your connection and try again.'
-        ) as { data: any };
-        if (!calEntry) {
-            yield { phase: 'uploading', progress: 15, message: 'Verifying with server...' };
-            const { data: profileData } = await withTimeout(
+        try {
+            const { data: calEntry } = await withTimeout(
                 supabase
-                    .from('profiles')
-                    .select('district_id')
-                    .eq('id', options.userId)
-                    .single() as any,
-                15000,
-                'Profile lookup timed out. Check your connection and try again.'
+                    .from('academic_calendar')
+                    .select('id, deadline_date')
+                    .eq('school_year', options.schoolYear || getCurrentSchoolYear())
+                    .eq('week_number', activeWeekNumber)
+                    .maybeSingle() as any,
+                10000,
+                'Calendar lookup timed out.'
             ) as { data: any };
-            if (profileData?.district_id) {
-                const { data: calByDistrict } = await withTimeout(
+            if (!calEntry) {
+                yield { phase: 'uploading', progress: 15, message: 'Verifying with server...' };
+                const { data: profileData } = await withTimeout(
                     supabase
-                        .from('academic_calendar')
-                        .select('id, deadline_date')
-                        .eq('district_id', profileData.district_id)
-                        .eq('week_number', activeWeekNumber)
-                        .maybeSingle() as any,
-                    15000,
-                    'Calendar lookup timed out. Check your connection and try again.'
+                        .from('profiles')
+                        .select('district_id')
+                        .eq('id', options.userId)
+                        .single() as any,
+                    10000,
+                    'Profile lookup timed out.'
                 ) as { data: any };
-                if (calByDistrict) {
-                    calendarId = calByDistrict.id;
-                    if (calByDistrict.deadline_date) deadlineDate = new Date(calByDistrict.deadline_date);
+                if (profileData?.district_id) {
+                    const { data: calByDistrict } = await withTimeout(
+                        supabase
+                            .from('academic_calendar')
+                            .select('id, deadline_date')
+                            .eq('district_id', profileData.district_id)
+                            .eq('week_number', activeWeekNumber)
+                            .maybeSingle() as any,
+                        10000,
+                        'Calendar lookup timed out.'
+                    ) as { data: any };
+                    if (calByDistrict) {
+                        calendarId = calByDistrict.id;
+                        if (calByDistrict.deadline_date) deadlineDate = new Date(calByDistrict.deadline_date);
+                    }
                 }
+            } else {
+                calendarId = calEntry.id;
+                if (calEntry.deadline_date) deadlineDate = new Date(calEntry.deadline_date);
             }
-        } else {
-            calendarId = calEntry.id;
-            if (calEntry.deadline_date) deadlineDate = new Date(calEntry.deadline_date);
+        } catch (err: any) {
+            console.warn('[pipeline] Calendar lookup failed/timed out, continuing without a deadline:', err?.message);
         }
     }
 
@@ -430,32 +437,52 @@ async function* runOfflinePipelineResilient(
     const { enqueue, cacheVerifiedDoc } = await import('./offline');
     const { recordSubmission } = await import('./offlineSubmissionLedger');
 
-    // Look up calendar_id from academic_calendar using detected week number
+    // Look up calendar_id from academic_calendar using detected week number.
+    // navigator.onLine can be wrong (captive portals, flaky connections still
+    // reporting "online"), so this is time-bounded and non-fatal just like
+    // the online pipeline's version — losing calendarId only means this
+    // queued document won't be linked to a calendar entry until it syncs.
     let calendarId = options.calendarId || null;
     if (!calendarId && activeWeekNumber) {
-        const { data: calEntry } = await supabase
-            .from('academic_calendar')
-            .select('id')
-            .eq('school_year', options.schoolYear || getCurrentSchoolYear())
-            .eq('week_number', activeWeekNumber)
-            .maybeSingle();
-        if (!calEntry) {
-            const { data: profileData } = await supabase
-                .from('profiles')
-                .select('district_id')
-                .eq('id', options.userId)
-                .single();
-            if (profileData?.district_id) {
-                const { data: calByDistrict } = await supabase
+        try {
+            const { data: calEntry } = await withTimeout(
+                supabase
                     .from('academic_calendar')
                     .select('id')
-                    .eq('district_id', profileData.district_id)
+                    .eq('school_year', options.schoolYear || getCurrentSchoolYear())
                     .eq('week_number', activeWeekNumber)
-                    .maybeSingle();
-                if (calByDistrict) calendarId = calByDistrict.id;
+                    .maybeSingle() as any,
+                10000,
+                'Calendar lookup timed out.'
+            ) as { data: any };
+            if (!calEntry) {
+                const { data: profileData } = await withTimeout(
+                    supabase
+                        .from('profiles')
+                        .select('district_id')
+                        .eq('id', options.userId)
+                        .single() as any,
+                    10000,
+                    'Profile lookup timed out.'
+                ) as { data: any };
+                if (profileData?.district_id) {
+                    const { data: calByDistrict } = await withTimeout(
+                        supabase
+                            .from('academic_calendar')
+                            .select('id')
+                            .eq('district_id', profileData.district_id)
+                            .eq('week_number', activeWeekNumber)
+                            .maybeSingle() as any,
+                        10000,
+                        'Calendar lookup timed out.'
+                    ) as { data: any };
+                    if (calByDistrict) calendarId = calByDistrict.id;
+                }
+            } else {
+                calendarId = calEntry.id;
             }
-        } else {
-            calendarId = calEntry.id;
+        } catch (err: any) {
+            console.warn('[pipeline] Calendar lookup failed/timed out while queuing offline, continuing without it:', err?.message);
         }
     }
 

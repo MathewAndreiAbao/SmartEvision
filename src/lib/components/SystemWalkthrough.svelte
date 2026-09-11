@@ -46,7 +46,15 @@
             `[data-nav="${key}"], [data-tour="${key}"]`,
         );
         for (const el of candidates) {
-            if (el.offsetParent !== null) return el;
+            // el.offsetParent is spec'd to be null for position: fixed
+            // elements — regardless of whether they're actually visible —
+            // so it always failed to find the chatbot launcher (a fixed
+            // floating button) and the "Meet Gabay" step never highlighted
+            // anything real. getClientRects().length works the same way
+            // across every position scheme: zero rects means not rendered
+            // (display: none or not in the DOM's layout at all), and that's
+            // the only case we actually want to skip.
+            if (el.getClientRects().length > 0) return el;
         }
         return null;
     }
