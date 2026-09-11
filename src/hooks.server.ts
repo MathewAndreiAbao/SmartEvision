@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { createClient } from '@supabase/supabase-js';
-import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 import type { Handle } from '@sveltejs/kit';
 import type { User } from '@supabase/supabase-js';
 
@@ -14,7 +14,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     const accessToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
     // Create a per-request Supabase client (lightweight — Supabase uses HTTP REST)
-    const supabaseServer = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+    const supabaseServer = createClient(env.PUBLIC_SUPABASE_URL ?? '', env.PUBLIC_SUPABASE_ANON_KEY ?? '', {
         auth: {
             autoRefreshToken: false,
             persistSession: false,
