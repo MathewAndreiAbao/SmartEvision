@@ -83,6 +83,75 @@ async function withRetry<T>(fn: () => Promise<T>, attempts: number, delayMs: num
     throw lastErr;
 }
 
+interface XhrUploadResult {
+    ok: boolean;
+    status: number;
+    body: string;
+}
+
+/**
+ * Upload via XMLHttpRequest rather than fetch, for two mobile-specific reasons.
+ *
+ * 1. fetch() cannot report upload progress at all, so the bar sat frozen for
+ *    the entire transfer — on a slow phone connection that's minutes of a UI
+ *    that looks hung, which is indistinguishable from a dead connection.
+ *    XHR exposes upload.onprogress, so real bytes-sent can be surfaced.
+ * 2. A single flat timeout punishes slow-but-working transfers: a 3MB file at
+ *    5 KB/s legitimately needs ~10 minutes, and killing that at 2 minutes
+ *    throws away a transfer that was succeeding. This instead times out on
+ *    *inactivity* — it only aborts if no bytes move for stallMs, so a slow
+ *    upload runs as long as it needs while a genuinely dead one still fails
+ *    promptly.
+ */
+function xhrUpload(
+    url: string,
+    body: XMLHttpRequestBodyInit,
+    opts: {
+        method?: string;
+        headers?: Record<string, string>;
+        stallMs?: number;
+        onProgress?: (loaded: number, total: number) => void;
+    } = {}
+): Promise<XhrUploadResult> {
+    const { method = 'POST', headers = {}, stallMs = 90000, onProgress } = opts;
+
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        let stallTimer: any;
+
+        const resetStallTimer = () => {
+            clearTimeout(stallTimer);
+            stallTimer = setTimeout(() => {
+                xhr.abort();
+                reject(new Error('Upload stalled — no data sent for a while. Check your connection and try again.'));
+            }, stallMs);
+        };
+
+        const done = () => clearTimeout(stallTimer);
+
+        xhr.open(method, url, true);
+        for (const [k, v] of Object.entries(headers)) xhr.setRequestHeader(k, v);
+
+        xhr.upload.onprogress = (e) => {
+            resetStallTimer();
+            if (e.lengthComputable && onProgress) onProgress(e.loaded, e.total);
+        };
+        // Bytes are still in flight while the server responds; keep the stall
+        // timer alive so a slow server round-trip isn't mistaken for a stall.
+        xhr.onprogress = resetStallTimer;
+        xhr.onload = () => {
+            done();
+            resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, body: xhr.responseText });
+        };
+        xhr.onerror = () => { done(); reject(new Error('Network error during upload.')); };
+        xhr.onabort = () => done();
+        xhr.ontimeout = () => { done(); reject(new Error('Upload timed out.')); };
+
+        resetStallTimer();
+        xhr.send(body);
+    });
+}
+
 // ─── Core Pipeline ───────────────────────────────────────────────────────────
 
 async function* runPipelineCore(
@@ -97,7 +166,16 @@ async function* runPipelineCore(
 
     // 2. Mobile Optimization: Detect "Low-Power" or "Slow-Connection" state
     // Skip heavy compression if the file is already small to save CPU/Battery on mobile
-    const isSlowConnection = (navigator as any).connection?.effectiveType === '2g' || (navigator as any).connection?.saveData;
+    // effectiveType is one of 'slow-2g' | '2g' | '3g' | '4g'. Matching only
+    // '2g' missed 'slow-2g' entirely — the very slowest class, i.e. exactly
+    // the connection this branch exists to protect — and also treated a
+    // crawling '3g' link as if it were fine.
+    const effectiveType = (navigator as any).connection?.effectiveType;
+    const isSlowConnection =
+        effectiveType === 'slow-2g' ||
+        effectiveType === '2g' ||
+        effectiveType === '3g' ||
+        (navigator as any).connection?.saveData === true;
     const isSmallEnough = pdfBytes.byteLength < 2 * 1024 * 1024; // 2MB
 
     if (isSlowConnection && isSmallEnough) {
@@ -299,24 +377,16 @@ async function* runOnlinePipelineResilient(
 
             console.log('[pipeline] Starting server-side upload via /api/storage/upload');
 
-            const serverUploadResponse = await withTimeout(
-                fetch('/api/storage/upload', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: formData
-                }),
-                120000,
-                'Server upload timed out. Check internet connection.'
-            );
+            const serverUploadResponse = await xhrUpload('/api/storage/upload', formData, {
+                headers: { 'Authorization': `Bearer ${token}` },
+                onProgress: options.onTransferProgress
+            });
 
             if (serverUploadResponse.ok) {
                 uploadSuccess = true;
                 console.log('[pipeline] ✅ Server-side upload succeeded (CORS-safe, no B2 needed)');
             } else {
-                const errText = await serverUploadResponse.text().catch(() => serverUploadResponse.statusText);
-                uploadError = new Error(`Server upload HTTP ${serverUploadResponse.status}: ${errText}`);
+                uploadError = new Error(`Server upload HTTP ${serverUploadResponse.status}: ${serverUploadResponse.body || 'request failed'}`);
                 console.warn('[pipeline] Server upload failed, retrying with B2...', uploadError);
             }
         } catch (err: any) {
@@ -355,20 +425,16 @@ async function* runOnlinePipelineResilient(
             }
 
             const { url: presignedUrl } = await presignResponse.json();
-            const uploadResponse = await withTimeout(
-                fetch(presignedUrl, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': contentType },
-                    body: fileBlob
-                }),
-                120000,
-                'B2 archive upload timed out.'
-            );
+            const uploadResponse = await xhrUpload(presignedUrl, fileBlob, {
+                method: 'PUT',
+                headers: { 'Content-Type': contentType },
+                onProgress: options.onTransferProgress
+            });
 
             if (!uploadResponse.ok) {
-                let errStr = uploadResponse.statusText;
+                let errStr = `HTTP ${uploadResponse.status}`;
                 try {
-                    const errJson = await uploadResponse.json();
+                    const errJson = JSON.parse(uploadResponse.body);
                     errStr = errJson.message || errStr;
                 } catch { /* ignore */ }
 

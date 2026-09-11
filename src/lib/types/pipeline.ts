@@ -28,4 +28,12 @@ export interface PipelineOptions {
     submissionWindowDays?: number;
     preDetectedMetadata?: any;
     rawText?: string;
+    /**
+     * Live byte-level progress for the transfer step. The pipeline is an async
+     * generator, so it can't yield from inside an XHR progress callback — this
+     * reports sub-phase progress directly to the caller instead, which is what
+     * lets the bar move during the minutes-long transfer on a slow connection
+     * rather than appearing frozen.
+     */
+    onTransferProgress?: (loaded: number, total: number) => void;
 }

@@ -737,6 +737,15 @@
             enforceOcr: $settings.enforce_ocr,
             submissionWindowDays: $settings.submission_window_days,
             preDetectedMetadata: detectedMetadata,
+            // Show real bytes-sent during the transfer. Without this the bar
+            // parks at one number for the whole upload, which on a slow phone
+            // connection is minutes of UI that looks identical to a hang.
+            onTransferProgress: (loaded: number, total: number) => {
+                if (!total) return;
+                const mb = (n: number) => (n / 1024 / 1024).toFixed(1);
+                progress = 50 + Math.round((loaded / total) * 30);
+                message = `Uploading… ${mb(loaded)} MB of ${mb(total)} MB`;
+            },
         };
 
         // The pipeline runs for minutes on a phone. Without a wake lock, a
