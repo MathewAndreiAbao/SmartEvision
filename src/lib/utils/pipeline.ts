@@ -153,6 +153,13 @@ function xhrUpload(
     });
 }
 
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+    const digest = await crypto.subtle.digest('SHA-256', bytes.buffer as ArrayBuffer);
+    return Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+}
+
 // ─── Core Pipeline ───────────────────────────────────────────────────────────
 
 async function* runPipelineCore(
@@ -161,9 +168,29 @@ async function* runPipelineCore(
     worker: Worker
 ): AsyncGenerator<PipelineEvent & { _core?: CoreResult }> {
 
+    // Identity of a document is the bytes the teacher actually picked, hashed
+    // before anything touches them.
+    //
+    // This used to be taken from the worker, which hashed whatever it was
+    // handed — by then already transcoded and conditionally compressed — so
+    // "the same document" produced a different hash on every upload and no
+    // duplicate check could ever fire:
+    //   .docx  -> converted through Google Apps Script, which stamps fresh
+    //             PDF creation/modification dates into every conversion
+    //   .jpg/.png -> wrapped by PDFDocument.create(), which sets those dates
+    //             to now
+    //   .pdf   -> passed through compressFile() or not, depending on
+    //             connection speed and size, so even one file hashed two
+    //             different ways on two different uploads
+    //
+    // The upload page's own pre-check already hashed the original file, so
+    // the value it tested was never the value that got stored either.
+    const originalBytes = new Uint8Array(await file.arrayBuffer());
+    const fileHash = await sha256Hex(originalBytes);
+
     // 1. Transcode (Word to PDF)
     yield { phase: 'transcoding', progress: 10, message: 'Converting to PDF...' };
-    let pdfBytes = file.type === 'application/pdf' ? new Uint8Array(await file.arrayBuffer()) : (await transcodeToPdf(file)).pdfBytes;
+    let pdfBytes = file.type === 'application/pdf' ? originalBytes : (await transcodeToPdf(file)).pdfBytes;
 
     // 2. Mobile Optimization: Detect "Low-Power" or "Slow-Connection" state
     // Skip heavy compression if the file is already small to save CPU/Battery on mobile
@@ -197,7 +224,11 @@ async function* runPipelineCore(
 
     // 3. Compress & Hash
     yield { phase: 'compressing', progress: 50, message: 'Securing your file...' };
-    const { compressedBytes, fileHash } = await runWorkerTask(
+    // Only the compressed bytes are taken from here. The worker also returns a
+    // hash of what it was given, but that is post-processing bytes — the very
+    // thing that made duplicate detection unreliable — so fileHash above,
+    // taken from the original upload, is what identifies the document.
+    const { compressedBytes } = await runWorkerTask(
         worker,
         'COMPRESS_AND_HASH',
         { pdfBytes },
