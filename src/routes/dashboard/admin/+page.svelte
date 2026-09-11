@@ -17,7 +17,9 @@
         RefreshCw,
         Eye,
         EyeOff,
+        CalendarDays,
     } from "lucide-svelte";
+    import AcademicCalendarManager from "$lib/components/AcademicCalendarManager.svelte";
 
     // â”€â”€ Settings State â”€â”€
     let settings = $state<any[]>([]);
@@ -30,7 +32,7 @@
     let users = $state<any[]>([]);
     let loadingUsers = $state(true);
     let userSearch = $state("");
-    let activeTab = $state<"settings" | "users">("settings");
+    let activeTab = $state<"settings" | "users" | "calendar">("settings");
     let roleChangeModal = $state<{
         open: boolean;
         user: any;
@@ -420,6 +422,19 @@
             aria-controls="users-panel"
         >
             <Users size={18} />
+        </button>
+        <button
+            onclick={() => (activeTab = "calendar")}
+            class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold transition-colors {activeTab ===
+            'calendar'
+                ? 'bg-surface-white text-gov-blue shadow-sm'
+                : 'text-text-muted hover:text-text-primary'}"
+            role="tab"
+            aria-selected={activeTab === "calendar"}
+            aria-controls="calendar-panel"
+            title="Academic Calendar"
+        >
+            <CalendarDays size={18} />
         </button>
     </div>
 
@@ -979,6 +994,13 @@
                 </button>
             </div>
         </div>
+    </div>
+{/if}
+
+<!-- Calendar Tab -->
+{#if activeTab === "calendar"}
+    <div id="calendar-panel" role="tabpanel" in:fade={{ duration: 200 }}>
+        <AcademicCalendarManager />
     </div>
 {/if}
 
