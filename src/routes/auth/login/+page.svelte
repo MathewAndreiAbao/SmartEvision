@@ -7,6 +7,8 @@
     } from "$lib/utils/auth";
     import { addToast } from "$lib/stores/toast";
     import { goto } from "$app/navigation";
+    import { onMount } from "svelte";
+    import { env } from "$env/dynamic/public";
     import { Lock, ShieldCheck, ArrowLeft, Eye, EyeOff, CheckCircle2 } from "lucide-svelte";
 
     let email = $state("");
@@ -14,12 +16,54 @@
     let loading = $state(false);
     let errorMsg = $state("");
     let showPassword = $state(false);
+    let agreedToTerms = $state(false);
+
+    // reCAPTCHA v2 checkbox. Rendered only when a site key is configured — an
+    // unconfigured deployment must still be able to sign in rather than
+    // locking every teacher out behind a widget that can never load.
+    const siteKey = env.PUBLIC_RECAPTCHA_SITE_KEY;
+    let captchaEl: HTMLDivElement | undefined = $state();
+    let captchaWidgetId: number | null = null;
+    let captchaReady = $state(false);
 
     $effect(() => {
         if (!$authLoading && $profile) {
             goto(getRoleDashboardPath($profile.role));
         }
     });
+
+    onMount(() => {
+        if (!siteKey) return;
+
+        const render = () => {
+            const grecaptcha = (window as any).grecaptcha;
+            if (!grecaptcha?.render || !captchaEl || captchaWidgetId !== null) return;
+            captchaWidgetId = grecaptcha.render(captchaEl, { sitekey: siteKey });
+            captchaReady = true;
+        };
+
+        if ((window as any).grecaptcha?.render) {
+            render();
+            return;
+        }
+
+        // Google calls this global once api.js finishes loading.
+        (window as any).onCedimsRecaptchaLoad = render;
+
+        const script = document.createElement("script");
+        script.src =
+            "https://www.google.com/recaptcha/api.js?onload=onCedimsRecaptchaLoad&render=explicit";
+        script.async = true;
+        script.defer = true;
+        script.onerror = () =>
+            console.warn("[login] reCAPTCHA script failed to load — continuing without it");
+        document.head.appendChild(script);
+    });
+
+    function resetCaptcha() {
+        const grecaptcha = (window as any).grecaptcha;
+        if (grecaptcha?.reset && captchaWidgetId !== null) grecaptcha.reset(captchaWidgetId);
+    }
 
     async function handleSubmit(e: Event) {
         e.preventDefault();
@@ -35,15 +79,51 @@
             errorMsg = "Password must be at least 6 characters.";
             return;
         }
+        if (!agreedToTerms) {
+            errorMsg = "Please accept the Terms of Use and Privacy Notice to continue.";
+            return;
+        }
 
         loading = true;
         errorMsg = "";
+
+        // The widget proves nothing by itself — the token is only meaningful
+        // once the server checks it with Google using the secret key.
+        if (siteKey && captchaReady) {
+            const token = (window as any).grecaptcha?.getResponse(captchaWidgetId ?? undefined);
+            if (!token) {
+                errorMsg = "Please complete the 'I'm not a robot' check.";
+                loading = false;
+                return;
+            }
+
+            try {
+                const res = await fetch("/api/verify-recaptcha", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ token }),
+                });
+                const result = await res.json();
+                if (!result.success) {
+                    errorMsg = result.error || "Verification failed. Please try again.";
+                    resetCaptcha();
+                    loading = false;
+                    return;
+                }
+            } catch {
+                // Our own endpoint being unreachable shouldn't strand a teacher
+                // at the login screen; the server already fails open when it
+                // cannot reach Google for the same reason.
+                console.warn("[login] Could not reach verification endpoint — continuing");
+            }
+        }
 
         const result = await signIn(email, password);
 
         if (result.error) {
             errorMsg = result.error;
             addToast("error", result.error);
+            resetCaptcha();
         } else {
             addToast("success", "Welcome to CEDIMS.");
         }
@@ -157,6 +237,40 @@
                         </div>
                     </div>
 
+                    <!-- reCAPTCHA — only present when a site key is configured -->
+                    {#if siteKey}
+                        <div class="flex justify-center">
+                            <div bind:this={captchaEl}></div>
+                        </div>
+                    {/if}
+
+                    <!-- Terms & Privacy agreement -->
+                    <div class="flex items-start gap-2.5">
+                        <input
+                            id="agree"
+                            type="checkbox"
+                            bind:checked={agreedToTerms}
+                            class="mt-0.5 h-4 w-4 shrink-0 rounded border-border-strong text-gov-blue focus:ring-2 focus:ring-gov-blue/40"
+                        />
+                        <label for="agree" class="text-xs leading-5 text-text-secondary">
+                            I have read and agree to the
+                            <a
+                                href="/terms"
+                                target="_blank"
+                                rel="noopener"
+                                class="font-semibold text-gov-blue hover:underline">Terms of Use</a
+                            >
+                            and
+                            <a
+                                href="/privacy"
+                                target="_blank"
+                                rel="noopener"
+                                class="font-semibold text-gov-blue hover:underline">Privacy Notice</a
+                            >, and I consent to the processing of my personal information under the
+                            Data Privacy Act of 2012 (RA 10173).
+                        </label>
+                    </div>
+
                     <!-- Error Message -->
                     {#if errorMsg}
                         <div class="rounded-lg border border-gov-red/30 bg-gov-red/10 p-3 sm:p-4 text-sm font-semibold text-gov-red">
@@ -167,7 +281,7 @@
                     <!-- Submit Button -->
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={loading || !agreedToTerms}
                         class="gov-btn-primary w-full justify-center text-sm"
                     >
                         {#if loading}

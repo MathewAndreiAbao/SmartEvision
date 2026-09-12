@@ -20,6 +20,35 @@
     } from "lucide-svelte";
     import { fly } from "svelte/transition";
 
+    // How the system maps onto SDG 4, stated against the actual UN target
+    // numbers rather than as a general claim about education.
+    const sdgTargets = [
+        {
+            target: "4.c",
+            title: "Supply of qualified teachers",
+            contribution:
+                "Master Teachers and School Heads review lesson logs and leave remarks, so supervision becomes continuous coaching instead of an annual check.",
+        },
+        {
+            target: "4.1",
+            title: "Effective learning outcomes",
+            contribution:
+                "Tracking Daily Lesson Log completion against deadlines keeps lesson planning consistent across every class in the district.",
+        },
+        {
+            target: "4.5",
+            title: "Equal access",
+            contribution:
+                "Uploads work on low-bandwidth mobile connections and complete on their own once signal returns, so remote schools are monitored on the same footing.",
+        },
+        {
+            target: "4.a",
+            title: "Effective learning environments",
+            contribution:
+                "District-wide compliance data shows which schools need support, directing attention to where instruction needs strengthening.",
+        },
+    ];
+
     const features = [
         {
             title: "DLL Monitoring",
@@ -240,6 +269,44 @@
                         <p class="mt-1.5 sm:mt-2 text-xs sm:text-sm leading-6 sm:leading-7 text-text-secondary">{feature.description}</p>
                     </div>
                 {/each}
+            </div>
+        </section>
+
+        <section id="sdg" class="border-y border-border-subtle bg-surface-white">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-16 lg:px-8">
+                <div class="grid gap-6 sm:gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+                    <div>
+                        <p class="text-xs sm:text-sm font-semibold uppercase tracking-[0.25em] text-gov-blue">Sustainable Development</p>
+                        <h2 class="mt-2 sm:mt-3 text-2xl sm:text-3xl font-semibold text-text-primary">
+                            Supporting SDG 4: Quality Education
+                        </h2>
+                        <p class="mt-3 sm:mt-4 text-sm sm:text-base leading-7 text-text-secondary">
+                            CEDIMS contributes to the United Nations Sustainable Development Goal 4 —
+                            ensuring inclusive and equitable quality education and promoting lifelong
+                            learning opportunities for all.
+                        </p>
+
+                        <div class="mt-5 sm:mt-6 inline-flex items-center gap-3 rounded-2xl border border-gov-red/20 bg-gov-red/5 px-4 py-3">
+                            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gov-red text-lg font-bold text-white">
+                                4
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-text-primary">Quality Education</p>
+                                <p class="text-xs text-text-secondary">UN Sustainable Development Goal</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-3 sm:gap-4 sm:grid-cols-2">
+                        {#each sdgTargets as item}
+                            <div class="rounded-2xl border border-border-subtle bg-surface-muted p-4 sm:p-5">
+                                <p class="text-xs font-bold uppercase tracking-[0.15em] text-gov-blue">Target {item.target}</p>
+                                <p class="mt-1.5 text-sm font-semibold text-text-primary">{item.title}</p>
+                                <p class="mt-1.5 text-xs sm:text-sm leading-6 text-text-secondary">{item.contribution}</p>
+                            </div>
+                        {/each}
+                    </div>
+                </div>
             </div>
         </section>
 
