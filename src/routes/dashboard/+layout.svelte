@@ -1,5 +1,5 @@
 <script lang="ts">
-    import Sidebar from "$lib/components/Sidebar.svelte";
+    import MobileTabBar from "$lib/components/MobileTabBar.svelte";
     import AppSidebar from "$lib/components/AppSidebar.svelte";
     import AppHeader from "$lib/components/AppHeader.svelte";
     import InstallPrompt from "$lib/components/InstallPrompt.svelte";
@@ -72,14 +72,14 @@
 </a>
 
 {#if $user}
-    <!-- AppSidebar, Sidebar (bottom tabs), and the PWA/walkthrough overlays
+    <!-- AppSidebar, MobileTabBar, and the PWA/walkthrough overlays
          are all position:fixed, so they don't participate in this flex
          layout at all — flex-col only ever governs AppHeader vs <main>,
          and AppHeader is lg:hidden, so there's nothing for flex-direction
          to do at lg+. The sidebar offset is handled by <main>'s lg:ml-64. -->
     <div class="min-h-dvh bg-surface flex flex-col">
-        <!-- Mobile bottom navigation (Sidebar component, but only mobile nav rendered) -->
-        <Sidebar />
+        <!-- Bottom tab bar — the nav surface below lg -->
+        <MobileTabBar />
 
         <!-- Persistent left sidebar at lg+ — the desktop nav surface -->
         <AppSidebar />
