@@ -5,18 +5,36 @@
     import { connectivity } from "$lib/stores/connectivity";
     import { signOut } from "$lib/utils/auth";
     import { goto } from "$app/navigation";
-    import { Sun, Moon, LogOut, WifiOff, RefreshCw, Settings } from "lucide-svelte";
+    import { page } from "$app/stores";
+    import { Sun, Moon, LogOut, WifiOff, RefreshCw, QrCode, Settings } from "lucide-svelte";
     import { focusTrap } from "$lib/actions/focusTrap";
+    import { getNavItemsForRole } from "$lib/config/navigation";
+    import { showQRScanner } from "$lib/stores/ui";
 
     import { isMobileDevice } from "$lib/utils/device";
 
     const { isOnline: onlineStatus, pendingCount } = connectivity;
     const isMobile = isMobileDevice();
 
-    // Mobile-only utility strip (lg:hidden — AppSidebar.svelte covers lg+).
-    // No section nav here: the bottom tab bar is the single nav surface
-    // below lg, so this is logo + connectivity + theme + notifications +
-    // profile only, not a second navigation surface.
+    // The app's top bar at every width. At lg+ it carries the section nav
+    // itself; below lg the bottom tab bar (MobileTabBar.svelte) is the nav
+    // surface and this stays a utility strip — logo, connectivity, theme,
+    // notifications, profile — so the two never stack up as two competing
+    // navigations on a phone.
+    //
+    // Same role-filtered source of truth as the tab bar, so the two can't
+    // drift. "Scan" isn't a real route (href="#scan"), so it's a dedicated
+    // icon button rather than a nav link that goes nowhere.
+    const navItems = $derived(
+        getNavItemsForRole($profile?.role).filter((item) => !item.href.startsWith("#")),
+    );
+
+    function isActive(href: string): boolean {
+        const currentPath = $page.url.pathname;
+        if (href === "/dashboard") return currentPath === "/dashboard";
+        return currentPath.startsWith(href);
+    }
+
     let profileMenuOpen = $state(false);
     let profileMenuRef: HTMLDivElement | undefined = $state();
     let profileMenuDropdown: HTMLDivElement | undefined = $state();
@@ -46,22 +64,45 @@
 </script>
 
 <header
-    class="lg:hidden sticky top-0 z-30 w-full border-b border-border-subtle bg-surface-white/95 backdrop-blur-md shadow-sm"
+    class="sticky top-0 z-30 w-full border-b border-border-subtle bg-surface-white/95 backdrop-blur-md shadow-sm"
 >
-    <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+    <div class="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:gap-5 lg:px-8">
         <!-- Left: Logo -->
-        <div class="flex items-center gap-1 min-w-0 shrink-0">
-            <a href="/dashboard" class="shrink-0" aria-label="CEDIMS Dashboard">
-                <!-- Weight/size carries emphasis, not a gradient — craft-floor:
-                     "Gradient text. Emphasis comes from weight or size." -->
-                <span class="text-lg font-extrabold tracking-tight text-gov-blue">
-                    CEDIMS
-                </span>
-            </a>
-        </div>
+        <a href="/dashboard" class="shrink-0" aria-label="CEDIMS Dashboard">
+            <!-- Weight/size carries emphasis, not a gradient — craft-floor:
+                 "Gradient text. Emphasis comes from weight or size." -->
+            <span class="text-lg font-extrabold tracking-tight text-gov-blue">
+                CEDIMS
+            </span>
+        </a>
+
+        <!-- Section navigation — lg+ only. Below lg the bottom tab bar owns
+             this, and repeating it here would be a second nav on a phone.
+             data-nav carries the walkthrough's target for each item. -->
+        <nav
+            class="hidden min-w-0 flex-1 items-center gap-0.5 lg:flex"
+            aria-label="Section navigation"
+        >
+            {#each navItems as item}
+                {@const NavIcon = item.icon}
+                <a
+                    href={item.href}
+                    data-nav={item.navKey || null}
+                    class="flex items-center gap-2 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold transition-colors {isActive(
+                        item.href,
+                    )
+                        ? 'bg-gov-blue/10 text-gov-blue'
+                        : 'text-text-secondary hover:bg-surface-muted hover:text-text-primary'}"
+                    aria-current={isActive(item.href) ? "page" : undefined}
+                >
+                    <NavIcon size={17} strokeWidth={isActive(item.href) ? 2.5 : 2} aria-hidden="true" />
+                    {item.label}
+                </a>
+            {/each}
+        </nav>
 
         <!-- Right: Actions & Profile -->
-        <div class="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+        <div class="ml-auto flex flex-shrink-0 items-center gap-1 sm:gap-2">
             <!-- Global Connectivity / Pending Sync Indicator — visible at every
                  width (was hidden entirely below the xs breakpoint, exactly
                  where a flaky connection is most likely). Text label
@@ -93,6 +134,17 @@
                     {/if}
                 </button>
             {/if}
+
+            <!-- QR Scan — lg+ only, matching where the sidebar used to put it.
+                 The tab bar deliberately omits Scan (mobileNav: false), so on a
+                 phone the entry point stays the Dashboard's own scan button. -->
+            <button
+                onclick={() => showQRScanner.set(true)}
+                class="hidden h-10 w-10 items-center justify-center rounded-lg text-text-muted transition-colors duration-200 hover:bg-gov-blue/10 hover:text-gov-blue lg:flex"
+                aria-label="Scan QR code"
+            >
+                <QrCode size={20} strokeWidth={1.5} aria-hidden="true" />
+            </button>
 
             <!-- Theme Toggle -->
             <button
@@ -139,7 +191,9 @@
                             {$profile?.full_name?.charAt(0) || "U"}
                         </div>
                     {/if}
-                    <span class="hidden sm:block truncate max-w-[150px] text-sm font-semibold text-text-primary">
+                    <!-- The name hides again at lg, where the section nav is
+                         competing for the same row; it returns at xl. -->
+                    <span class="hidden sm:block lg:hidden xl:block truncate max-w-[150px] text-sm font-semibold text-text-primary">
                         {$profile?.full_name}
                     </span>
                 </button>
