@@ -136,78 +136,111 @@
     <title>Sign In — CEDIMS · Powered by Smart E-VISION</title>
 </svelte:head>
 
-<div class="min-h-dvh bg-gradient-to-br from-gov-blue/5 via-surface-white to-surface-muted px-4 py-8 sm:px-6 sm:py-12 lg:px-8 flex items-center">
-    <div class="mx-auto w-full flex max-w-7xl flex-col gap-8 sm:gap-10 lg:flex-row lg:items-center lg:justify-between">
-        <!-- Left Section — Value Proposition -->
-        <div class="max-w-2xl space-y-6 sm:space-y-8">
-            <div class="inline-flex items-center gap-2.5 rounded-full border border-gov-blue/20 bg-gov-blue/10 px-4 py-2 text-xs sm:text-sm font-bold uppercase tracking-[0.1em] text-gov-blue">
-                <ShieldCheck size={16} strokeWidth={2} />
-                Trusted by DepEd Calapan East
-            </div>
-            <div class="space-y-3 sm:space-y-4">
-                <h1 class="text-heading-lg text-text-primary">
-                    Monitor instruction, <br class="hidden sm:block" />support learning.
-                </h1>
-                <p class="text-body-lg text-text-secondary">
-                    CEDIMS helps educators manage Daily Lesson Logs, compliance tracking, and school-wide instruction quality in one unified system.
-                </p>
-            </div>
+<div class="min-h-dvh bg-surface-muted lg:grid lg:grid-cols-[1fr_1.1fr] xl:grid-cols-[1fr_1fr]">
+    <!-- Brand panel — fills the viewport on desktop so the form never floats
+         in empty space; collapses to a compact header strip on small screens. -->
+    <aside class="relative hidden overflow-hidden bg-gov-blue px-10 py-12 text-white lg:flex lg:flex-col lg:justify-between xl:px-14">
+        <div
+            class="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-white/10 blur-2xl"
+            aria-hidden="true"
+        ></div>
+        <div
+            class="pointer-events-none absolute -bottom-32 -left-20 h-96 w-96 rounded-full bg-black/10 blur-2xl"
+            aria-hidden="true"
+        ></div>
 
-            <!-- Features List -->
-            <div class="space-y-3 pt-4">
+        <a href="/" class="relative flex items-center gap-3">
+            <img src="/app_icon.png" alt="" class="h-10 w-10 rounded-lg bg-white/95 p-1" />
+            <span>
+                <span class="block text-sm font-semibold leading-tight">CEDIMS</span>
+                <span class="block text-[10px] font-semibold uppercase leading-tight tracking-[0.22em] text-slate-200">
+                    Instructional Monitoring
+                </span>
+            </span>
+        </a>
+
+        <div class="relative max-w-md">
+            <h1 class="text-3xl font-bold leading-[1.2] tracking-tight xl:text-4xl">
+                Monitor instruction,<br />support learning.
+            </h1>
+            <p class="mt-4 text-base leading-8 text-slate-100">
+                Submit Daily Lesson Logs, record checking remarks, and follow district
+                compliance — all against one set of records.
+            </p>
+
+            <ul class="mt-8 space-y-3.5">
                 {#each [
-                    "Real-time document monitoring",
-                    "AI-powered compliance checking",
-                    "School & district analytics",
-                ] as feature}
-                    <div class="flex items-center gap-3">
-                        <div class="flex-shrink-0 w-5 h-5 rounded-full bg-gov-green/20 flex items-center justify-center">
-                            <CheckCircle2 size={16} class="text-gov-green" strokeWidth={2.5} />
-                        </div>
-                        <span class="text-sm font-medium text-text-primary">{feature}</span>
-                    </div>
+                    "Daily Lesson Log submission and checking",
+                    "Remarks and revisions kept in full history",
+                    "QR-verifiable documents, offline-ready uploads",
+                ] as item}
+                    <li class="flex items-start gap-3 text-sm text-slate-100">
+                        <CheckCircle2 size={18} strokeWidth={2} class="mt-0.5 shrink-0 text-white" />
+                        <span>{item}</span>
+                    </li>
                 {/each}
-            </div>
+            </ul>
         </div>
 
-        <!-- Right Section — Login Form -->
-        <div class="w-full max-w-md mx-auto lg:mx-0 shrink-0">
-            <div class="rounded-2xl border border-border-subtle bg-surface-white backdrop-blur-sm p-6 sm:p-8 shadow-xl">
-                <!-- Header -->
-                <div class="mb-7 sm:mb-8 text-center">
-                    <div class="mx-auto w-16 h-16 bg-surface-white border border-border-subtle rounded-2xl flex items-center justify-center shadow-lg mb-4">
-                        <img src="/app_icon.png" alt="CEDIMS — DepEd Calapan East District" class="h-12 w-12 object-contain" />
-                    </div>
-                    <h2 class="text-xl sm:text-2xl font-bold text-text-primary">Welcome back</h2>
-                    <p class="mt-1 text-sm text-text-secondary">Sign in to your educator account</p>
+        <div class="relative flex items-center gap-4 rounded-2xl bg-white/10 p-4">
+            <img
+                src="/sdg-4-quality-education.svg"
+                alt="United Nations Sustainable Development Goal 4: Quality Education"
+                width="64"
+                height="64"
+                class="h-16 w-16 shrink-0 rounded-lg"
+            />
+            <p class="text-xs leading-6 text-slate-100">
+                Built to support <span class="font-semibold text-white">UN Sustainable Development Goal 4</span>
+                — inclusive and equitable quality education.
+            </p>
+        </div>
+    </aside>
+
+    <!-- Form panel -->
+    <main class="flex min-h-dvh flex-col px-4 py-8 sm:px-6 sm:py-10 lg:min-h-0 lg:justify-center lg:px-10 lg:py-12">
+        <!-- Mobile brand row — the aside is hidden at this width -->
+        <a href="/" class="mb-8 flex items-center gap-2.5 lg:hidden">
+            <img src="/app_icon.png" alt="" class="h-9 w-9 rounded-lg" />
+            <span>
+                <span class="block text-sm font-semibold leading-tight text-text-primary">CEDIMS</span>
+                <span class="block text-[10px] font-semibold uppercase leading-tight tracking-[0.22em] text-gov-blue">
+                    Instructional Monitoring
+                </span>
+            </span>
+        </a>
+
+        <div class="mx-auto w-full max-w-md">
+            <div class="rounded-2xl border border-border-subtle bg-surface-white p-6 shadow-sm sm:p-8">
+                <div class="mb-7">
+                    <h2 class="text-2xl font-bold tracking-tight text-text-primary">Welcome back</h2>
+                    <p class="mt-1.5 text-sm text-text-secondary">Sign in to your educator account.</p>
                 </div>
 
-                <!-- Form -->
-                <form onsubmit={handleSubmit} class="space-y-5 sm:space-y-6">
-                    <!-- Email Input -->
+                <form onsubmit={handleSubmit} class="space-y-5" novalidate>
                     <div>
                         <label for="email" class="mb-2 block text-sm font-semibold text-text-primary">
-                            Email Address
+                            Email address
                         </label>
-                        <div class="relative">
-                            <input
-                                id="email"
-                                type="email"
-                                bind:value={email}
-                                placeholder="your.email@deped.gov.ph"
-                                class="gov-input w-full"
-                                autocomplete="email"
-                                required
-                            />
-                        </div>
+                        <input
+                            id="email"
+                            type="email"
+                            bind:value={email}
+                            placeholder="your.email@deped.gov.ph"
+                            class="gov-input w-full"
+                            autocomplete="email"
+                            required
+                        />
                     </div>
 
-                    <!-- Password Input -->
                     <div>
-                        <div class="flex items-center justify-between mb-2">
+                        <div class="mb-2 flex items-center justify-between gap-3">
                             <label for="password" class="block text-sm font-semibold text-text-primary">Password</label>
-                            <a href="/auth/forgot-password" class="text-xs font-semibold text-gov-blue hover:text-gov-blue-dark transition-colors">
-                                Forgot?
+                            <a
+                                href="/auth/forgot-password"
+                                class="text-xs font-semibold text-gov-blue transition-colors hover:text-gov-blue-dark hover:underline"
+                            >
+                                Forgot password?
                             </a>
                         </div>
                         <div class="relative">
@@ -223,8 +256,8 @@
                             />
                             <button
                                 type="button"
-                                onclick={() => showPassword = !showPassword}
-                                class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-gov-blue transition-colors p-1"
+                                onclick={() => (showPassword = !showPassword)}
+                                class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-muted transition-colors hover:text-gov-blue"
                                 tabindex="-1"
                                 aria-label={showPassword ? "Hide password" : "Show password"}
                             >
@@ -245,7 +278,7 @@
                     {/if}
 
                     <!-- Terms & Privacy agreement -->
-                    <div class="flex items-start gap-2.5">
+                    <div class="flex items-start gap-2.5 rounded-xl bg-surface-muted p-3.5">
                         <input
                             id="agree"
                             type="checkbox"
@@ -272,37 +305,40 @@
                     </div>
 
                     <!-- Error Message -->
-                    {#if errorMsg}
-                        <div class="rounded-lg border border-gov-red/30 bg-gov-red/10 p-3 sm:p-4 text-sm font-semibold text-gov-red">
-                            {errorMsg}
-                        </div>
-                    {/if}
+                    <div aria-live="polite">
+                        {#if errorMsg}
+                            <p class="rounded-xl border border-gov-red/30 bg-gov-red/10 p-3 text-sm font-semibold text-gov-red">
+                                {errorMsg}
+                            </p>
+                        {/if}
+                    </div>
 
-                    <!-- Submit Button -->
-                    <button
-                        type="submit"
-                        disabled={loading || !agreedToTerms}
-                        class="gov-btn-primary w-full justify-center text-sm"
-                    >
+                    <button type="submit" disabled={loading} class="gov-btn-primary w-full justify-center py-3 text-sm">
                         {#if loading}
                             <span class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
-                            <span>Signing in...</span>
+                            <span>Signing in…</span>
                         {:else}
                             <Lock size={18} strokeWidth={2} />
-                            <span>Sign In</span>
+                            <span>Sign in</span>
                         {/if}
                     </button>
                 </form>
 
-                <!-- Footer -->
-                <div class="mt-6 pt-6 border-t border-border-subtle text-center">
-                    <a href="/" class="inline-flex items-center gap-1.5 text-sm font-medium text-text-muted hover:text-gov-blue transition-colors">
+                <div class="mt-6 border-t border-border-subtle pt-5 text-center">
+                    <a
+                        href="/"
+                        class="inline-flex items-center gap-1.5 text-sm font-medium text-text-muted transition-colors hover:text-gov-blue"
+                    >
                         <ArrowLeft size={16} strokeWidth={2} />
                         Back to home
                     </a>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
 
+            <p class="mt-6 flex items-center justify-center gap-2 text-xs text-text-muted">
+                <ShieldCheck size={14} strokeWidth={2} class="shrink-0 text-gov-blue" />
+                Accounts are issued by the Calapan East District Office.
+            </p>
+        </div>
+    </main>
+</div>

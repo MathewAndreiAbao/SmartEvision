@@ -4,21 +4,65 @@
     import { onMount } from "svelte";
     import { theme } from "$lib/stores/theme";
     import {
-        BadgeCheck,
+        ArrowRight,
+        BarChart3,
         BellRing,
-        BookOpen,
+        ClipboardCheck,
         FileCheck2,
-        Layers3,
+        FileUp,
+        History,
         LogIn,
         Mail,
         MapPin,
-        Moon,
+        MessageSquareText,
+        PenLine,
         Phone,
+        QrCode,
         ShieldCheck,
-        Sun,
-        Workflow,
+        WifiOff,
     } from "lucide-svelte";
     import { fly } from "svelte/transition";
+
+    // What the system actually does, one card per capability. Each line is a
+    // feature a user can point at in the app — not a general claim.
+    const features = [
+        {
+            title: "DLL monitoring",
+            description:
+                "Track Daily Lesson Log submissions and see who is on time, late, or missing for the week.",
+            icon: FileCheck2,
+        },
+        {
+            title: "Remarks & checking",
+            description:
+                "Supervisors record remarks and set a checking status; teachers revise without losing the earlier notes.",
+            icon: MessageSquareText,
+        },
+        {
+            title: "Compliance overview",
+            description:
+                "School and district compliance stays visible in one weekly view instead of scattered spreadsheets.",
+            icon: ClipboardCheck,
+        },
+        {
+            title: "QR verification",
+            description:
+                "Every export carries a QR stamp, so any printed copy can be checked against the original record.",
+            icon: QrCode,
+        },
+        {
+            title: "Archive & history",
+            description:
+                "Past submissions and every remark are preserved, so a document's full history stays reviewable.",
+            icon: History,
+        },
+        {
+            title: "Notifications",
+            description:
+                "Alerts on submission, checking, and approaching deadlines keep follow-up from depending on memory.",
+            icon: BellRing,
+        },
+    ];
 
     // How the system maps onto SDG 4, stated against the actual UN target
     // numbers rather than as a general claim about education.
@@ -39,7 +83,7 @@
             target: "4.5",
             title: "Equal access",
             contribution:
-                "Uploads work on low-bandwidth mobile connections and complete on their own once signal returns, so remote schools are monitored on the same footing.",
+                "Uploads work on low-bandwidth mobile connections and finish on their own once signal returns, so remote schools are monitored on the same footing.",
         },
         {
             target: "4.a",
@@ -49,42 +93,44 @@
         },
     ];
 
-    const features = [
+    const steps = [
         {
-            title: "DLL Monitoring",
-            description:
-                "Track daily lesson logs and monitor submission timeliness for each teacher.",
-            icon: FileCheck2,
+            title: "Teacher uploads",
+            description: "The DLL is submitted from a phone or laptop, online or offline.",
+            icon: FileUp,
         },
         {
-            title: "Compliance Tracking",
-            description:
-                "Keep school and district compliance visible through a simple weekly overview.",
+            title: "Supervisor checks",
+            description: "Remarks are recorded and a checking status is set on the submission.",
+            icon: ClipboardCheck,
+        },
+        {
+            title: "Teacher revises",
+            description: "Revisions are uploaded against the same record; earlier remarks remain.",
+            icon: PenLine,
+        },
+        {
+            title: "District reports",
+            description: "Compliance is rolled up per school for the district office.",
+            icon: BarChart3,
+        },
+    ];
+
+    const assurances = [
+        {
+            title: "QR stamp on every export",
+            description: "A scannable code ties each printed copy back to its record.",
+            icon: QrCode,
+        },
+        {
+            title: "Tamper detection",
+            description: "A file hash is stored with the document, so changes are detectable.",
             icon: ShieldCheck,
         },
         {
-            title: "Remarks & Checking",
-            description:
-                "Capture reviewer remarks and track the checking status of every submission in the archive.",
-            icon: Workflow,
-        },
-        {
-            title: "QR Verification",
-            description:
-                "Verify document authenticity instantly through secure QR code stamping.",
-            icon: ShieldCheck,
-        },
-        {
-            title: "Reports & Archive",
-            description:
-                "Generate concise reports and preserve document history for future reference.",
-            icon: Layers3,
-        },
-        {
-            title: "Notifications",
-            description:
-                "Receive real-time alerts for submissions, checking status, and compliance updates.",
-            icon: BellRing,
+            title: "Works on weak signal",
+            description: "Submissions queue offline and upload once the connection returns.",
+            icon: WifiOff,
         },
     ];
 
@@ -103,26 +149,43 @@
 
 <svelte:head>
     <title>CEDIMS — Calapan East District Instructional Monitoring System · Powered by Smart E-VISION</title>
+    <meta
+        name="description"
+        content="CEDIMS is the Calapan East District Instructional Monitoring System for submitting, checking, and tracking compliance of Daily Lesson Logs."
+    />
 </svelte:head>
 
 <div class="min-h-dvh bg-surface-muted text-text-primary">
-    <header class="border-b border-border-subtle bg-surface-white/90 backdrop-blur">
-        <div class="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
-            <a href="/" class="flex shrink-0 items-center gap-2 sm:gap-3">
-                <img src="/app_icon.png" alt="CEDIMS" class="h-9 w-9 sm:h-10 sm:w-10 rounded-lg" />
-                <div class="hidden xs:block">
-                    <p class="text-sm font-semibold text-text-primary">CEDIMS</p>
-                    <p class="text-[10px] font-semibold uppercase tracking-[0.25em] text-gov-blue">
+    <header class="sticky top-0 z-40 border-b border-border-subtle bg-surface-white/85 backdrop-blur">
+        <div class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+            <a href="/" class="flex shrink-0 items-center gap-2.5">
+                <img src="/app_icon.png" alt="" class="h-9 w-9 rounded-lg sm:h-10 sm:w-10" />
+                <span>
+                    <span class="block text-sm font-semibold leading-tight text-text-primary">CEDIMS</span>
+                    <span class="block text-[10px] font-semibold uppercase leading-tight tracking-[0.22em] text-gov-blue">
                         Instructional Monitoring
-                    </p>
-                </div>
+                    </span>
+                </span>
             </a>
+
+            <nav aria-label="Sections" class="hidden items-center gap-7 text-sm font-medium text-text-secondary md:flex">
+                <a href="#features" class="transition-colors hover:text-gov-blue">Features</a>
+                <a href="#sdg" class="transition-colors hover:text-gov-blue">SDG 4</a>
+                <a href="#how-it-works" class="transition-colors hover:text-gov-blue">How it works</a>
+                <a href="#contact" class="transition-colors hover:text-gov-blue">Contact</a>
+            </nav>
+
             {#if !$authLoading}
                 {#if $profile}
-                    <button onclick={() => goto("/dashboard")} class="gov-btn-secondary text-xs sm:text-sm px-3 sm:px-4 py-2 sm:py-2.5">Dashboard</button>
+                    <button onclick={() => goto("/dashboard")} class="gov-btn-secondary px-3 py-2 text-xs sm:px-4 sm:py-2.5 sm:text-sm">
+                        Go to dashboard
+                    </button>
                 {:else}
-                    <button onclick={() => goto("/auth/login")} class="gov-btn-primary text-xs sm:text-sm px-3 sm:px-4 py-2 sm:py-2.5 inline-flex items-center gap-2">
-                        <LogIn size={14} class="sm:size-[16]" />
+                    <button
+                        onclick={() => goto("/auth/login")}
+                        class="gov-btn-primary inline-flex items-center gap-2 px-3 py-2 text-xs sm:px-4 sm:py-2.5 sm:text-sm"
+                    >
+                        <LogIn size={15} />
                         <span>Sign in</span>
                     </button>
                 {/if}
@@ -131,174 +194,257 @@
     </header>
 
     <main>
-        <!-- Hero Section -->
+        <!-- Hero — what it is, who it is for, and the way in -->
         <section class="border-b border-border-subtle bg-surface-white">
-            <div class="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 py-12 sm:py-20 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:items-center">
-                <div in:fly={{ x: -24, duration: 500 }}>
-                    <p class="text-xs sm:text-sm font-semibold uppercase tracking-[0.25em] text-gov-blue">Calapan East District</p>
-                    <h1 class="mt-3 text-3xl sm:text-4xl lg:text-5xl font-bold text-text-primary">Instructional Monitoring Made Simple</h1>
-                    <p class="mt-4 sm:mt-6 max-w-2xl text-base sm:text-lg leading-8 sm:leading-8 text-text-secondary">
-                        CEDIMS streamlines the submission, checking, and compliance tracking of Daily Lesson Logs across all schools in the district.
+            <div class="mx-auto grid max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:px-8">
+                <div in:fly={{ y: 16, duration: 450 }}>
+                    <p class="inline-flex items-center gap-2 rounded-full border border-gov-blue/20 bg-gov-blue/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-gov-blue sm:text-xs">
+                        DepEd · Calapan East District
                     </p>
-                    <div class="mt-6 sm:mt-8 flex flex-wrap gap-x-4 gap-y-2 text-xs sm:text-sm text-text-secondary">
-                        <span class="inline-flex items-center gap-1.5"><BookOpen size={14} class="sm:size-[16]" /> Guided workflow</span>
-                        <span class="inline-flex items-center gap-1.5"><BellRing size={14} class="sm:size-[16]" /> Real-time alerts</span>
-                        <span class="inline-flex items-center gap-1.5"><ShieldCheck size={14} class="sm:size-[16]" /> Secure records</span>
-                    </div>
-                </div>
 
-                <div in:fly={{ y: 18, duration: 500, delay: 100 }} class="rounded-3xl border border-border-subtle bg-surface-muted p-6 sm:p-8 shadow-sm">
-                    <div class="rounded-2xl border border-border-subtle bg-surface-white p-4 sm:p-6">
-                        <div class="flex items-center gap-3">
-                            <div class="rounded-full bg-gov-blue/10 p-2 text-gov-blue">
-                                <FileCheck2 size={16} class="sm:size-[18]" />
-                            </div>
-                            <div>
-                                <p class="text-sm font-semibold text-text-primary">What is CEDIMS?</p>
-                                <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-text-muted">Quality Education Tracking</p>
-                            </div>
-                        </div>
-                        <p class="mt-3 sm:mt-4 text-xs sm:text-sm leading-6 sm:leading-7 text-text-secondary">
-                            Track submissions, monitor compliance, verify documents, and maintain a complete audit trail—all in one place.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </section>
+                    <h1 class="mt-5 text-3xl font-bold leading-[1.15] tracking-tight text-text-primary sm:text-4xl lg:text-5xl">
+                        Instructional monitoring the whole district can keep up with.
+                    </h1>
 
-        <!-- Core Features -->
-        <section class="mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-16 lg:px-8">
-            <div class="max-w-2xl mb-8 sm:mb-12">
-                <p class="text-xs sm:text-sm font-semibold uppercase tracking-[0.25em] text-gov-blue">What You Get</p>
-                <h2 class="mt-2 sm:mt-3 text-2xl sm:text-3xl font-semibold text-text-primary">Six core features for instructional monitoring.</h2>
-            </div>
-            <div class="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
-                {#each features as feature}
-                    <div class="rounded-2xl border border-border-subtle bg-surface-white p-5 sm:p-6 shadow-sm">
-                        <div class="mb-3 sm:mb-4 inline-flex rounded-xl bg-gov-blue/10 p-2.5 sm:p-3 text-gov-blue">
-                            <svelte:component this={feature.icon} size={18} />
-                        </div>
-                        <h3 class="font-semibold text-text-primary">{feature.title}</h3>
-                        <p class="mt-1.5 sm:mt-2 text-xs sm:text-sm leading-6 sm:leading-7 text-text-secondary">{feature.description}</p>
-                    </div>
-                {/each}
-            </div>
-        </section>
-
-        <!-- SDG 4 - Prominent -->
-        <section id="sdg" class="border-y border-border-subtle bg-surface-white">
-            <div class="mx-auto max-w-7xl px-4 sm:px-6 py-16 sm:py-24 lg:px-8">
-                <div class="text-center mb-12 sm:mb-16">
-                    <p class="text-xs sm:text-sm font-semibold uppercase tracking-[0.25em] text-gov-blue">Sustainable Development Goal 4</p>
-                    <h2 class="mt-2 sm:mt-3 text-2xl sm:text-4xl font-bold text-text-primary">Supporting Quality Education</h2>
-                    <p class="mt-3 sm:mt-4 max-w-2xl mx-auto text-sm sm:text-base leading-7 text-text-secondary">
-                        CEDIMS directly contributes to the UN Sustainable Development Goal 4 by ensuring consistent, equitable quality education monitoring across the district.
+                    <p class="mt-4 max-w-xl text-base leading-8 text-text-secondary sm:mt-5 sm:text-lg">
+                        CEDIMS is where Daily Lesson Logs are submitted, checked, and tracked —
+                        so teachers know what is due, supervisors can leave remarks in one place,
+                        and the district can see compliance without chasing paper.
                     </p>
+
+                    <div class="mt-7 flex flex-wrap items-center gap-3 sm:mt-8">
+                        <button
+                            onclick={() => goto($profile ? "/dashboard" : "/auth/login")}
+                            class="gov-btn-primary inline-flex w-full items-center justify-center gap-2 px-5 py-3 text-sm sm:w-auto"
+                        >
+                            <span>{$profile ? "Go to dashboard" : "Sign in to CEDIMS"}</span>
+                            <ArrowRight size={16} />
+                        </button>
+                        <a href="#how-it-works" class="gov-btn-secondary inline-flex w-full items-center justify-center gap-2 px-5 py-3 text-sm sm:w-auto">
+                            See how it works
+                        </a>
+                    </div>
+
+                    <dl class="mt-9 grid max-w-xl gap-x-6 gap-y-4 border-t border-border-subtle pt-6 sm:grid-cols-3">
+                        <div>
+                            <dt class="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">For</dt>
+                            <dd class="mt-1 text-sm font-medium text-text-primary">Teachers & supervisors</dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Covers</dt>
+                            <dd class="mt-1 text-sm font-medium text-text-primary">DLL, ISP & ISR</dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Works</dt>
+                            <dd class="mt-1 text-sm font-medium text-text-primary">On mobile, even offline</dd>
+                        </div>
+                    </dl>
                 </div>
 
-                <!-- Large SDG Icon -->
-                <div class="flex justify-center mb-12 sm:mb-16">
+                <!-- The goal the system is built to serve, stated with the UN mark itself -->
+                <figure
+                    in:fly={{ y: 20, duration: 450, delay: 120 }}
+                    class="mx-auto w-full max-w-md overflow-hidden rounded-3xl border border-border-subtle bg-surface-muted shadow-sm lg:mx-0 lg:max-w-lg"
+                >
                     <img
                         src="/sdg-4-quality-education.svg"
                         alt="United Nations Sustainable Development Goal 4: Quality Education"
-                        width="280"
-                        height="280"
-                        loading="lazy"
-                        class="h-56 w-56 sm:h-80 sm:w-80 md:h-96 md:w-96 rounded-2xl shadow-lg"
+                        width="512"
+                        height="512"
+                        class="block w-full"
                     />
-                </div>
-
-                <!-- SDG Targets Grid -->
-                <div class="grid gap-4 sm:gap-5 sm:grid-cols-2">
-                    {#each sdgTargets as item}
-                        <div class="rounded-2xl border border-border-subtle bg-surface-muted p-4 sm:p-6">
-                            <p class="text-xs font-bold uppercase tracking-[0.15em] text-gov-red">Target {item.target}</p>
-                            <p class="mt-2 sm:mt-3 text-base font-semibold text-text-primary">{item.title}</p>
-                            <p class="mt-2 sm:mt-3 text-xs sm:text-sm leading-6 text-text-secondary">{item.contribution}</p>
-                        </div>
-                    {/each}
-                </div>
+                    <figcaption class="border-t border-border-subtle bg-surface-white px-5 py-4">
+                        <p class="text-sm font-semibold text-text-primary">Built to serve SDG 4</p>
+                        <p class="mt-1 text-xs leading-6 text-text-secondary sm:text-sm">
+                            Consistent supervision is what quality education needs day to day.
+                        </p>
+                        <a
+                            href="#sdg"
+                            class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-gov-blue hover:underline sm:text-sm"
+                        >
+                            See the four targets
+                            <ArrowRight size={14} />
+                        </a>
+                    </figcaption>
+                </figure>
             </div>
         </section>
 
-        <!-- How It Works -->
-        <section class="border-b border-border-subtle bg-surface-white">
-            <div class="mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-16 lg:px-8">
-                <div class="max-w-2xl mb-8 sm:mb-12">
-                    <p class="text-xs sm:text-sm font-semibold uppercase tracking-[0.25em] text-gov-blue">Simple Workflow</p>
-                    <h2 class="mt-2 sm:mt-3 text-2xl sm:text-3xl font-semibold text-text-primary">From upload to compliance in four steps.</h2>
+        <!-- What the system does -->
+        <section id="features" class="scroll-mt-20 border-b border-border-subtle">
+            <div class="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+                <div class="max-w-2xl">
+                    <p class="text-xs font-semibold uppercase tracking-[0.22em] text-gov-blue sm:text-sm">What it does</p>
+                    <h2 class="mt-3 text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl">
+                        Everything monitoring needs, and nothing that gets in the way.
+                    </h2>
                 </div>
-                <div class="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-4">
-                    {#each ["Teacher uploads DLL", "Supervisor remarks & checks", "Teacher revises if needed", "District reports compliance"] as step, index}
-                        <div class="rounded-2xl border border-border-subtle bg-surface-muted p-3 sm:p-4 text-center">
-                            <div class="mx-auto mb-2 sm:mb-3 flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-gov-blue text-xs sm:text-sm font-semibold text-white">{index + 1}</div>
-                            <p class="text-xs sm:text-sm font-semibold text-text-primary">{step}</p>
-                        </div>
+
+                <ul class="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
+                    {#each features as feature}
+                        <li class="rounded-2xl border border-border-subtle bg-surface-white p-5 shadow-sm transition-shadow hover:shadow-md sm:p-6">
+                            <span class="inline-flex rounded-xl bg-gov-blue/10 p-3 text-gov-blue">
+                                <svelte:component this={feature.icon} size={20} strokeWidth={1.75} />
+                            </span>
+                            <h3 class="mt-4 text-base font-semibold text-text-primary">{feature.title}</h3>
+                            <p class="mt-2 text-sm leading-7 text-text-secondary">{feature.description}</p>
+                        </li>
                     {/each}
-                </div>
-                <div class="mt-6 sm:mt-8 rounded-2xl border border-dashed border-gov-blue/20 bg-gov-blue/5 p-3 sm:p-4 text-center text-xs sm:text-sm text-text-secondary">
-                    ✓ Complete history maintained—nothing overwrites previous remarks
-                </div>
+                </ul>
             </div>
         </section>
 
-        <!-- Document Verification -->
-        <section class="border-b border-border-subtle bg-surface-white">
-            <div class="mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-16 lg:px-8">
-                <div class="max-w-2xl mb-8 sm:mb-12">
-                    <p class="text-xs sm:text-sm font-semibold uppercase tracking-[0.25em] text-gov-blue">Security</p>
-                    <h2 class="mt-2 sm:mt-3 text-2xl sm:text-3xl font-semibold text-text-primary">Authenticate in seconds with QR stamps.</h2>
-                    <p class="mt-3 sm:mt-4 text-sm sm:text-base leading-7 text-text-secondary">
-                        Every uploaded document receives a unique QR code. Scan it with any device to verify authenticity and review the audit trail.
+        <!-- SDG 4 alignment, target by target -->
+        <section id="sdg" class="scroll-mt-20 border-b border-border-subtle bg-surface-white">
+            <div class="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+                <div class="max-w-3xl">
+                    <p class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-gov-red sm:text-sm">
+                        <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-gov-red text-xs font-bold text-white">4</span>
+                        Quality Education
+                    </p>
+                    <h2 class="mt-3 text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl">
+                        Four UN targets the district can act on.
+                    </h2>
+                    <p class="mt-3 max-w-2xl text-sm leading-7 text-text-secondary sm:text-base sm:leading-8">
+                        Sustainable Development Goal 4 is broad. These are the specific targets CEDIMS
+                        was designed against, and what the system contributes to each.
                     </p>
                 </div>
-                <div class="grid gap-4 sm:gap-5 sm:grid-cols-2">
-                    <div class="rounded-2xl border border-border-subtle bg-surface-muted p-4 sm:p-5 text-center">
-                        <div class="mx-auto mb-3 sm:mb-4 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-xl bg-gov-blue/10 text-gov-blue">
-                            <svg class="h-6 w-6 sm:h-7 sm:w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
-                        </div>
-                        <p class="text-sm font-semibold text-text-primary">QR Stamp on Export</p>
-                        <p class="mt-1.5 text-xs text-text-secondary">Each PDF includes a scannable QR code</p>
-                    </div>
-                    <div class="rounded-2xl border border-border-subtle bg-surface-muted p-4 sm:p-5 text-center">
-                        <div class="mx-auto mb-3 sm:mb-4 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-xl bg-gov-blue/10 text-gov-blue">
-                            <svg class="h-6 w-6 sm:h-7 sm:w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                        </div>
-                        <p class="text-sm font-semibold text-text-primary">Tamper Detection</p>
-                        <p class="mt-1.5 text-xs text-text-secondary">File hash verification ensures integrity</p>
-                    </div>
-                </div>
+
+                <ul class="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-2 sm:gap-5">
+                    {#each sdgTargets as item}
+                        <li class="rounded-2xl border border-border-subtle bg-surface-muted p-5 sm:p-6">
+                            <p class="text-xs font-bold uppercase tracking-[0.14em] text-gov-red">Target {item.target}</p>
+                            <h3 class="mt-2 text-base font-semibold text-text-primary">{item.title}</h3>
+                            <p class="mt-2 text-sm leading-7 text-text-secondary">{item.contribution}</p>
+                        </li>
+                    {/each}
+                </ul>
             </div>
         </section>
 
-        <!-- Contact CTA -->
-        <section class="mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-16 lg:px-8">
-            <div class="rounded-3xl border border-border-subtle bg-gov-blue p-6 sm:p-8 md:p-10 text-white text-center">
-                <h2 class="text-2xl sm:text-3xl font-bold">Questions?</h2>
-                <p class="mt-2 sm:mt-3 text-sm sm:text-base text-slate-100">Contact the Calapan East District Office</p>
-                <div class="mt-6 sm:mt-8 space-y-2 sm:space-y-3 text-xs sm:text-sm text-slate-100">
-                    <div class="flex items-center justify-center gap-2 sm:gap-3"><Mail size={14} class="sm:size-[16]" /> support@cedims.gov.ph</div>
-                    <div class="flex items-center justify-center gap-2 sm:gap-3"><Phone size={14} class="sm:size-[16]" /> (043) 288-1234</div>
-                    <div class="flex items-center justify-center gap-2 sm:gap-3"><MapPin size={14} class="sm:size-[16]" /> Calapan City, Oriental Mindoro</div>
+        <!-- The path a document takes -->
+        <section id="how-it-works" class="scroll-mt-20 border-b border-border-subtle">
+            <div class="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+                <div class="max-w-2xl">
+                    <p class="text-xs font-semibold uppercase tracking-[0.22em] text-gov-blue sm:text-sm">How it works</p>
+                    <h2 class="mt-3 text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl">
+                        One path from upload to district report.
+                    </h2>
+                </div>
+
+                <ol class="relative mt-8 grid gap-6 sm:mt-12 sm:grid-cols-2 sm:gap-8 lg:grid-cols-4">
+                    <div
+                        class="pointer-events-none absolute left-6 right-6 top-6 hidden h-px bg-gov-blue/25 lg:block"
+                        aria-hidden="true"
+                    ></div>
+                    {#each steps as step, index}
+                        <li class="relative">
+                            <div class="relative z-10 flex h-12 w-12 items-center justify-center rounded-full border border-border-subtle bg-surface-white text-gov-blue shadow-sm">
+                                <svelte:component this={step.icon} size={20} strokeWidth={1.75} />
+                            </div>
+                            <p class="mt-4 text-xs font-bold uppercase tracking-[0.14em] text-text-muted">Step {index + 1}</p>
+                            <h3 class="mt-1 text-base font-semibold text-text-primary">{step.title}</h3>
+                            <p class="mt-2 text-sm leading-7 text-text-secondary">{step.description}</p>
+                        </li>
+                    {/each}
+                </ol>
+            </div>
+        </section>
+
+        <!-- Why the records hold up -->
+        <section class="border-b border-border-subtle bg-surface-white">
+            <div class="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+                <div class="max-w-2xl">
+                    <p class="text-xs font-semibold uppercase tracking-[0.22em] text-gov-blue sm:text-sm">Records you can trust</p>
+                    <h2 class="mt-3 text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl">
+                        Every document stays verifiable.
+                    </h2>
+                </div>
+
+                <ul class="mt-8 grid gap-4 sm:mt-10 sm:gap-5 lg:grid-cols-3">
+                    {#each assurances as item}
+                        <li class="flex items-start gap-4 rounded-2xl border border-border-subtle bg-surface-muted p-5 sm:p-6">
+                            <span class="inline-flex shrink-0 rounded-xl bg-gov-blue/10 p-3 text-gov-blue">
+                                <svelte:component this={item.icon} size={20} strokeWidth={1.75} />
+                            </span>
+                            <div>
+                                <h3 class="text-sm font-semibold text-text-primary sm:text-base">{item.title}</h3>
+                                <p class="mt-1.5 text-sm leading-7 text-text-secondary">{item.description}</p>
+                            </div>
+                        </li>
+                    {/each}
+                </ul>
+            </div>
+        </section>
+
+        <!-- Way in, and who to ask -->
+        <section id="contact" class="scroll-mt-20">
+            <div class="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+                <div class="overflow-hidden rounded-3xl border border-border-subtle bg-gov-blue text-white shadow-sm">
+                    <div class="grid gap-8 p-6 sm:p-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-12">
+                        <div>
+                            <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Ready to log in?</h2>
+                            <p class="mt-3 max-w-md text-sm leading-7 text-slate-100 sm:text-base sm:leading-8">
+                                Accounts are issued by the district office. Sign in with your DepEd email,
+                                or reach the office below if you need access.
+                            </p>
+                            <button
+                                onclick={() => goto($profile ? "/dashboard" : "/auth/login")}
+                                class="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-gov-blue shadow-sm transition-colors hover:bg-slate-100"
+                            >
+                                <span>{$profile ? "Go to dashboard" : "Sign in to CEDIMS"}</span>
+                                <ArrowRight size={16} />
+                            </button>
+                        </div>
+
+                        <div class="lg:border-l lg:border-white/20 lg:pl-12">
+                            <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-200">Calapan East District Office</p>
+                            <ul class="mt-4 space-y-3 text-sm text-slate-100">
+                                <li>
+                                    <a href="mailto:support@cedims.gov.ph" class="inline-flex items-center gap-3 transition-colors hover:text-white hover:underline">
+                                        <Mail size={16} class="shrink-0" />
+                                        support@cedims.gov.ph
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="tel:+63432881234" class="inline-flex items-center gap-3 transition-colors hover:text-white hover:underline">
+                                        <Phone size={16} class="shrink-0" />
+                                        (043) 288-1234
+                                    </a>
+                                </li>
+                                <li class="inline-flex items-center gap-3">
+                                    <MapPin size={16} class="shrink-0" />
+                                    Calapan City, Oriental Mindoro
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
     </main>
 
     <footer class="border-t border-border-subtle bg-surface-white">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8 lg:px-8">
-            <div class="grid gap-6 sm:gap-8 text-center sm:text-left sm:grid-cols-2">
+        <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <div class="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <div class="inline-flex sm:flex items-center gap-2">
-                        <img src="/app_icon.png" alt="CEDIMS" class="h-7 w-7 sm:h-8 sm:w-8 rounded-lg" />
+                    <div class="flex items-center gap-2.5">
+                        <img src="/app_icon.png" alt="" class="h-8 w-8 rounded-lg" />
                         <p class="text-sm font-semibold text-text-primary">CEDIMS</p>
                     </div>
-                    <p class="mt-1.5 sm:mt-2 text-xs sm:text-sm text-text-secondary">Calapan East District Instructional Monitoring System</p>
-                    <p class="mt-1 text-[10px] sm:text-xs text-text-muted">Powered by Smart E-VISION</p>
+                    <p class="mt-2 text-sm text-text-secondary">
+                        Calapan East District Instructional Monitoring System
+                    </p>
+                    <p class="mt-1 text-xs text-text-muted">Powered by Smart E-VISION</p>
                 </div>
-                <div class="sm:text-right">
-                    <p class="text-[10px] sm:text-xs text-text-muted">&copy; 2026 CEDIMS. All rights reserved.</p>
-                    <p class="mt-1 text-[10px] sm:text-xs text-text-muted">Built for the Department of Education</p>
+
+                <div class="text-xs text-text-muted sm:text-right">
+                    <p class="flex flex-wrap gap-x-4 gap-y-1 sm:justify-end">
+                        <a href="/terms" class="font-medium transition-colors hover:text-gov-blue">Terms of Use</a>
+                        <a href="/privacy" class="font-medium transition-colors hover:text-gov-blue">Privacy Notice</a>
+                    </p>
+                    <p class="mt-2">&copy; 2026 CEDIMS · Department of Education</p>
                 </div>
             </div>
         </div>
