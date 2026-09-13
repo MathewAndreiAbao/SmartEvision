@@ -11,6 +11,7 @@
         FileCheck2,
         FileUp,
         History,
+        Laptop,
         LogIn,
         Mail,
         MapPin,
@@ -18,7 +19,9 @@
         PenLine,
         Phone,
         QrCode,
+        School,
         ShieldCheck,
+        Smartphone,
         WifiOff,
     } from "lucide-svelte";
     import { fly } from "svelte/transition";
@@ -93,6 +96,55 @@
         },
     ];
 
+    // The five schools CEDIMS is deployed against. This is the pilot scope
+    // seeded in db/complete_schema.sql, not a sample of a longer list — the
+    // landing page is public and pre-auth, so it is stated here rather than
+    // fetched.
+    const schools = [
+        "Bulusan Elementary School",
+        "Guinobatan Elementary School",
+        "Ibaba Elementary School",
+        "Salong Elementary School",
+        "Suqui Elementary School",
+    ];
+
+    // The four roles accounts are issued for. These are the values the
+    // `profiles.role` check constraint allows, minus Admin, which is
+    // district-office account administration rather than a monitoring
+    // participant. What each one can do is taken from
+    // lib/utils/documentPermissions.ts, so the page does not promise a
+    // capability the system withholds.
+    const roles = [
+        {
+            name: "Teacher",
+            summary: "Submits and revises",
+            description:
+                "Uploads the Daily Lesson Log against their teaching load, sees what is due, and re-uploads after remarks. Sees their own records only.",
+            icon: FileUp,
+        },
+        {
+            name: "Master Teacher",
+            summary: "Submits and checks",
+            description:
+                "Uploads their own DLL and supervisory plans, and leaves remarks on lesson logs from their school.",
+            icon: PenLine,
+        },
+        {
+            name: "School Head",
+            summary: "Checks the school",
+            description:
+                "Uploads supervisory plans and reports, and follows every submission from their school in one view.",
+            icon: ClipboardCheck,
+        },
+        {
+            name: "District Supervisor",
+            summary: "Reviews the district",
+            description:
+                "Does not upload. Reads submissions across all five schools, records remarks, and reports district compliance.",
+            icon: BarChart3,
+        },
+    ];
+
     const steps = [
         {
             title: "Teacher uploads",
@@ -158,11 +210,11 @@
 <div class="min-h-dvh bg-surface-muted text-text-primary">
     <header class="sticky top-0 z-40 border-b border-border-subtle bg-surface-white/85 backdrop-blur">
         <div class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-            <a href="/" class="flex shrink-0 items-center gap-2.5">
-                <img src="/app_icon.png" alt="" class="h-9 w-9 rounded-lg sm:h-10 sm:w-10" />
-                <span>
+            <a href="/" class="flex min-w-0 items-center gap-2.5">
+                <img src="/app_icon.png" alt="" class="h-9 w-9 shrink-0 rounded-lg sm:h-10 sm:w-10" />
+                <span class="min-w-0">
                     <span class="block text-sm font-semibold leading-tight text-text-primary">CEDIMS</span>
-                    <span class="block text-[10px] font-semibold uppercase leading-tight tracking-[0.22em] text-gov-blue">
+                    <span class="block truncate text-[10px] font-semibold uppercase leading-tight tracking-[0.22em] text-gov-blue">
                         Instructional Monitoring
                     </span>
                 </span>
@@ -170,6 +222,7 @@
 
             <nav aria-label="Sections" class="hidden items-center gap-7 text-sm font-medium text-text-secondary md:flex">
                 <a href="#features" class="transition-colors hover:text-gov-blue">Features</a>
+                <a href="#roles" class="transition-colors hover:text-gov-blue">Roles</a>
                 <a href="#sdg" class="transition-colors hover:text-gov-blue">SDG 4</a>
                 <a href="#how-it-works" class="transition-colors hover:text-gov-blue">How it works</a>
                 <a href="#contact" class="transition-colors hover:text-gov-blue">Contact</a>
@@ -177,13 +230,13 @@
 
             {#if !$authLoading}
                 {#if $profile}
-                    <button onclick={() => goto("/dashboard")} class="gov-btn-secondary px-3 py-2 text-xs sm:px-4 sm:py-2.5 sm:text-sm">
+                    <button onclick={() => goto("/dashboard")} class="gov-btn-secondary shrink-0 whitespace-nowrap px-3 py-2 text-xs sm:px-4 sm:py-2.5 sm:text-sm">
                         Go to dashboard
                     </button>
                 {:else}
                     <button
                         onclick={() => goto("/auth/login")}
-                        class="gov-btn-primary inline-flex items-center gap-2 px-3 py-2 text-xs sm:px-4 sm:py-2.5 sm:text-sm"
+                        class="gov-btn-primary inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-3 py-2 text-xs sm:px-4 sm:py-2.5 sm:text-sm"
                     >
                         <LogIn size={15} />
                         <span>Sign in</span>
@@ -225,48 +278,80 @@
                         </a>
                     </div>
 
-                    <dl class="mt-9 grid max-w-xl gap-x-6 gap-y-4 border-t border-border-subtle pt-6 sm:grid-cols-3">
+                    <dl class="mt-9 grid max-w-xl gap-x-6 gap-y-5 border-t border-border-subtle pt-6 sm:grid-cols-3">
                         <div>
                             <dt class="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">For</dt>
-                            <dd class="mt-1 text-sm font-medium text-text-primary">Teachers & supervisors</dd>
+                            <dd class="mt-1.5 text-sm font-semibold leading-6 text-text-primary">
+                                Teachers, Master Teachers, School Heads &amp; District Supervisors
+                            </dd>
+                            <p class="mt-1 text-xs leading-5 text-text-secondary">
+                                <a href="#roles" class="font-semibold text-gov-blue hover:underline">What each role does</a>
+                            </p>
                         </div>
                         <div>
                             <dt class="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Covers</dt>
-                            <dd class="mt-1 text-sm font-medium text-text-primary">DLL, ISP & ISR</dd>
+                            <dd class="mt-1.5 text-sm font-semibold leading-6 text-text-primary">DLL, ISP &amp; ISR</dd>
+                            <p class="mt-1 text-xs leading-5 text-text-secondary">
+                                Daily Lesson Logs, and Instructional Supervisory Plans &amp; Reports
+                            </p>
                         </div>
                         <div>
-                            <dt class="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Works</dt>
-                            <dd class="mt-1 text-sm font-medium text-text-primary">On mobile, even offline</dd>
+                            <dt class="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Works on</dt>
+                            <dd class="mt-1.5 text-sm font-semibold leading-6 text-text-primary">
+                                Phone, tablet or computer
+                            </dd>
+                            <p class="mt-1 text-xs leading-5 text-text-secondary">
+                                Any modern browser. Install it, and keep submitting offline.
+                            </p>
                         </div>
                     </dl>
                 </div>
 
-                <!-- The goal the system is built to serve, stated with the UN mark itself -->
-                <figure
+                <!-- What the system actually covers. The SDG mark stays, at the size
+                     of a credential rather than a hero image. -->
+                <aside
                     in:fly={{ y: 20, duration: 450, delay: 120 }}
-                    class="mx-auto w-full max-w-md overflow-hidden rounded-3xl border border-border-subtle bg-surface-muted shadow-sm lg:mx-0 lg:max-w-lg"
+                    class="mx-auto w-full max-w-sm rounded-3xl border border-border-subtle bg-surface-white p-5 shadow-sm sm:p-6 lg:mx-0 lg:max-w-md"
                 >
-                    <img
-                        src="/sdg-4-quality-education.svg"
-                        alt="United Nations Sustainable Development Goal 4: Quality Education"
-                        width="512"
-                        height="512"
-                        class="block w-full"
-                    />
-                    <figcaption class="border-t border-border-subtle bg-surface-white px-5 py-4">
-                        <p class="text-sm font-semibold text-text-primary">Built to serve SDG 4</p>
-                        <p class="mt-1 text-xs leading-6 text-text-secondary sm:text-sm">
-                            Consistent supervision is what quality education needs day to day.
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">Now in scope</p>
+                            <p class="mt-1 text-base font-semibold text-text-primary">Calapan East District</p>
+                        </div>
+                        <p class="shrink-0 rounded-full bg-gov-blue/10 px-3 py-1.5 text-xs font-bold text-gov-blue">
+                            5 schools
                         </p>
-                        <a
-                            href="#sdg"
-                            class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-gov-blue hover:underline sm:text-sm"
-                        >
-                            See the four targets
-                            <ArrowRight size={14} />
-                        </a>
-                    </figcaption>
-                </figure>
+                    </div>
+
+                    <ul class="mt-4 divide-y divide-border-subtle border-y border-border-subtle">
+                        {#each schools as school}
+                            <li class="flex items-center gap-3 py-2.5">
+                                <School size={16} strokeWidth={1.75} class="shrink-0 text-gov-blue" aria-hidden="true" />
+                                <span class="text-sm leading-6 text-text-secondary">{school}</span>
+                            </li>
+                        {/each}
+                    </ul>
+
+                    <div class="mt-4 flex items-start gap-3 rounded-2xl bg-surface-muted p-3.5">
+                        <img
+                            src="/sdg-4-quality-education.svg"
+                            alt="United Nations Sustainable Development Goal 4: Quality Education"
+                            width="64"
+                            height="64"
+                            class="h-14 w-14 shrink-0 rounded-lg"
+                        />
+                        <div>
+                            <p class="text-sm font-semibold text-text-primary">Built to serve SDG 4</p>
+                            <a
+                                href="#sdg"
+                                class="mt-1 inline-flex items-center gap-1.5 text-xs font-semibold text-gov-blue hover:underline"
+                            >
+                                See the four targets
+                                <ArrowRight size={13} />
+                            </a>
+                        </div>
+                    </div>
+                </aside>
             </div>
         </section>
 
@@ -294,8 +379,71 @@
             </div>
         </section>
 
+        <!-- Who holds an account, and what each role can actually do -->
+        <section id="roles" class="scroll-mt-20 border-b border-border-subtle bg-surface-white">
+            <div class="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+                <div class="max-w-2xl">
+                    <p class="text-xs font-semibold uppercase tracking-[0.22em] text-gov-blue sm:text-sm">Who uses it</p>
+                    <h2 class="mt-3 text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl">
+                        Four roles, each with its own view.
+                    </h2>
+                    <p class="mt-3 text-sm leading-7 text-text-secondary sm:text-base sm:leading-8">
+                        Accounts are issued by the District Office. What you can upload, check and
+                        see follows the role on your account — the limits are enforced by the
+                        system, not just hidden from the screen.
+                    </p>
+                </div>
+
+                <ul class="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4">
+                    {#each roles as role}
+                        <li class="flex flex-col rounded-2xl border border-border-subtle bg-surface-muted p-5 sm:p-6">
+                            <span class="inline-flex w-fit rounded-xl bg-gov-blue/10 p-2.5 text-gov-blue">
+                                <svelte:component this={role.icon} size={18} strokeWidth={1.75} />
+                            </span>
+                            <h3 class="mt-4 text-base font-semibold text-text-primary">{role.name}</h3>
+                            <p class="mt-0.5 text-xs font-semibold uppercase tracking-[0.12em] text-gov-blue">
+                                {role.summary}
+                            </p>
+                            <p class="mt-2.5 text-sm leading-7 text-text-secondary">{role.description}</p>
+                        </li>
+                    {/each}
+                </ul>
+
+                <!-- What it runs on. Stated as the devices a teacher already has,
+                     because "mobile" alone understated it — CEDIMS is a browser
+                     app that installs on any of the three. -->
+                <div class="mt-6 rounded-2xl border border-border-subtle bg-surface-muted p-5 sm:mt-8 sm:p-6">
+                    <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
+                        <div>
+                            <h3 class="text-sm font-semibold text-text-primary sm:text-base">
+                                Runs on what you already carry
+                            </h3>
+                            <p class="mt-1.5 text-sm leading-7 text-text-secondary">
+                                No download from a store and nothing to install on a school computer.
+                                Open it in a browser, or add it to your home screen and it opens like an app —
+                                including when there is no signal.
+                            </p>
+                        </div>
+                        <ul class="flex flex-wrap gap-2.5 lg:shrink-0">
+                            {#each [
+                                { label: "Android phone", icon: Smartphone },
+                                { label: "iPhone & iPad", icon: Smartphone },
+                                { label: "Laptop & desktop", icon: Laptop },
+                                { label: "Offline", icon: WifiOff },
+                            ] as device}
+                                <li class="inline-flex items-center gap-2 rounded-full border border-border-subtle bg-surface-white px-3.5 py-2 text-xs font-semibold text-text-primary">
+                                    <svelte:component this={device.icon} size={14} strokeWidth={1.75} class="text-gov-blue" />
+                                    {device.label}
+                                </li>
+                            {/each}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- SDG 4 alignment, target by target -->
-        <section id="sdg" class="scroll-mt-20 border-b border-border-subtle bg-surface-white">
+        <section id="sdg" class="scroll-mt-20 border-b border-border-subtle">
             <div class="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
                 <div class="max-w-3xl">
                     <p class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-gov-red sm:text-sm">
@@ -313,7 +461,7 @@
 
                 <ul class="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-2 sm:gap-5">
                     {#each sdgTargets as item}
-                        <li class="rounded-2xl border border-border-subtle bg-surface-muted p-5 sm:p-6">
+                        <li class="rounded-2xl border border-border-subtle bg-surface-white p-5 sm:p-6">
                             <p class="text-xs font-bold uppercase tracking-[0.14em] text-gov-red">Target {item.target}</p>
                             <h3 class="mt-2 text-base font-semibold text-text-primary">{item.title}</h3>
                             <p class="mt-2 text-sm leading-7 text-text-secondary">{item.contribution}</p>
@@ -324,7 +472,7 @@
         </section>
 
         <!-- The path a document takes -->
-        <section id="how-it-works" class="scroll-mt-20 border-b border-border-subtle">
+        <section id="how-it-works" class="scroll-mt-20 border-b border-border-subtle bg-surface-white">
             <div class="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
                 <div class="max-w-2xl">
                     <p class="text-xs font-semibold uppercase tracking-[0.22em] text-gov-blue sm:text-sm">How it works</p>
@@ -353,7 +501,7 @@
         </section>
 
         <!-- Why the records hold up -->
-        <section class="border-b border-border-subtle bg-surface-white">
+        <section class="border-b border-border-subtle">
             <div class="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
                 <div class="max-w-2xl">
                     <p class="text-xs font-semibold uppercase tracking-[0.22em] text-gov-blue sm:text-sm">Records you can trust</p>
@@ -364,7 +512,7 @@
 
                 <ul class="mt-8 grid gap-4 sm:mt-10 sm:gap-5 lg:grid-cols-3">
                     {#each assurances as item}
-                        <li class="flex items-start gap-4 rounded-2xl border border-border-subtle bg-surface-muted p-5 sm:p-6">
+                        <li class="flex items-start gap-4 rounded-2xl border border-border-subtle bg-surface-white p-5 sm:p-6">
                             <span class="inline-flex shrink-0 rounded-xl bg-gov-blue/10 p-3 text-gov-blue">
                                 <svelte:component this={item.icon} size={20} strokeWidth={1.75} />
                             </span>

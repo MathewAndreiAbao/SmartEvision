@@ -9,7 +9,7 @@
     import { goto } from "$app/navigation";
     import { onMount } from "svelte";
     import { env } from "$env/dynamic/public";
-    import { Lock, ShieldCheck, ArrowLeft, Eye, EyeOff, CheckCircle2 } from "lucide-svelte";
+    import { LogIn, ShieldCheck, ArrowLeft, Eye, EyeOff, CheckCircle2 } from "lucide-svelte";
 
     let email = $state("");
     let password = $state("");
@@ -17,6 +17,21 @@
     let errorMsg = $state("");
     let showPassword = $state(false);
     let agreedToTerms = $state(false);
+    // Which field the error belongs to, so it can be marked invalid and
+    // focused rather than leaving the user to match a message at the bottom
+    // of the form against a field at the top.
+    let errorField = $state<"email" | "password" | "terms" | null>(null);
+    let emailEl: HTMLInputElement | undefined = $state();
+    let passwordEl: HTMLInputElement | undefined = $state();
+    let termsEl: HTMLInputElement | undefined = $state();
+
+    function fail(field: "email" | "password" | "terms" | null, message: string) {
+        errorField = field;
+        errorMsg = message;
+        if (field === "email") emailEl?.focus();
+        else if (field === "password") passwordEl?.focus();
+        else if (field === "terms") termsEl?.focus();
+    }
 
     // reCAPTCHA v2 checkbox. Rendered only when a site key is configured — an
     // unconfigured deployment must still be able to sign in rather than
@@ -67,32 +82,37 @@
 
     async function handleSubmit(e: Event) {
         e.preventDefault();
-        if (!email || !password) {
-            errorMsg = "Please enter both email and password.";
+        if (!email) {
+            fail("email", "Please enter your email address.");
             return;
         }
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            errorMsg = "Please enter a valid email address.";
+            fail("email", "Please enter a valid email address.");
+            return;
+        }
+        if (!password) {
+            fail("password", "Please enter your password.");
             return;
         }
         if (password.length < 6) {
-            errorMsg = "Password must be at least 6 characters.";
+            fail("password", "Password must be at least 6 characters.");
             return;
         }
         if (!agreedToTerms) {
-            errorMsg = "Please accept the Terms of Use and Privacy Notice to continue.";
+            fail("terms", "Please accept the Terms of Use and Privacy Notice to continue.");
             return;
         }
 
         loading = true;
         errorMsg = "";
+        errorField = null;
 
         // The widget proves nothing by itself — the token is only meaningful
         // once the server checks it with Google using the secret key.
         if (siteKey && captchaReady) {
             const token = (window as any).grecaptcha?.getResponse(captchaWidgetId ?? undefined);
             if (!token) {
-                errorMsg = "Please complete the 'I'm not a robot' check.";
+                fail(null, "Please complete the 'I'm not a robot' check.");
                 loading = false;
                 return;
             }
@@ -105,7 +125,7 @@
                 });
                 const result = await res.json();
                 if (!result.success) {
-                    errorMsg = result.error || "Verification failed. Please try again.";
+                    fail(null, result.error || "Verification failed. Please try again.");
                     resetCaptcha();
                     loading = false;
                     return;
@@ -121,7 +141,9 @@
         const result = await signIn(email, password);
 
         if (result.error) {
-            errorMsg = result.error;
+            // Credentials are rejected as a pair on purpose — saying which half
+            // was wrong tells an attacker which emails exist.
+            fail("password", result.error);
             addToast("error", result.error);
             resetCaptcha();
         } else {
@@ -160,9 +182,9 @@
         </a>
 
         <div class="relative max-w-md">
-            <h1 class="text-3xl font-bold leading-[1.2] tracking-tight xl:text-4xl">
+            <p class="text-3xl font-bold leading-[1.2] tracking-tight xl:text-4xl">
                 Monitor instruction,<br />support learning.
-            </h1>
+            </p>
             <p class="mt-4 text-base leading-8 text-slate-100">
                 Submit Daily Lesson Logs, record checking remarks, and follow district
                 compliance — all against one set of records.
@@ -213,11 +235,13 @@
         <div class="mx-auto w-full max-w-md">
             <div class="rounded-2xl border border-border-subtle bg-surface-white p-6 shadow-sm sm:p-8">
                 <div class="mb-7">
-                    <h2 class="text-2xl font-bold tracking-tight text-text-primary">Welcome back</h2>
-                    <p class="mt-1.5 text-sm text-text-secondary">Sign in to your educator account.</p>
+                    <h1 class="text-2xl font-bold tracking-tight text-text-primary">Sign in to CEDIMS</h1>
+                    <p class="mt-1.5 text-sm text-text-secondary">
+                        Use the DepEd account issued to you by the District Office.
+                    </p>
                 </div>
 
-                <form onsubmit={handleSubmit} class="space-y-5" novalidate>
+                <form onsubmit={handleSubmit} class="space-y-5" novalidate aria-busy={loading}>
                     <div>
                         <label for="email" class="mb-2 block text-sm font-semibold text-text-primary">
                             Email address
@@ -225,10 +249,16 @@
                         <input
                             id="email"
                             type="email"
+                            bind:this={emailEl}
                             bind:value={email}
                             placeholder="your.email@deped.gov.ph"
                             class="gov-input w-full"
                             autocomplete="email"
+                            inputmode="email"
+                            autocapitalize="none"
+                            spellcheck="false"
+                            aria-invalid={errorField === "email"}
+                            aria-describedby={errorField === "email" ? "login-error" : undefined}
                             required
                         />
                     </div>
@@ -247,18 +277,22 @@
                             <input
                                 id="password"
                                 type={showPassword ? "text" : "password"}
+                                bind:this={passwordEl}
                                 bind:value={password}
                                 placeholder="••••••••"
                                 class="gov-input w-full pr-11"
                                 autocomplete="current-password"
+                                aria-invalid={errorField === "password"}
+                                aria-describedby={errorField === "password" ? "login-error" : undefined}
                                 required
                                 minlength="6"
                             />
                             <button
                                 type="button"
                                 onclick={() => (showPassword = !showPassword)}
-                                class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-muted transition-colors hover:text-gov-blue"
-                                tabindex="-1"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-text-muted transition-colors hover:text-gov-blue"
+                                aria-pressed={showPassword}
+                                aria-controls="password"
                                 aria-label={showPassword ? "Hide password" : "Show password"}
                             >
                                 {#if showPassword}
@@ -282,8 +316,11 @@
                         <input
                             id="agree"
                             type="checkbox"
+                            bind:this={termsEl}
                             bind:checked={agreedToTerms}
                             class="mt-0.5 h-4 w-4 shrink-0 rounded border-border-strong text-gov-blue focus:ring-2 focus:ring-gov-blue/40"
+                            aria-invalid={errorField === "terms"}
+                            aria-describedby={errorField === "terms" ? "login-error" : undefined}
                         />
                         <label for="agree" class="text-xs leading-5 text-text-secondary">
                             I have read and agree to the
@@ -305,9 +342,13 @@
                     </div>
 
                     <!-- Error Message -->
-                    <div aria-live="polite">
+                    <div aria-live="assertive">
                         {#if errorMsg}
-                            <p class="rounded-xl border border-gov-red/30 bg-gov-red/10 p-3 text-sm font-semibold text-gov-red">
+                            <p
+                                id="login-error"
+                                role="alert"
+                                class="rounded-xl border border-gov-red/30 bg-gov-red/10 p-3 text-sm font-semibold text-gov-red"
+                            >
                                 {errorMsg}
                             </p>
                         {/if}
@@ -318,7 +359,7 @@
                             <span class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
                             <span>Signing in…</span>
                         {:else}
-                            <Lock size={18} strokeWidth={2} />
+                            <LogIn size={18} strokeWidth={2} />
                             <span>Sign in</span>
                         {/if}
                     </button>
