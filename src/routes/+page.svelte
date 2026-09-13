@@ -286,10 +286,15 @@
                             learning opportunities for all.
                         </p>
 
-                        <div class="mt-5 sm:mt-6 inline-flex items-center gap-3 rounded-2xl border border-gov-red/20 bg-gov-red/5 px-4 py-3">
-                            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gov-red text-lg font-bold text-white">
-                                4
-                            </div>
+                        <div class="mt-5 sm:mt-6 inline-flex items-center gap-3 sm:gap-4 rounded-2xl border border-gov-red/20 bg-gov-red/5 px-4 py-3">
+                            <img
+                                src="/sdg-4-quality-education.svg"
+                                alt="United Nations Sustainable Development Goal 4: Quality Education"
+                                width="80"
+                                height="80"
+                                loading="lazy"
+                                class="h-16 w-16 sm:h-20 sm:w-20 shrink-0 rounded-xl shadow-sm"
+                            />
                             <div>
                                 <p class="text-sm font-bold text-text-primary">Quality Education</p>
                                 <p class="text-xs text-text-secondary">UN Sustainable Development Goal</p>
