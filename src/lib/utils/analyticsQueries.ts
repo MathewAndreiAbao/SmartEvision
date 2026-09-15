@@ -1,4 +1,5 @@
 import { supabase } from '$lib/utils/supabase';
+import { calculateCompliance } from '$lib/utils/useDashboardData';
 
 /**
  * ANALYTICS DATA QUERIES
@@ -16,7 +17,7 @@ export async function getSchoolHeadAnalytics(schoolId: string, districtId: strin
     // `!inner`, PostgREST treats it as a left join and the school_id filter
     // does not narrow the result set — every query here previously returned
     // submissions from every school in the system instead of just this one.
-    const [complianceTrend, teacherPerformance, weeklyBreakdown, docTypeStats, atRiskTeachers] = await Promise.all([
+    const [complianceTrend, teacherPerformance, atRiskTeachers, rosterProfiles, rosterLoads] = await Promise.all([
         // Compliance trend over last 12 weeks
         supabase
             .from('submissions')
@@ -33,7 +34,9 @@ export async function getSchoolHeadAnalytics(schoolId: string, districtId: strin
             .order('created_at', { ascending: true })
             .limit(500),
 
-        // Teacher performance metrics
+        // Teacher performance metrics (week_number + teaching_load_id are
+        // required for calculateCompliance's slot-dedup — see
+        // getPerformanceDistribution below)
         supabase
             .from('submissions')
             .select(`
@@ -41,35 +44,13 @@ export async function getSchoolHeadAnalytics(schoolId: string, districtId: strin
                 compliance_status,
                 doc_type,
                 created_at,
+                week_number,
+                teaching_load_id,
                 profiles!inner(full_name, role, school_id)
             `)
             .eq('profiles.school_id', schoolId)
             .order('created_at', { ascending: false })
             .limit(300),
-
-        // Weekly submission breakdown
-        supabase
-            .from('submissions')
-            .select(`
-                week_number,
-                compliance_status,
-                doc_type,
-                profiles!inner(school_id)
-            `)
-            .eq('profiles.school_id', schoolId)
-            .order('week_number', { ascending: true })
-            .limit(400),
-
-        // Document type breakdown
-        supabase
-            .from('submissions')
-            .select(`
-                doc_type,
-                compliance_status,
-                profiles!inner(school_id)
-            `)
-            .eq('profiles.school_id', schoolId)
-            .limit(500),
 
         // Teachers below compliance threshold (< 70%)
         supabase
@@ -81,15 +62,40 @@ export async function getSchoolHeadAnalytics(schoolId: string, districtId: strin
             `)
             .eq('profiles.school_id', schoolId)
             .order('user_id')
-            .limit(300)
+            .limit(300),
+
+        // Full teacher/master-teacher roster for this school, so an entity
+        // with zero submissions still shows up (at 0%) instead of being
+        // silently absent from clustering/rankings/at-risk.
+        supabase
+            .from('profiles')
+            .select('id, full_name')
+            .eq('school_id', schoolId)
+            .in('role', ['Teacher', 'Master Teacher']),
+
+        // Active teaching load counts per teacher, for the expected-total
+        // denominator in getPerformanceDistribution
+        supabase
+            .from('teaching_loads')
+            .select('id, user_id, profiles!inner(school_id)')
+            .eq('profiles.school_id', schoolId)
     ]);
+
+    const loadCountByUser = new Map<string, number>();
+    for (const l of (rosterLoads.data || []) as any[]) {
+        loadCountByUser.set(l.user_id, (loadCountByUser.get(l.user_id) || 0) + 1);
+    }
+    const roster = (rosterProfiles.data || []).map((p: any) => ({
+        id: p.id,
+        name: p.full_name,
+        loadCount: loadCountByUser.get(p.id) || 0
+    }));
 
     return {
         complianceTrend: complianceTrend.data || [],
         teacherPerformance: teacherPerformance.data || [],
-        weeklyBreakdown: weeklyBreakdown.data || [],
-        docTypeStats: docTypeStats.data || [],
-        atRiskTeachers: atRiskTeachers.data || []
+        atRiskTeachers: atRiskTeachers.data || [],
+        roster
     };
 }
 
@@ -100,7 +106,7 @@ export async function getSchoolHeadAnalytics(schoolId: string, districtId: strin
 export async function getDistrictSupervisorAnalytics(districtId: string) {
     // See the !inner note in getSchoolHeadAnalytics above — same fix applies
     // here, scoped to district_id instead of school_id.
-    const [complianceTrend, schoolPerformance, teacherDistribution, weeklyBreakdown, docTypeStats, alertData] = await Promise.all([
+    const [complianceTrend, schoolPerformance, teacherDistribution, alertData, rosterProfiles, rosterLoads] = await Promise.all([
         // District compliance trend
         supabase
             .from('submissions')
@@ -127,7 +133,9 @@ export async function getDistrictSupervisorAnalytics(districtId: string) {
             .eq('profiles.district_id', districtId)
             .limit(1000),
 
-        // Teacher performance distribution (for k-means clustering)
+        // Teacher performance distribution (for k-means clustering).
+        // week_number + teaching_load_id are required for
+        // calculateCompliance's slot-dedup — see getPerformanceDistribution.
         supabase
             .from('submissions')
             .select(`
@@ -135,33 +143,12 @@ export async function getDistrictSupervisorAnalytics(districtId: string) {
                 compliance_status,
                 doc_type,
                 created_at,
+                week_number,
+                teaching_load_id,
                 profiles!inner(full_name, district_id, school_id, schools(name))
             `)
             .eq('profiles.district_id', districtId)
             .order('user_id')
-            .limit(500),
-
-        // Weekly submission trends
-        supabase
-            .from('submissions')
-            .select(`
-                week_number,
-                compliance_status,
-                profiles!inner(district_id, schools(name))
-            `)
-            .eq('profiles.district_id', districtId)
-            .order('week_number', { ascending: true })
-            .limit(500),
-
-        // Document type breakdown
-        supabase
-            .from('submissions')
-            .select(`
-                doc_type,
-                compliance_status,
-                profiles!inner(district_id)
-            `)
-            .eq('profiles.district_id', districtId)
             .limit(500),
 
         // Critical alerts
@@ -176,16 +163,41 @@ export async function getDistrictSupervisorAnalytics(districtId: string) {
             .eq('profiles.district_id', districtId)
             .in('compliance_status', ['late', 'missing'])
             .order('created_at', { ascending: false })
-            .limit(100)
+            .limit(100),
+
+        // Full teacher/master-teacher roster across the district, so an
+        // entity with zero submissions still shows up (at 0%) instead of
+        // being silently absent from clustering/rankings/at-risk.
+        supabase
+            .from('profiles')
+            .select('id, full_name')
+            .eq('district_id', districtId)
+            .in('role', ['Teacher', 'Master Teacher']),
+
+        // Active teaching load counts per teacher, for the expected-total
+        // denominator in getPerformanceDistribution
+        supabase
+            .from('teaching_loads')
+            .select('id, user_id, profiles!inner(district_id)')
+            .eq('profiles.district_id', districtId)
     ]);
+
+    const loadCountByUser = new Map<string, number>();
+    for (const l of (rosterLoads.data || []) as any[]) {
+        loadCountByUser.set(l.user_id, (loadCountByUser.get(l.user_id) || 0) + 1);
+    }
+    const roster = (rosterProfiles.data || []).map((p: any) => ({
+        id: p.id,
+        name: p.full_name,
+        loadCount: loadCountByUser.get(p.id) || 0
+    }));
 
     return {
         complianceTrend: complianceTrend.data || [],
         schoolPerformance: schoolPerformance.data || [],
         teacherDistribution: teacherDistribution.data || [],
-        weeklyBreakdown: weeklyBreakdown.data || [],
-        docTypeStats: docTypeStats.data || [],
-        alerts: alertData.data || []
+        alerts: alertData.data || [],
+        roster
     };
 }
 
@@ -253,38 +265,55 @@ export function generateComplianceTrend(submissions: any[], granularity: 'week' 
 
 /**
  * Performance distribution for k-means clustering
- * Calculates compliance rate and submission frequency for each teacher/school
+ * Calculates compliance rate and submission frequency for each teacher/school.
+ *
+ * `roster` + `definedWeeks` give each entity its true expected total
+ * (loadCount * definedWeeks), so the rate is computed the same
+ * capped, expected-total-based way as the rest of the app (via
+ * calculateCompliance) instead of compliant/submitted-only — and an entity
+ * with zero submissions still gets an entry instead of being silently
+ * absent from clustering/rankings/at-risk.
  */
-export function getPerformanceDistribution(submissions: any[], groupBy: 'teacher' | 'school' = 'teacher') {
-    const groupMap = new Map<string, { compliant: number; late: number; missing: number; total: number; submissions: number }>();
+export function getPerformanceDistribution(
+    submissions: any[],
+    groupBy: 'teacher' | 'school' = 'teacher',
+    roster: { id: string; name: string; loadCount: number }[] = [],
+    definedWeeks: number = 0
+) {
+    const idOf = (sub: any) => groupBy === 'teacher' ? sub.user_id : sub.profiles?.school_id;
+    const nameOf = (sub: any) => groupBy === 'teacher' ?
+        (sub.profiles?.full_name || 'Unknown') :
+        (sub.profiles?.schools?.name || 'Unknown');
+
+    const groupMap = new Map<string, { name: string; submissions: any[] }>();
+
+    for (const r of roster) {
+        groupMap.set(r.id, { name: r.name, submissions: [] });
+    }
 
     submissions.forEach(sub => {
-        const key = groupBy === 'teacher' ?
-            (sub.profiles?.full_name || 'Unknown') :
-            (sub.profiles?.schools?.name || 'Unknown');
-
+        const key = idOf(sub) ?? nameOf(sub);
         if (!groupMap.has(key)) {
-            groupMap.set(key, { compliant: 0, late: 0, missing: 0, total: 0, submissions: 0 });
+            groupMap.set(key, { name: nameOf(sub), submissions: [] });
         }
-
-        const stats = groupMap.get(key)!;
-        stats.total += 1;
-        stats.submissions = (stats.submissions || 0) + 1;
-
-        if (sub.compliance_status === 'compliant') stats.compliant += 1;
-        else if (sub.compliance_status === 'late') stats.late += 1;
-        else if (sub.compliance_status === 'missing') stats.missing += 1;
+        groupMap.get(key)!.submissions.push(sub);
     });
 
-    return Array.from(groupMap.entries()).map(([name, stats]) => ({
-        name,
-        compliance_rate: Math.round((stats.compliant / stats.total) * 100),
-        submission_frequency: stats.submissions,
-        compliant: stats.compliant,
-        late: stats.late,
-        missing: stats.missing,
-        total: stats.total
-    }));
+    const expectedById = new Map(roster.map(r => [r.id, r.loadCount * definedWeeks]));
+
+    return Array.from(groupMap.entries()).map(([id, { name, submissions: subs }]) => {
+        const expected = expectedById.get(id) ?? subs.length;
+        const stats = calculateCompliance(subs, expected);
+        return {
+            name,
+            compliance_rate: stats.rate,
+            submission_frequency: subs.length,
+            compliant: stats.Compliant,
+            late: stats.Late,
+            missing: stats.NonCompliant,
+            total: stats.totalUploaded
+        };
+    });
 }
 
 /**
@@ -384,33 +413,6 @@ export function kMeansClusterPerformance(performances: any[], k: number = 3, max
 }
 
 /**
- * Document type breakdown with compliance analysis
- */
-export function getDocumentTypeAnalysis(submissions: any[]) {
-    const typeMap = new Map<string, { compliant: number; late: number; missing: number; total: number }>();
-
-    submissions.forEach(sub => {
-        const docType = sub.doc_type || 'Unknown';
-        if (!typeMap.has(docType)) {
-            typeMap.set(docType, { compliant: 0, late: 0, missing: 0, total: 0 });
-        }
-
-        const stats = typeMap.get(docType)!;
-        stats.total += 1;
-
-        if (sub.compliance_status === 'compliant') stats.compliant += 1;
-        else if (sub.compliance_status === 'late') stats.late += 1;
-        else if (sub.compliance_status === 'missing') stats.missing += 1;
-    });
-
-    return Array.from(typeMap.entries()).map(([type, stats]) => ({
-        type,
-        ...stats,
-        rate: Math.round((stats.compliant / stats.total) * 100)
-    }));
-}
-
-/**
  * Get at-risk entities (below threshold compliance)
  */
 export function getAtRiskEntities(performances: any[], threshold: number = 70) {
@@ -457,27 +459,6 @@ export function forecastCompliance(trend: any[], periods: number = 4) {
     }
 
     return forecast;
-}
-
-/**
- * Weekly submission patterns (identify peak days)
- */
-export function getWeeklyPatterns(submissions: any[]) {
-    const dayMap = new Map<number, number>();
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-    submissions.forEach(sub => {
-        const dayOfWeek = new Date(sub.created_at).getDay();
-        dayMap.set(dayOfWeek, (dayMap.get(dayOfWeek) || 0) + 1);
-    });
-
-    return Array.from(dayMap.entries())
-        .map(([day, count]) => ({
-            day: dayNames[day],
-            submissions: count,
-            percentage: Math.round((count / submissions.length) * 100)
-        }))
-        .sort((a, b) => b.submissions - a.submissions);
 }
 
 /**

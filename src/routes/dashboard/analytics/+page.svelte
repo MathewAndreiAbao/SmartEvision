@@ -3,7 +3,6 @@
     import { supabase } from "$lib/utils/supabase";
     import LineChart from "$lib/components/charts/LineChart.svelte";
     import BarChart from "$lib/components/charts/BarChart.svelte";
-    import DonutChart from "$lib/components/charts/DonutChart.svelte";
     import ScatterPlot from "$lib/components/charts/ScatterPlot.svelte";
     import StatCard from "$lib/components/StatCard.svelte";
     import { onMount, onDestroy } from "svelte";
@@ -13,10 +12,8 @@
         generateComplianceTrend,
         getPerformanceDistribution,
         kMeansClusterPerformance,
-        getDocumentTypeAnalysis,
         getAtRiskEntities,
         forecastCompliance,
-        getWeeklyPatterns,
         getComparisonMetrics
     } from "$lib/utils/analyticsQueries";
     import {
@@ -82,8 +79,6 @@
                     // ISP/ISR aren't part of the weekly DLL cadence these
                     // trend/distribution/cluster metrics measure — excluded
                     // the same way calculateCompliance excludes them.
-                    // docTypeStats (below) is left untouched since that chart
-                    // specifically shows the breakdown across all doc types.
                     const submissions = (analyticsData.complianceTrend || []).filter(
                         (s: any) => isComplianceTrackedDocType(s.doc_type),
                     );
@@ -97,9 +92,7 @@
                     };
 
                     distributions = {
-                        byTeacher: getPerformanceDistribution(teacherData, 'teacher'),
-                        docTypes: getDocumentTypeAnalysis(analyticsData.docTypeStats || []),
-                        weekly: getWeeklyPatterns(submissions)
+                        byTeacher: getPerformanceDistribution(teacherData, 'teacher', analyticsData.roster || [], definedWeeks)
                     };
 
                     clusters = kMeansClusterPerformance(distributions.byTeacher || []);
@@ -182,34 +175,7 @@
             <StatCard label="Teachers" value={distributions?.byTeacher?.length || 0} icon="Users" color="from-gov-blue to-gov-blue-dark" />
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <LineChart data={trends?.compliance || []} title="Compliance Trend" series={['rate']} />
-            <LineChart data={trends?.forecast || []} title="Compliance Forecast" series={['rate']} />
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {#if distributions?.docTypes}
-                <DonutChart
-                    data={distributions.docTypes.map((d: any) => ({
-                        label: d.type,
-                        value: d.total,
-                        color: d.type === 'DLL' ? '#3b82f6' : d.type === 'ISP' ? '#16a34a' : '#d97706'
-                    }))}
-                    title="Document Types"
-                />
-            {/if}
-            {#if distributions?.weekly}
-                <BarChart
-                    data={distributions.weekly.map((w: any) => ({
-                        label: w.day,
-                        value: w.percentage,
-                        color: '#3b82f6'
-                    }))}
-                    title="Submissions by Day"
-                    maxValue={30}
-                />
-            {/if}
-        </div>
+        <LineChart data={trends?.forecast || []} title="Compliance Trend & Forecast" series={['rate']} />
 
         <ScatterPlot data={distributions?.byTeacher || []} title="Performance Distribution (K-means Clustering)" />
 
