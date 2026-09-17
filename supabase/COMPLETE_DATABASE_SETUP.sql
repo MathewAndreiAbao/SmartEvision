@@ -122,12 +122,19 @@ CREATE TABLE IF NOT EXISTS teaching_loads (
 -- 2.3 Curriculum Subjects (MATATAG grade→subject mapping) — read-only reference
 CREATE TABLE IF NOT EXISTS curriculum_subjects (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    grade_level TEXT NOT NULL CHECK (grade_level IN ('Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6')),
+    grade_level TEXT NOT NULL CHECK (grade_level IN ('Kinder','Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6')),
     subject     TEXT NOT NULL,
     sort_order  INTEGER DEFAULT 0,
     created_at  TIMESTAMPTZ DEFAULT now(),
     UNIQUE(grade_level, subject)
 );
+
+-- Widen the check constraint to include 'Kinder' even if this table already
+-- existed from an earlier run of this script (CREATE TABLE IF NOT EXISTS
+-- above is a no-op against an existing table, so this guarantees it either way).
+ALTER TABLE curriculum_subjects DROP CONSTRAINT IF EXISTS curriculum_subjects_grade_level_check;
+ALTER TABLE curriculum_subjects ADD CONSTRAINT curriculum_subjects_grade_level_check
+    CHECK (grade_level IN ('Kinder','Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6'));
 
 -- ────────────────────────────────────────────────────────────────────────────────
 -- PART 3: SUBMISSIONS & REVIEWS
@@ -921,7 +928,17 @@ INSERT INTO schools (id, district_id, name, address) VALUES
     ('e0000000-0000-0000-0000-000000000005', 'd1000000-0000-0000-0000-000000000001', 'Suqui Elementary School',      'Suqui, Calapan City')
 ON CONFLICT (id) DO NOTHING;
 
--- 9.2 Curriculum Subjects (MATATAG Grades 1–6)
+-- 9.2 Curriculum Subjects (MATATAG Kinder, Grades 1–6)
+INSERT INTO curriculum_subjects (grade_level, subject, sort_order) VALUES
+    ('Kinder', 'Language, Literacy and Communication', 1),
+    ('Kinder', 'Mathematics', 2),
+    ('Kinder', 'Physical Health and Motor Development', 3),
+    ('Kinder', 'Social-Emotional Development', 4),
+    ('Kinder', 'Character and Values Development', 5),
+    ('Kinder', 'Understanding of the Physical and Natural Environment', 6),
+    ('Kinder', 'Aesthetic and Creative Development', 7)
+ON CONFLICT DO NOTHING;
+
 INSERT INTO curriculum_subjects (grade_level, subject, sort_order) VALUES
     ('Grade 1', 'Language', 1), ('Grade 1', 'Reading and Literacy', 2),
     ('Grade 1', 'Mathematics', 3), ('Grade 1', 'GMRC', 4), ('Grade 1', 'Makabansa', 5),
@@ -941,51 +958,13 @@ INSERT INTO curriculum_subjects (grade_level, subject, sort_order) VALUES
     ('Grade 6', 'MAPEH', 6), ('Grade 6', 'GMRC', 7), ('Grade 6', 'EPP/TLE', 8)
 ON CONFLICT DO NOTHING;
 
--- 9.3 Academic Calendar — SY 2026-2027 Trimester (Terms 1–3, weeks 1–39)
-INSERT INTO academic_calendar (district_id, school_year, term, week_number, deadline_date, description) VALUES
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 1, 1,  '2026-06-12 17:00:00+08', 'Term 1 Week 1'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 1, 2,  '2026-06-19 17:00:00+08', 'Term 1 Week 2'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 1, 3,  '2026-06-26 17:00:00+08', 'Term 1 Week 3'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 1, 4,  '2026-07-03 17:00:00+08', 'Term 1 Week 4'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 1, 5,  '2026-07-10 17:00:00+08', 'Term 1 Week 5'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 1, 6,  '2026-07-17 17:00:00+08', 'Term 1 Week 6'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 1, 7,  '2026-07-24 17:00:00+08', 'Term 1 Week 7'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 1, 8,  '2026-07-31 17:00:00+08', 'Term 1 Week 8'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 1, 9,  '2026-08-07 17:00:00+08', 'Term 1 Week 9'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 1, 10, '2026-08-14 17:00:00+08', 'Term 1 Week 10'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 1, 11, '2026-08-21 17:00:00+08', 'Term 1 Week 11'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 1, 12, '2026-08-28 17:00:00+08', 'Term 1 Week 12'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 1, 13, '2026-09-04 17:00:00+08', 'Term 1 Week 13 — End of Term 1'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 2, 14, '2026-09-11 17:00:00+08', 'Term 2 Week 14 — Start of Term 2'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 2, 15, '2026-09-18 17:00:00+08', 'Term 2 Week 15'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 2, 16, '2026-09-25 17:00:00+08', 'Term 2 Week 16'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 2, 17, '2026-10-02 17:00:00+08', 'Term 2 Week 17'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 2, 18, '2026-10-09 17:00:00+08', 'Term 2 Week 18'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 2, 19, '2026-10-16 17:00:00+08', 'Term 2 Week 19'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 2, 20, '2026-10-23 17:00:00+08', 'Term 2 Week 20'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 2, 21, '2026-10-30 17:00:00+08', 'Term 2 Week 21'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 2, 22, '2026-11-06 17:00:00+08', 'Term 2 Week 22'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 2, 23, '2026-11-13 17:00:00+08', 'Term 2 Week 23'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 2, 24, '2026-11-20 17:00:00+08', 'Term 2 Week 24'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 2, 25, '2026-11-27 17:00:00+08', 'Term 2 Week 25'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 2, 26, '2026-12-04 17:00:00+08', 'Term 2 Week 26 — End of Term 2'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 3, 27, '2027-01-08 17:00:00+08', 'Term 3 Week 27 — Start of Term 3'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 3, 28, '2027-01-15 17:00:00+08', 'Term 3 Week 28'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 3, 29, '2027-01-22 17:00:00+08', 'Term 3 Week 29'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 3, 30, '2027-01-29 17:00:00+08', 'Term 3 Week 30'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 3, 31, '2027-02-05 17:00:00+08', 'Term 3 Week 31'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 3, 32, '2027-02-12 17:00:00+08', 'Term 3 Week 32'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 3, 33, '2027-02-19 17:00:00+08', 'Term 3 Week 33'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 3, 34, '2027-02-26 17:00:00+08', 'Term 3 Week 34'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 3, 35, '2027-03-05 17:00:00+08', 'Term 3 Week 35'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 3, 36, '2027-03-12 17:00:00+08', 'Term 3 Week 36'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 3, 37, '2027-03-19 17:00:00+08', 'Term 3 Week 37'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 3, 38, '2027-03-26 17:00:00+08', 'Term 3 Week 38'),
-    ('d1000000-0000-0000-0000-000000000001', '2026-2027', 3, 39, '2027-03-31 17:00:00+08', 'Term 3 Week 39 — End of School Year')
-ON CONFLICT DO NOTHING;
-
--- Activate seeded weeks (fresh deployment works immediately)
-UPDATE academic_calendar SET is_active = TRUE WHERE is_active = FALSE;
+-- 9.3 Academic Calendar — intentionally NOT auto-seeded.
+-- A District Supervisor creates each term's weekly deadlines from the app
+-- (Calendar Management), and new weeks start is_active = FALSE ("waiting
+-- state") until a supervisor deliberately activates them. Auto-seeding
+-- sample dates here would create rows for a school year that doesn't match
+-- the real one, and previously also force-activated every existing row
+-- (including ones a supervisor had intentionally left inactive).
 
 -- 9.4 System Settings
 INSERT INTO system_settings (key, value, description) VALUES
